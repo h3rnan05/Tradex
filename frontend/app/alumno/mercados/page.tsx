@@ -34,7 +34,7 @@ type ScreenerTipo = "most_actives" | "day_gainers" | "day_losers";
 const SCREENER_TABS: { key: ScreenerTipo; label: string }[] = [
   { key: "most_actives", label: "Más activos" },
   { key: "day_gainers", label: "Mayores subidas" },
-  { key: "day_losers", label: "Mayores baídas" },
+  { key: "day_losers", label: "Mayores bajadas" },
 ];
 
 function fmtPct(v: number | null): string {

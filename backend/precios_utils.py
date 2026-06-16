@@ -348,30 +348,30 @@ def obtener_earnings_calendar() -> list[dict]:
     return resultados
 
 
+_SECTORES = [
+    {"nombre": "Tecnología", "ticker": "XLK"},
+    {"nombre": "Salud", "ticker": "XLV"},
+    {"nombre": "Financiero", "ticker": "XLF"},
+    {"nombre": "Consumo Discrecional", "ticker": "XLY"},
+    {"nombre": "Consumo Básico", "ticker": "XLP"},
+    {"nombre": "Energía", "ticker": "XLE"},
+    {"nombre": "Industrial", "ticker": "XLI"},
+    {"nombre": "Materiales", "ticker": "XLB"},
+    {"nombre": "Servicios Públicos", "ticker": "XLU"},
+    {"nombre": "Inmobiliario", "ticker": "XLRE"},
+    {"nombre": "Comunicaciones", "ticker": "XLC"},
+]
+
+
 def obtener_sectores() -> list[dict]:
-    headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
-    params = {"formatted": "true", "lang": "en-US", "region": "US"}
-    for host in ("query1", "query2"):
-        url = f"https://{host}.finance.yahoo.com/v1/finance/sector"
+    resultado = []
+    for s in _SECTORES:
         try:
-            resp = httpx.get(url, params=params, headers=headers, timeout=15.0)
-        except httpx.HTTPError:
-            logger.exception("Error de red consultando sectores via %s", host)
-            continue
-        if resp.status_code != 200:
-            logger.warning("sectores status %s via %s", resp.status_code, host)
-            continue
-        items = ((resp.json() or {}).get("sectorPerformance") or {}).get("result") or []
-        if not items:
-            continue
-        return [
-            {
-                "sector": s.get("sector"),
-                "cambio_porcentaje": (s.get("changePercent") or {}).get("raw") if isinstance(s.get("changePercent"), dict) else s.get("changePercent"),
-            }
-            for s in items
-        ]
-    return []
+            _, cambio = _obtener_precio_y_cambio(s["ticker"])
+            resultado.append({"sector": s["nombre"], "cambio_porcentaje": round(cambio, 2)})
+        except HTTPException:
+            resultado.append({"sector": s["nombre"], "cambio_porcentaje": None})
+    return resultado
 
 
 def obtener_screener(tipo: str) -> list[dict]:
