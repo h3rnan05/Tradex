@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from auth_utils import get_current_user, require_maestro
 from database import get_db
+from models.fase_activo import FaseActivo
 from models.grupo import Grupo
 from models.holding import Holding
 from models.membership import Membership
@@ -31,6 +32,11 @@ def crear_grupo(payload: GrupoCreate, db: Session = Depends(get_db), maestro: Us
         comision_porcentaje=payload.comision_porcentaje,
     )
     db.add(grupo)
+    db.flush()
+
+    for fase in payload.fases_activo:
+        db.add(FaseActivo(grupo_id=grupo.id, tipo_activo=fase.tipo_activo, fecha_activacion=fase.fecha_activacion))
+
     db.commit()
     db.refresh(grupo)
     return grupo
@@ -45,7 +51,7 @@ def listar_grupos(db: Session = Depends(get_db), maestro: User = Depends(require
 def detalle_grupo(grupo_id: str, db: Session = Depends(get_db), maestro: User = Depends(require_maestro)):
     grupo = (
         db.query(Grupo)
-        .options(joinedload(Grupo.memberships))
+        .options(joinedload(Grupo.memberships), joinedload(Grupo.fases_activo))
         .filter(Grupo.id == grupo_id, Grupo.maestro_id == maestro.id)
         .first()
     )

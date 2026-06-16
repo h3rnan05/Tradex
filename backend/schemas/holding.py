@@ -31,3 +31,5 @@ class PortafolioOut(BaseModel):
     valor_total: Decimal
     rendimiento: Decimal
     rendimiento_porcentaje: Decimal
+    activos_disponibles: list[str] = []
+    activos_proximos: list[dict] = []

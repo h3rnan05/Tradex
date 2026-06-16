@@ -38,6 +38,7 @@ interface GrupoDetalle {
   activos_permitidos: string[];
   limite_orden_valor: string | null;
   comision_porcentaje: string;
+  fases_activo: { id: string; tipo_activo: string; fecha_activacion: string }[];
   memberships: Membership[];
   holdings: Holding[];
   ordenes: Orden[];
@@ -125,6 +126,18 @@ export default function DetalleGrupoPage() {
             </>
           )}
         </p>
+
+        {grupo.fases_activo.length > 0 && (
+          <p className="mb-6 text-sm text-ink/40">
+            Activación progresiva:{" "}
+            {grupo.fases_activo
+              .map(
+                (f) =>
+                  `${f.tipo_activo} desde el ${new Date(f.fecha_activacion).toLocaleDateString("es-MX")}`
+              )
+              .join(" · ")}
+          </p>
+        )}
 
         {grupo.max_alumnos !== null && grupo.memberships.length >= grupo.max_alumnos ? (
           <p className="mb-8 text-sm text-perdida">

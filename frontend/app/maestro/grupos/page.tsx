@@ -38,6 +38,7 @@ export default function GruposPage() {
   const [activosPermitidos, setActivosPermitidos] = useState<string[]>(["acciones"]);
   const [limiteOrden, setLimiteOrden] = useState("");
   const [comisionPorcentaje, setComisionPorcentaje] = useState("");
+  const [fechasActivacion, setFechasActivacion] = useState<Record<string, string>>({});
   const [guardando, setGuardando] = useState(false);
 
   function alternarActivo(valor: string) {
@@ -76,6 +77,12 @@ export default function GruposPage() {
         activos_permitidos: activosPermitidos,
         limite_orden_valor: limiteOrden || null,
         comision_porcentaje: comisionPorcentaje ? Number(comisionPorcentaje) / 100 : 0,
+        fases_activo: activosPermitidos
+          .filter((tipo) => fechasActivacion[tipo])
+          .map((tipo) => ({
+            tipo_activo: tipo,
+            fecha_activacion: new Date(fechasActivacion[tipo]).toISOString(),
+          })),
       });
       setNombre("");
       setFechaInicio("");
@@ -85,6 +92,7 @@ export default function GruposPage() {
       setActivosPermitidos(["acciones"]);
       setLimiteOrden("");
       setComisionPorcentaje("");
+      setFechasActivacion({});
       setMostrarForm(false);
       await cargarGrupos();
     } catch (err) {
@@ -202,16 +210,32 @@ export default function GruposPage() {
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-ink/70">Tipos de activos permitidos</label>
-              <div className="flex gap-4">
+              <div className="flex flex-col gap-3">
                 {ACTIVOS_DISPONIBLES.map((activo) => (
-                  <label key={activo.value} className="flex items-center gap-2 text-sm text-ink/70">
-                    <input
-                      type="checkbox"
-                      checked={activosPermitidos.includes(activo.value)}
-                      onChange={() => alternarActivo(activo.value)}
-                    />
-                    {activo.label}
-                  </label>
+                  <div key={activo.value} className="flex flex-wrap items-center gap-3">
+                    <label className="flex items-center gap-2 text-sm text-ink/70">
+                      <input
+                        type="checkbox"
+                        checked={activosPermitidos.includes(activo.value)}
+                        onChange={() => alternarActivo(activo.value)}
+                      />
+                      {activo.label}
+                    </label>
+                    {activosPermitidos.includes(activo.value) && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-ink/40">Se desbloquea el:</span>
+                        <input
+                          type="date"
+                          value={fechasActivacion[activo.value] ?? ""}
+                          onChange={(e) =>
+                            setFechasActivacion((prev) => ({ ...prev, [activo.value]: e.target.value }))
+                          }
+                          placeholder="Desde el inicio"
+                          className="rounded-md border border-ink/20 px-2 py-1 text-xs"
+                        />
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
             </div>

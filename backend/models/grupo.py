@@ -25,3 +25,4 @@ class Grupo(Base):
 
     maestro = relationship("User")
     memberships = relationship("Membership", back_populates="grupo", cascade="all, delete-orphan")
+    fases_activo = relationship("FaseActivo", back_populates="grupo", cascade="all, delete-orphan")

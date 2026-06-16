@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from schemas.membership import MembershipOut
 from schemas.holding import HoldingOut
 from schemas.orden import OrdenOut
+from schemas.fase_activo import FaseActivoCreate, FaseActivoOut
 
 
 class GrupoCreate(BaseModel):
@@ -18,6 +19,7 @@ class GrupoCreate(BaseModel):
     activos_permitidos: list[str] = ["acciones"]
     limite_orden_valor: Decimal | None = None
     comision_porcentaje: Decimal = Decimal("0")
+    fases_activo: list[FaseActivoCreate] = []
 
 
 class GrupoOut(BaseModel):
@@ -41,6 +43,7 @@ class GrupoDetalle(GrupoOut):
     memberships: list[MembershipOut] = []
     holdings: list[HoldingOut] = []
     ordenes: list[OrdenOut] = []
+    fases_activo: list[FaseActivoOut] = []
 
 
 class InvitarRequest(BaseModel):

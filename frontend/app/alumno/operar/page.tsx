@@ -34,9 +34,16 @@ interface NoticiasResponse {
   noticias: Noticia[];
 }
 
+interface ActivoProximo {
+  tipo_activo: string;
+  fecha_activacion: string;
+}
+
 interface Portafolio {
   grupo_id: string;
   capital_disponible: string;
+  activos_disponibles: string[];
+  activos_proximos: ActivoProximo[];
 }
 
 interface OrdenResponse {
@@ -58,12 +65,21 @@ export default function OperarPage() {
   const [operando, setOperando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mensaje, setMensaje] = useState<string | null>(null);
+  const [activosProximos, setActivosProximos] = useState<ActivoProximo[]>([]);
 
   useEffect(() => {
     api
       .get<Destacado[]>("/precios/destacados")
       .then(setDestacados)
       .catch(() => {});
+
+    const sesion = obtenerSesion();
+    if (sesion) {
+      api
+        .get<Portafolio>(`/alumnos/${sesion.userId}/portafolio`)
+        .then((p) => setActivosProximos(p.activos_proximos || []))
+        .catch(() => {});
+    }
   }, []);
 
   async function buscar(tickerBuscado: string) {
@@ -136,6 +152,20 @@ export default function OperarPage() {
       <Navbar />
       <div className="mx-auto max-w-5xl p-6">
         <h1 className="mb-6 text-2xl font-bold text-ink">Operar</h1>
+
+        {activosProximos.length > 0 && (
+          <Card className="mb-6 border-accent/30 bg-accent/5">
+            <p className="text-sm text-ink/70">
+              Algunos tipos de activos de tu grupo aún no están disponibles:{" "}
+              {activosProximos
+                .map(
+                  (a) =>
+                    `${a.tipo_activo} (desde el ${new Date(a.fecha_activacion).toLocaleDateString("es-MX")})`
+                )
+                .join(" · ")}
+            </p>
+          </Card>
+        )}
 
         <form onSubmit={buscarPrecio} className="mb-6 flex items-end gap-3 rounded-xl border border-ink/10 bg-white p-4 shadow-sm">
           <div className="flex-1">

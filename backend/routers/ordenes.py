@@ -3,7 +3,8 @@ from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from activos_utils import clasificar_ticker
+from activos_utils import activo_desbloqueado, clasificar_ticker
+from models.fase_activo import FaseActivo
 from auth_utils import require_alumno
 from database import get_db
 from models.grupo import Grupo
@@ -36,10 +37,11 @@ def comprar(payload: OrdenCreate, db: Session = Depends(get_db), alumno: User = 
     ticker = payload.ticker.upper().strip()
 
     tipo_activo = clasificar_ticker(ticker)
-    if tipo_activo not in (grupo.activos_permitidos or []):
+    fases_activo = db.query(FaseActivo).filter(FaseActivo.grupo_id == grupo.id).all()
+    if not activo_desbloqueado(tipo_activo, grupo.activos_permitidos, fases_activo):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Tu grupo no permite operar activos de tipo '{tipo_activo}'",
+            detail=f"Tu grupo no permite operar activos de tipo '{tipo_activo}' todavia",
         )
 
     precio = obtener_precio_actual(ticker)

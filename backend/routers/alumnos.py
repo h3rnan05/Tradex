@@ -3,8 +3,10 @@ from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from activos_utils import separar_activos_por_disponibilidad
 from auth_utils import get_current_user
 from database import get_db
+from models.fase_activo import FaseActivo
 from models.holding import Holding
 from models.membership import Membership
 from models.orden import Orden
@@ -60,6 +62,11 @@ def portafolio(alumno_id: str, db: Session = Depends(get_db), current_user: User
     rendimiento = valor_total - capital_inicial
     rendimiento_porcentaje = (rendimiento / capital_inicial * 100) if capital_inicial else Decimal("0")
 
+    fases_activo = db.query(FaseActivo).filter(FaseActivo.grupo_id == membership.grupo_id).all()
+    activos_disponibles, activos_proximos = separar_activos_por_disponibilidad(
+        membership.grupo.activos_permitidos, fases_activo
+    )
+
     return PortafolioOut(
         grupo_id=membership.grupo_id,
         capital_disponible=membership.capital_disponible,
@@ -68,6 +75,8 @@ def portafolio(alumno_id: str, db: Session = Depends(get_db), current_user: User
         valor_total=valor_total,
         rendimiento=rendimiento,
         rendimiento_porcentaje=rendimiento_porcentaje,
+        activos_disponibles=activos_disponibles,
+        activos_proximos=activos_proximos,
     )
 
 
