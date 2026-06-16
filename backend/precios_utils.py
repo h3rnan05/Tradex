@@ -24,14 +24,11 @@ def _to_unix_ts(d: date, end_of_day: bool = False) -> int:
     return int(t.timestamp())
 
 
-def _consultar_chart(ticker: str, dias: int) -> dict:
-    hoy = datetime.now(timezone.utc).date()
-    inicio = hoy - timedelta(days=dias)
-
+def _consultar_chart_rango(ticker: str, inicio: date, fin: date) -> dict:
     url = f"{YF_BASE_URL}{ticker}"
     params = {
         "period1": str(_to_unix_ts(inicio)),
-        "period2": str(_to_unix_ts(hoy, end_of_day=True)),
+        "period2": str(_to_unix_ts(fin, end_of_day=True)),
         "interval": "1d",
         "events": "history",
         "includeAdjustedClose": "true",
@@ -81,6 +78,12 @@ def _consultar_chart(ticker: str, dias: int) -> dict:
     return resultados[0]
 
 
+def _consultar_chart(ticker: str, dias: int) -> dict:
+    hoy = datetime.now(timezone.utc).date()
+    inicio = hoy - timedelta(days=dias)
+    return _consultar_chart_rango(ticker, inicio, hoy)
+
+
 def obtener_precio_actual(ticker: str) -> Decimal:
     ticker = ticker.upper().strip()
     resultado = _consultar_chart(ticker, dias=7)
@@ -122,6 +125,28 @@ def obtener_historial_precios(ticker: str, dias: int = 30) -> list[dict]:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"No se encontro historial de precios para el ticker {ticker}",
+        )
+    return historial
+
+
+def obtener_historial_precios_rango(ticker: str, fecha_inicio: date, fecha_fin: date) -> list[dict]:
+    ticker = ticker.upper().strip()
+    resultado = _consultar_chart_rango(ticker, fecha_inicio, fecha_fin)
+
+    timestamps = resultado.get("timestamp") or []
+    cierres = ((resultado.get("indicators") or {}).get("quote") or [{}])[0].get("close") or []
+
+    historial = []
+    for ts, cierre in zip(timestamps, cierres):
+        if cierre is None:
+            continue
+        fecha = datetime.fromtimestamp(int(ts), tz=timezone.utc).date()
+        historial.append({"fecha": fecha.isoformat(), "precio": Decimal(str(cierre))})
+
+    if not historial:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No se encontro historial de precios para el ticker {ticker} en ese periodo",
         )
     return historial
 
