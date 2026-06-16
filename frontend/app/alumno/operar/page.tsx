@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import IndicatorChart from "@/components/IndicatorChart";
 import MercadosMundo from "@/components/MercadosMundo";
+import TopMovers from "@/components/TopMovers";
 import { Badge, Card } from "@/components/primitives";
 import { api, ApiError } from "@/lib/api";
 import { obtenerSesion } from "@/lib/auth";
@@ -272,7 +273,7 @@ function OperarPageInterna() {
           {/* Columna central: precio, gráfico, orden */}
           <div className="lg:col-span-6">
             {!precio ? (
-              <MercadosMundo />
+              <TopMovers destacados={destacados} onSeleccionar={buscar} />
             ) : (
               <Card>
                 <div className="mb-4 flex items-start justify-between">
@@ -427,6 +428,10 @@ function OperarPageInterna() {
                 </ul>
               )}
             </Card>
+
+            <div className="mt-4">
+              <MercadosMundo compacto />
+            </div>
           </div>
         </div>
       </div>

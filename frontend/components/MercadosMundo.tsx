@@ -17,7 +17,7 @@ interface PuntoMercado {
   horaLocal: string;
 }
 
-export default function MercadosMundo() {
+export default function MercadosMundo({ compacto = false }: { compacto?: boolean }) {
   const contenedorRef = useRef<HTMLDivElement>(null);
   const globoRef = useRef<any>(null);
   const [ahora, setAhora] = useState<Date | null>(null);
@@ -33,13 +33,13 @@ export default function MercadosMundo() {
     function medir() {
       if (contenedorRef.current) {
         const ancho = contenedorRef.current.clientWidth;
-        setTamano({ ancho, alto: Math.max(ancho, 320) });
+        setTamano({ ancho, alto: compacto ? Math.min(ancho, 240) : Math.max(ancho, 320) });
       }
     }
     medir();
     window.addEventListener("resize", medir);
     return () => window.removeEventListener("resize", medir);
-  }, []);
+  }, [compacto]);
 
   useEffect(() => {
     if (globoRef.current) {
@@ -67,7 +67,11 @@ export default function MercadosMundo() {
   }, [ahora]);
 
   return (
-    <div className="flex h-full min-h-[300px] flex-col rounded-none border border-fg/20 bg-canvas p-3">
+    <div
+      className={`flex h-full flex-col rounded-none border border-fg/20 bg-canvas p-3 ${
+        compacto ? "min-h-[260px]" : "min-h-[300px]"
+      }`}
+    >
       <p className="mb-2 font-mono text-[11px] font-semibold uppercase tracking-widest text-fg/40">
         Mercados globales en vivo
       </p>
@@ -123,7 +127,7 @@ export default function MercadosMundo() {
       </div>
 
       <p className="mt-2 text-center font-mono text-[10px] text-fg/30">
-        Arrastra el globo para explorar · puntos verdes = abierto · busca un ticker arriba para ver su cotización.
+        Arrastra el globo para explorar · puntos verdes = abierto
       </p>
     </div>
   );
