@@ -313,11 +313,29 @@ def obtener_precios_indices() -> list[dict]:
 
 
 _EARNINGS_WATCHLIST = [
-    "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "JPM",
-    "V", "MA", "NFLX", "AMD", "INTC", "DIS", "BA", "KO", "PEP",
-    "JNJ", "UNH", "PG", "HD", "COST", "SBUX", "MCD", "ADBE",
-    "CRM", "ORCL", "IBM", "QCOM", "TXN", "AMAT", "MU", "WMT",
-    "BAC", "GS", "MS", "C", "WFC", "PYPL", "SQ", "SNAP", "UBER",
+    # Mega-cap tech
+    "AAPL", "MSFT", "GOOGL", "GOOG", "AMZN", "NVDA", "META", "TSLA",
+    # Semiconductors
+    "AMD", "INTC", "QCOM", "TXN", "AMAT", "MU", "LRCX", "KLAC", "MRVL", "AVGO",
+    # Software / Cloud
+    "ADBE", "CRM", "ORCL", "IBM", "NOW", "WDAY", "SNOW", "PANW", "CRWD", "ZS",
+    # Financials
+    "JPM", "BAC", "GS", "MS", "C", "WFC", "V", "MA", "AXP", "BLK",
+    # Consumer / Retail
+    "WMT", "COST", "HD", "TGT", "NKE", "SBUX", "MCD", "YUM", "DG", "DLTR",
+    # Health
+    "JNJ", "UNH", "PFE", "ABBV", "MRK", "LLY", "CVS", "BMY", "AMGN", "GILD",
+    # Industrial / Energy
+    "BA", "CAT", "HON", "GE", "MMM", "XOM", "CVX", "COP", "SLB", "HAL",
+    # Telecom / Media
+    "NFLX", "DIS", "CMCSA", "T", "VZ", "CHTR", "PARA", "WBD",
+    # Consumer staples
+    "KO", "PEP", "PG", "CL", "KHC", "GIS", "CPB", "K",
+    # Others
+    "PYPL", "SQ", "UBER", "LYFT", "AIRB", "ABNB", "BKNG", "EXPE",
+    "FDX", "UPS", "DAL", "AAL", "UAL", "LUV",
+    "SNAP", "PINS", "TWTR", "RBLX", "U", "MTCH",
+    "F", "GM", "RIVN", "LCID",
 ]
 
 
@@ -360,7 +378,7 @@ def _fetch_earnings_ticker(ticker: str, crumb: str, cookies: dict, hoy, fin) -> 
 
 def obtener_earnings_calendar() -> list[dict]:
     hoy = datetime.now(timezone.utc).date()
-    fin = hoy + timedelta(days=14)
+    fin = hoy + timedelta(days=45)
     crumb, cookies = _obtener_crumb_yf()
     resultados = []
     with ThreadPoolExecutor(max_workers=10) as executor:
