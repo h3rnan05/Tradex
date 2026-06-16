@@ -313,38 +313,50 @@ def obtener_precios_indices() -> list[dict]:
 
 def obtener_earnings_calendar() -> list[dict]:
     hoy = datetime.now(timezone.utc).date()
+    crumb, cookies = _obtener_crumb_yf()
     headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
     resultados = []
     for i in range(7):
         fecha = hoy + timedelta(days=i)
-        url = "https://query1.finance.yahoo.com/v1/finance/calendar/earnings"
         params = {"date": fecha.isoformat(), "size": "10", "offset": "0"}
-        try:
-            resp = httpx.get(url, params=params, headers=headers, timeout=15.0)
-        except httpx.HTTPError:
-            logger.exception("Error de red consultando earnings calendar para %s", fecha)
-            continue
-        if resp.status_code != 200:
-            logger.warning("earnings calendar status %s para %s", resp.status_code, fecha)
-            continue
-        datos = (resp.json() or {}).get("earnings") or {}
-        items = datos.get("result") or []
-        for item in items:
-            momento_raw = item.get("startdatetimetype", "")
-            if momento_raw == "BMO":
-                momento = "Antes apertura"
-            elif momento_raw == "AMC":
-                momento = "Después cierre"
-            else:
-                momento = "No definido"
-            resultados.append({
-                "fecha": fecha.isoformat(),
-                "ticker": item.get("ticker"),
-                "empresa": item.get("companyshortName"),
-                "momento": momento,
-                "eps_estimado": item.get("epsestimate"),
-                "eps_actual": item.get("epsactual"),
-            })
+        if crumb:
+            params["crumb"] = crumb
+        fetched = False
+        for host in ("query1", "query2"):
+            url = f"https://{host}.finance.yahoo.com/v1/finance/calendar/earnings"
+            try:
+                resp = httpx.get(url, params=params, headers=headers, cookies=cookies, timeout=15.0)
+            except httpx.HTTPError:
+                continue
+            if resp.status_code == 401:
+                global _yf_crumb, _yf_cookies
+                _yf_crumb = None
+                _yf_cookies = {}
+                break
+            if resp.status_code != 200:
+                continue
+            datos = (resp.json() or {}).get("earnings") or {}
+            items = datos.get("result") or []
+            for item in items:
+                momento_raw = item.get("startdatetimetype", "")
+                if momento_raw == "BMO":
+                    momento = "Antes apertura"
+                elif momento_raw == "AMC":
+                    momento = "Después cierre"
+                else:
+                    momento = "No definido"
+                resultados.append({
+                    "fecha": fecha.isoformat(),
+                    "ticker": item.get("ticker"),
+                    "empresa": item.get("companyshortName"),
+                    "momento": momento,
+                    "eps_estimado": item.get("epsestimate"),
+                    "eps_actual": item.get("epsactual"),
+                })
+            fetched = True
+            break
+        if not fetched:
+            logger.warning("earnings calendar: no se pudo obtener datos para %s", fecha)
     return resultados
 
 

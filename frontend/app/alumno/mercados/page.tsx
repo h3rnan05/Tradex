@@ -64,13 +64,25 @@ function fmtCap(v: number | null): string {
   return `$${v.toLocaleString()}`;
 }
 
-function sectorColor(pct: number | null): string {
-  if (pct == null) return "bg-fg/10 text-fg/50";
-  if (pct > 2) return "bg-ganancia text-white";
-  if (pct > 0) return "bg-ganancia/50 text-white";
-  if (pct < -2) return "bg-perdida text-white";
-  if (pct < 0) return "bg-perdida/50 text-white";
-  return "bg-fg/10 text-fg";
+function sectorBg(pct: number | null): string {
+  if (pct == null) return "bg-fg/10";
+  if (pct >= 3) return "bg-[#0a5c2e]";
+  if (pct >= 1.5) return "bg-[#0d7a3c]";
+  if (pct >= 0.5) return "bg-[#1a9950]";
+  if (pct > 0) return "bg-[#2db86a]";
+  if (pct === 0) return "bg-fg/10";
+  if (pct > -0.5) return "bg-[#c0392b]";
+  if (pct > -1.5) return "bg-[#a93226]";
+  if (pct > -3) return "bg-[#8e1f1a]";
+  return "bg-[#6b1212]";
+}
+
+function sectorSize(pct: number | null): string {
+  const abs = Math.abs(pct ?? 0);
+  if (abs >= 3) return "py-8 text-base";
+  if (abs >= 1.5) return "py-6 text-sm";
+  if (abs >= 0.5) return "py-5 text-sm";
+  return "py-4 text-xs";
 }
 
 export default function MercadosPage() {
@@ -128,18 +140,18 @@ export default function MercadosPage() {
             <Tooltip texto="Muestra el rendimiento de cada sector del mercado hoy. Útil para identificar qué industrias están liderando o rezagadas." />
           </p>
           {cargandoSectores ? (
-            <p className="rounded-none border border-fg/10 bg-panel p-4 text-sm text-fg/40">Cargando sectores...</p>
+            <p className="border border-fg/10 bg-panel p-4 text-sm text-fg/40">Cargando sectores...</p>
           ) : sectores.length === 0 ? (
-            <p className="rounded-none border border-fg/10 bg-panel p-4 text-sm text-fg/40">No se pudieron cargar los sectores.</p>
+            <p className="border border-fg/10 bg-panel p-4 text-sm text-fg/40">No se pudieron cargar los sectores.</p>
           ) : (
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+            <div className="grid grid-cols-3 gap-px bg-fg/10 border border-fg/10 sm:grid-cols-4 lg:grid-cols-6" style={{gridAutoRows: "1fr"}}>
               {sectores.map((s) => (
                 <div
                   key={s.sector}
-                  className={`flex flex-col items-center justify-center rounded-none px-3 py-4 text-center ${sectorColor(s.cambio_porcentaje)}`}
+                  className={`flex flex-col items-center justify-center px-2 text-center text-white cursor-default select-none ${sectorBg(s.cambio_porcentaje)} ${sectorSize(s.cambio_porcentaje)}`}
                 >
-                  <span className="text-xs font-semibold leading-tight">{s.sector}</span>
-                  <span className="mt-1 font-mono text-sm font-bold tabular-nums">
+                  <span className="font-mono text-[10px] font-semibold uppercase tracking-wide leading-tight opacity-90">{s.sector}</span>
+                  <span className="mt-1 font-mono font-bold tabular-nums">
                     {fmtPct(s.cambio_porcentaje)}
                   </span>
                 </div>
