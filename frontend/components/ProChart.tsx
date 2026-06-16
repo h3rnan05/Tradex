@@ -35,6 +35,12 @@ interface Noticia {
   fecha: string | null;
 }
 
+interface Destacado {
+  ticker: string;
+  precio: string;
+  cambio_porcentaje: number;
+}
+
 const RANGOS: { label: string; dias: number }[] = [
   { label: "5D", dias: 5 },
   { label: "1M", dias: 30 },
@@ -49,7 +55,21 @@ const COLOR_FONDO = "#faf6ed";
 const COLOR_TEXTO = "rgba(26,14,0,0.55)";
 const COLOR_GRID = "rgba(26,14,0,0.06)";
 
-export default function ProChart({ ticker, noticias = [] }: { ticker: string; noticias?: Noticia[] }) {
+export default function ProChart({
+  ticker,
+  noticias = [],
+  precio,
+  cambioPorcentaje,
+  destacados = [],
+  onSeleccionarTicker,
+}: {
+  ticker: string;
+  noticias?: Noticia[];
+  precio?: string | null;
+  cambioPorcentaje?: number | null;
+  destacados?: Destacado[];
+  onSeleccionarTicker?: (ticker: string) => void;
+}) {
   const contenedorRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const serieVelasRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
@@ -65,10 +85,23 @@ export default function ProChart({ ticker, noticias = [] }: { ticker: string; no
   const [datos, setDatos] = useState<PuntoHistorial[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [indicadoresActivos, setIndicadoresActivos] = useState<string[]>(["sma5"]);
+  const [menuIndicadoresAbierto, setMenuIndicadoresAbierto] = useState(false);
+  const menuIndicadoresRef = useRef<HTMLDivElement>(null);
 
   function alternarIndicador(key: string) {
     setIndicadoresActivos((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
   }
+
+  useEffect(() => {
+    if (!menuIndicadoresAbierto) return;
+    function alClicAfuera(e: MouseEvent) {
+      if (menuIndicadoresRef.current && !menuIndicadoresRef.current.contains(e.target as Node)) {
+        setMenuIndicadoresAbierto(false);
+      }
+    }
+    document.addEventListener("mousedown", alClicAfuera);
+    return () => document.removeEventListener("mousedown", alClicAfuera);
+  }, [menuIndicadoresAbierto]);
 
   useEffect(() => {
     if (!ticker) return;
@@ -256,80 +289,161 @@ export default function ProChart({ ticker, noticias = [] }: { ticker: string; no
     chart.timeScale().fitContent();
   }, [datos, tipo, indicadoresActivos, pantallaCompleta]);
 
+  const subiendo = (cambioPorcentaje ?? 0) >= 0;
+  const indicadoresActivosInfo = INDICADORES_DISPONIBLES.filter((i) => indicadoresActivos.includes(i.key));
+
   return (
     <div
       className={
         pantallaCompleta
-          ? "fixed inset-0 z-50 flex bg-canvas p-4"
-          : "rounded-sm border border-fg/10 bg-canvas p-3 shadow-sm"
+          ? "fixed inset-0 z-50 flex bg-canvas"
+          : "rounded-md border border-fg/10 bg-canvas shadow-sm"
       }
     >
-      <div className="flex min-w-0 flex-1 flex-col">
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex gap-1">
-            {RANGOS.map((r) => (
+      {pantallaCompleta && (
+        <div className="hidden w-56 shrink-0 flex-col overflow-y-auto border-r border-fg/10 lg:flex">
+          <p className="border-b border-fg/10 px-3 py-2.5 font-mono text-[11px] uppercase tracking-widest text-fg/40">
+            Watchlist
+          </p>
+          {destacados.map((d) => {
+            const sube = d.cambio_porcentaje >= 0;
+            const activo = ticker === d.ticker;
+            return (
               <button
-                key={r.label}
-                onClick={() => setDias(r.dias)}
-                className={`rounded-none border px-2.5 py-1 font-mono text-[11px] font-semibold uppercase tracking-wide transition ${
-                  dias === r.dias
+                key={d.ticker}
+                onClick={() => onSeleccionarTicker?.(d.ticker)}
+                className={`flex items-center justify-between border-b border-fg/5 px-3 py-2 text-left ${
+                  activo ? "bg-accent/10" : "hover:bg-fg/5"
+                }`}
+              >
+                <span className="font-mono text-xs font-bold text-fg">{d.ticker}</span>
+                <span
+                  className={`font-mono text-[11px] font-semibold tabular-nums ${
+                    sube ? "text-ganancia" : "text-perdida"
+                  }`}
+                >
+                  {sube ? "▲" : "▼"} {d.cambio_porcentaje.toFixed(2)}%
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="flex min-w-0 flex-1 flex-col p-3">
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-3 border-b border-fg/10 pb-2">
+          <div className="flex items-baseline gap-2">
+            <p className="font-mono text-sm font-bold tracking-wide text-fg">{ticker.toUpperCase()}</p>
+            {precio && (
+              <p className="font-mono text-lg font-bold tabular-nums text-fg">${Number(precio).toFixed(2)}</p>
+            )}
+            {cambioPorcentaje != null && (
+              <span
+                className={`rounded-sm px-1.5 py-0.5 font-mono text-[11px] font-semibold tabular-nums ${
+                  subiendo ? "bg-ganancia/10 text-ganancia" : "bg-perdida/10 text-perdida"
+                }`}
+              >
+                {subiendo ? "▲" : "▼"} {subiendo ? "+" : ""}
+                {cambioPorcentaje.toFixed(2)}%
+              </span>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex gap-0.5 rounded-md border border-fg/15 p-0.5">
+              {RANGOS.map((r) => (
+                <button
+                  key={r.label}
+                  onClick={() => setDias(r.dias)}
+                  className={`rounded-sm px-2 py-1 font-mono text-[11px] font-semibold uppercase tracking-wide transition ${
+                    dias === r.dias ? "bg-accent text-white" : "text-fg/50 hover:bg-fg/5"
+                  }`}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex gap-0.5 rounded-md border border-fg/15 p-0.5">
+              <button
+                onClick={() => setTipo("area")}
+                className={`rounded-sm px-2 py-1 font-mono text-[11px] font-semibold uppercase tracking-wide transition ${
+                  tipo === "area" ? "bg-accent text-white" : "text-fg/50 hover:bg-fg/5"
+                }`}
+              >
+                Línea
+              </button>
+              <button
+                onClick={() => setTipo("velas")}
+                className={`rounded-sm px-2 py-1 font-mono text-[11px] font-semibold uppercase tracking-wide transition ${
+                  tipo === "velas" ? "bg-accent text-white" : "text-fg/50 hover:bg-fg/5"
+                }`}
+              >
+                Velas
+              </button>
+            </div>
+
+            <div ref={menuIndicadoresRef} className="relative">
+              <button
+                onClick={() => setMenuIndicadoresAbierto((v) => !v)}
+                className={`rounded-md border px-2.5 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-wide transition ${
+                  menuIndicadoresAbierto || indicadoresActivos.length > 0
                     ? "border-accent bg-accent/10 text-accent"
                     : "border-fg/15 text-fg/50 hover:bg-fg/5"
                 }`}
               >
-                {r.label}
+                Indicadores {indicadoresActivos.length > 0 ? `(${indicadoresActivos.length})` : ""} ▾
               </button>
-            ))}
-          </div>
-          <div className="flex gap-1">
-            <button
-              onClick={() => setTipo("area")}
-              className={`rounded-none border px-2.5 py-1 font-mono text-[11px] font-semibold uppercase tracking-wide transition ${
-                tipo === "area" ? "border-accent bg-accent/10 text-accent" : "border-fg/15 text-fg/50 hover:bg-fg/5"
-              }`}
-            >
-              Línea
-            </button>
-            <button
-              onClick={() => setTipo("velas")}
-              className={`rounded-none border px-2.5 py-1 font-mono text-[11px] font-semibold uppercase tracking-wide transition ${
-                tipo === "velas" ? "border-accent bg-accent/10 text-accent" : "border-fg/15 text-fg/50 hover:bg-fg/5"
-              }`}
-            >
-              Velas
-            </button>
+              {menuIndicadoresAbierto && (
+                <div className="absolute right-0 top-full z-10 mt-1 w-56 rounded-md border border-fg/15 bg-panel p-2 shadow-lg">
+                  {INDICADORES_DISPONIBLES.map((ind) => (
+                    <label
+                      key={ind.key}
+                      className="flex cursor-pointer items-center justify-between gap-2 rounded-sm px-2 py-1.5 hover:bg-fg/5"
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: ind.color }} />
+                        <span className="text-xs font-medium text-fg">{ind.label}</span>
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={indicadoresActivos.includes(ind.key)}
+                        onChange={() => alternarIndicador(ind.key)}
+                      />
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <button
               onClick={() => setPantallaCompleta((v) => !v)}
-              className="rounded-none border border-fg/15 px-2.5 py-1 font-mono text-[11px] font-semibold uppercase tracking-wide text-fg/50 transition hover:bg-fg/5"
+              className="rounded-md border border-fg/15 px-2.5 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-wide text-fg/50 transition hover:bg-fg/5"
             >
               {pantallaCompleta ? "Cerrar ✕" : "Pantalla completa ⛶"}
             </button>
           </div>
         </div>
 
+        {indicadoresActivosInfo.length > 0 && (
+          <div className="mb-2 flex flex-wrap gap-3">
+            {indicadoresActivosInfo.map((ind) => (
+              <span key={ind.key} className="flex items-center gap-1.5 font-mono text-[10px] text-fg/50">
+                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: ind.color }} />
+                {ind.label}
+              </span>
+            ))}
+          </div>
+        )}
+
         {cargando && <p className="text-sm text-fg/40">Cargando gráfica...</p>}
         {error && <p className="text-sm text-perdida">{error}</p>}
 
-        <div ref={contenedorRef} className={pantallaCompleta ? "min-h-0 flex-1" : "h-[420px] w-full"} />
-
-        <div className="mt-2 flex flex-wrap gap-3 border-t border-fg/10 pt-2">
-          {INDICADORES_DISPONIBLES.map((ind) => (
-            <label key={ind.key} className="flex items-center gap-1.5 text-xs">
-              <input
-                type="checkbox"
-                checked={indicadoresActivos.includes(ind.key)}
-                onChange={() => alternarIndicador(ind.key)}
-              />
-              <span className="font-mono font-medium" style={{ color: ind.color }}>
-                {ind.label}
-              </span>
-            </label>
-          ))}
-        </div>
+        <div ref={contenedorRef} className={pantallaCompleta ? "min-h-0 flex-1" : "h-[440px] w-full"} />
       </div>
 
       {pantallaCompleta && (
-        <div className="ml-4 hidden w-80 shrink-0 overflow-y-auto border-l border-fg/10 pl-4 lg:block">
+        <div className="hidden w-80 shrink-0 overflow-y-auto border-l border-fg/10 p-4 lg:block">
           <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">Noticias · {ticker}</p>
           <div className="flex flex-col gap-3">
             {noticias.map((n, i) => (

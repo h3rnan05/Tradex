@@ -313,7 +313,14 @@ function OperarPageInterna() {
 
                 {historial.length > 0 && (
                   <div className="mb-4">
-                    <ProChart ticker={ticker} noticias={noticias} />
+                    <ProChart
+                      ticker={ticker}
+                      noticias={noticias}
+                      precio={precio}
+                      cambioPorcentaje={cambioPorcentaje}
+                      destacados={destacados}
+                      onSeleccionarTicker={buscar}
+                    />
                   </div>
                 )}
 
