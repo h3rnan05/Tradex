@@ -8,9 +8,11 @@ import {
   HistogramSeries,
   IChartApi,
   ISeriesApi,
+  LineSeries,
   createChart,
 } from "lightweight-charts";
 import { api } from "@/lib/api";
+import { INDICADORES_DISPONIBLES, calcularRSI, calcularSMA } from "@/lib/indicadores";
 
 interface PuntoHistorial {
   fecha: string;
@@ -53,6 +55,8 @@ export default function ProChart({ ticker, noticias = [] }: { ticker: string; no
   const serieVelasRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const serieAreaRef = useRef<ISeriesApi<"Area"> | null>(null);
   const serieVolumenRef = useRef<ISeriesApi<"Histogram"> | null>(null);
+  const seriesSmaRef = useRef<Record<string, ISeriesApi<"Line">>>({});
+  const serieRsiRef = useRef<ISeriesApi<"Line"> | null>(null);
 
   const [dias, setDias] = useState(30);
   const [tipo, setTipo] = useState<"area" | "velas">("area");
@@ -60,6 +64,11 @@ export default function ProChart({ ticker, noticias = [] }: { ticker: string; no
   const [cargando, setCargando] = useState(false);
   const [datos, setDatos] = useState<PuntoHistorial[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [indicadoresActivos, setIndicadoresActivos] = useState<string[]>(["sma5"]);
+
+  function alternarIndicador(key: string) {
+    setIndicadoresActivos((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
+  }
 
   useEffect(() => {
     if (!ticker) return;
@@ -116,6 +125,8 @@ export default function ProChart({ ticker, noticias = [] }: { ticker: string; no
       serieVelasRef.current = null;
       serieAreaRef.current = null;
       serieVolumenRef.current = null;
+      seriesSmaRef.current = {};
+      serieRsiRef.current = null;
     };
   }, [pantallaCompleta]);
 
@@ -134,6 +145,12 @@ export default function ProChart({ ticker, noticias = [] }: { ticker: string; no
     if (serieVolumenRef.current) {
       chart.removeSeries(serieVolumenRef.current);
       serieVolumenRef.current = null;
+    }
+    Object.values(seriesSmaRef.current).forEach((s) => chart.removeSeries(s));
+    seriesSmaRef.current = {};
+    if (serieRsiRef.current) {
+      chart.removeSeries(serieRsiRef.current);
+      serieRsiRef.current = null;
     }
 
     const ultimoCierre = Number(datos[datos.length - 1].precio);
@@ -187,8 +204,47 @@ export default function ProChart({ ticker, noticias = [] }: { ticker: string; no
       serieVolumenRef.current = serieVol;
     }
 
+    const precios = datos.map((d) => Number(d.precio));
+    const periodos: Record<string, number> = { sma5: 5, sma10: 10, sma20: 20 };
+    for (const [key, periodo] of Object.entries(periodos)) {
+      if (!indicadoresActivos.includes(key)) continue;
+      const valores = calcularSMA(precios, periodo);
+      const color = INDICADORES_DISPONIBLES.find((i) => i.key === key)?.color ?? "#888";
+      const serieSma = chart.addSeries(LineSeries, {
+        color,
+        lineWidth: 1,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false,
+      });
+      serieSma.setData(
+        datos
+          .map((d, i) => ({ time: d.fecha, value: valores[i] }))
+          .filter((p): p is { time: string; value: number } => p.value !== null)
+      );
+      seriesSmaRef.current[key] = serieSma;
+    }
+
+    if (indicadoresActivos.includes("rsi")) {
+      const valoresRsi = calcularRSI(precios, 14);
+      if (chart.panes().length < 2) chart.addPane();
+      const serieRsi = chart.addSeries(
+        LineSeries,
+        { color: "#cc1a1a", lineWidth: 2 },
+        1
+      );
+      serieRsi.setData(
+        datos
+          .map((d, i) => ({ time: d.fecha, value: valoresRsi[i] }))
+          .filter((p): p is { time: string; value: number } => p.value !== null)
+      );
+      serieRsi.createPriceLine({ price: 70, color: "rgba(204,26,26,0.5)", lineStyle: 2, lineWidth: 1, axisLabelVisible: true, title: "70" });
+      serieRsi.createPriceLine({ price: 30, color: "rgba(0,122,46,0.5)", lineStyle: 2, lineWidth: 1, axisLabelVisible: true, title: "30" });
+      serieRsiRef.current = serieRsi;
+    }
+
     chart.timeScale().fitContent();
-  }, [datos, tipo]);
+  }, [datos, tipo, indicadoresActivos, pantallaCompleta]);
 
   return (
     <div
@@ -245,6 +301,21 @@ export default function ProChart({ ticker, noticias = [] }: { ticker: string; no
         {error && <p className="text-sm text-perdida">{error}</p>}
 
         <div ref={contenedorRef} className={pantallaCompleta ? "min-h-0 flex-1" : "h-[420px] w-full"} />
+
+        <div className="mt-2 flex flex-wrap gap-3 border-t border-fg/10 pt-2">
+          {INDICADORES_DISPONIBLES.map((ind) => (
+            <label key={ind.key} className="flex items-center gap-1.5 text-xs">
+              <input
+                type="checkbox"
+                checked={indicadoresActivos.includes(ind.key)}
+                onChange={() => alternarIndicador(ind.key)}
+              />
+              <span className="font-mono font-medium" style={{ color: ind.color }}>
+                {ind.label}
+              </span>
+            </label>
+          ))}
+        </div>
       </div>
 
       {pantallaCompleta && (

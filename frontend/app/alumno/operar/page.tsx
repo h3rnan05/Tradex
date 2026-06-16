@@ -9,7 +9,6 @@ import TopMovers from "@/components/TopMovers";
 import { Badge, Card } from "@/components/primitives";
 import { api, ApiError } from "@/lib/api";
 import { obtenerSesion } from "@/lib/auth";
-import { INDICADORES_DISPONIBLES } from "@/lib/indicadores";
 
 interface PrecioResponse {
   ticker: string;
@@ -89,11 +88,6 @@ function OperarPageInterna() {
   const [error, setError] = useState<string | null>(null);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [activosProximos, setActivosProximos] = useState<ActivoProximo[]>([]);
-  const [indicadoresActivos, setIndicadoresActivos] = useState<string[]>(["sma5"]);
-
-  function alternarIndicador(key: string) {
-    setIndicadoresActivos((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
-  }
 
   useEffect(() => {
     api
@@ -323,31 +317,6 @@ function OperarPageInterna() {
                   </div>
                 )}
 
-                {historial.length > 0 && (
-                  <div className="mb-6 rounded-none border border-fg/10 bg-canvas p-3">
-                    <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">
-                      Indicadores técnicos
-                    </p>
-                    <div className="flex flex-col gap-2">
-                      {INDICADORES_DISPONIBLES.map((ind) => (
-                        <label key={ind.key} className="flex items-start gap-2 text-sm">
-                          <input
-                            type="checkbox"
-                            className="mt-0.5"
-                            checked={indicadoresActivos.includes(ind.key)}
-                            onChange={() => alternarIndicador(ind.key)}
-                          />
-                          <span>
-                            <span className="font-mono font-medium text-fg" style={{ color: ind.color }}>
-                              {ind.label}
-                            </span>
-                            <span className="block text-xs text-fg/50">{ind.hint}</span>
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                )}
 
                 <div className="rounded-none border border-fg/10 bg-canvas p-4">
                   <p className="mb-3 font-mono text-[11px] uppercase tracking-widest text-fg/40">
