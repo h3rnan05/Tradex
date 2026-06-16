@@ -25,8 +25,8 @@ interface PuntoPrecio {
 function TooltipPrecio({ active, payload, label }: any) {
   if (!active || !payload || payload.length === 0) return null;
   return (
-    <div className="border border-white/15 bg-[#1c2230] px-3 py-2 font-mono text-xs shadow-lg">
-      <p className="mb-1 text-white/50">{label}</p>
+    <div className="border border-fg/20 bg-panel px-3 py-2 font-mono text-xs shadow-lg">
+      <p className="mb-1 text-fg/50">{label}</p>
       {payload.map((p: any) => (
         <p key={p.dataKey} style={{ color: p.color }}>
           {p.name}: ${Number(p.value).toFixed(2)}
@@ -40,7 +40,7 @@ function crearPuntoFinal(colorLinea: string, ultimoIndice: number) {
   return function PuntoFinalRenderer(props: any) {
     const { cx, cy, index } = props;
     if (index !== ultimoIndice) return null;
-    return <circle key="punto-final" cx={cx} cy={cy} r={4} fill={colorLinea} stroke="#0d1117" strokeWidth={2} />;
+    return <circle key="punto-final" cx={cx} cy={cy} r={4} fill={colorLinea} stroke="#faf6ed" strokeWidth={2} />;
   };
 }
 
@@ -84,7 +84,7 @@ export default function IndicatorChart({
 
   return (
     <div>
-      <div className="rounded-none bg-[#0d1117] p-3">
+      <div className="rounded-none bg-canvas p-3">
         <ResponsiveContainer width="100%" height={280}>
           <AreaChart data={datos} margin={{ top: 12, right: 56, left: 0, bottom: 0 }}>
             <defs>
@@ -93,17 +93,17 @@ export default function IndicatorChart({
                 <stop offset="100%" stopColor={colorLinea} stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(26,14,0,0.08)" vertical={false} />
             <XAxis
               dataKey="fecha"
-              tick={{ fontSize: 10, fill: "rgba(255,255,255,0.4)" }}
+              tick={{ fontSize: 10, fill: "rgba(26,14,0,0.45)" }}
               minTickGap={50}
-              axisLine={{ stroke: "rgba(255,255,255,0.15)" }}
+              axisLine={{ stroke: "rgba(26,14,0,0.15)" }}
               tickLine={false}
             />
             <YAxis
               domain={[min - margen, max + margen]}
-              tick={{ fontSize: 10, fill: "rgba(255,255,255,0.4)" }}
+              tick={{ fontSize: 10, fill: "rgba(26,14,0,0.45)" }}
               tickFormatter={(v) => `$${v.toFixed(0)}`}
               orientation="right"
               width={52}
@@ -112,12 +112,12 @@ export default function IndicatorChart({
             />
             <ReferenceLine
               y={precioApertura}
-              stroke="rgba(255,255,255,0.5)"
+              stroke="rgba(26,14,0,0.4)"
               strokeDasharray="3 3"
               label={{
                 value: `$${precioApertura.toFixed(2)}`,
                 position: "insideTopLeft",
-                fill: "rgba(255,255,255,0.6)",
+                fill: "rgba(26,14,0,0.55)",
                 fontSize: 10,
               }}
             />
@@ -130,7 +130,7 @@ export default function IndicatorChart({
               strokeWidth={2}
               fill="url(#precioGradiente)"
               dot={crearPuntoFinal(colorLinea, datos.length - 1) as any}
-              activeDot={{ r: 4, fill: colorLinea, stroke: "#0d1117", strokeWidth: 2 }}
+              activeDot={{ r: 4, fill: colorLinea, stroke: "#faf6ed", strokeWidth: 2 }}
               isAnimationActive={false}
             />
             {indicadoresActivos.includes("sma5") && (
