@@ -5,10 +5,13 @@ from decimal import Decimal
 import httpx
 from fastapi import HTTPException, status
 
+from config import settings
+
 logger = logging.getLogger(__name__)
 
 YF_BASE_URL = "https://query1.finance.yahoo.com/v8/finance/chart/"
 YF_SEARCH_URL = "https://query1.finance.yahoo.com/v1/finance/search"
+EODHD_EOD_URL = "https://eodhd.com/api/eod/"
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
@@ -118,6 +121,33 @@ def _obtener_precio_y_cambio(ticker: str) -> tuple[Decimal, float]:
     return Decimal(str(precio)), cambio_porcentaje
 
 
+def _consultar_volumenes_eodhd(ticker: str, inicio: date, fin: date) -> dict[str, int]:
+    if not settings.eodhd_api_key:
+        return {}
+    simbolo = ticker if "." in ticker else f"{ticker}.US"
+    params = {
+        "api_token": settings.eodhd_api_key,
+        "fmt": "json",
+        "period": "d",
+        "from": inicio.isoformat(),
+        "to": fin.isoformat(),
+    }
+    try:
+        resp = httpx.get(f"{EODHD_EOD_URL}{simbolo}", params=params, timeout=15.0)
+    except httpx.HTTPError:
+        logger.exception("Error de red consultando volumen EODHD para %s", ticker)
+        return {}
+
+    if resp.status_code != 200:
+        logger.warning("EODHD status %s para %s", resp.status_code, ticker)
+        return {}
+
+    datos = resp.json()
+    if not isinstance(datos, list):
+        return {}
+    return {d["date"]: d.get("volume") for d in datos if d.get("date") and d.get("volume") is not None}
+
+
 def obtener_historial_precios(ticker: str, dias: int = 30) -> list[dict]:
     ticker = ticker.upper().strip()
     resultado = _consultar_chart(ticker, dias=dias)
@@ -150,6 +180,13 @@ def obtener_historial_precios(ticker: str, dias: int = 30) -> list[dict]:
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"No se encontro historial de precios para el ticker {ticker}",
         )
+
+    volumenes = _consultar_volumenes_eodhd(
+        ticker, date.fromisoformat(historial[0]["fecha"]), date.fromisoformat(historial[-1]["fecha"])
+    )
+    for item in historial:
+        item["volumen"] = volumenes.get(item["fecha"])
+
     return historial
 
 

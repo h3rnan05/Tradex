@@ -3,6 +3,8 @@
 import {
   Area,
   AreaChart,
+  Bar,
+  BarChart,
   CartesianGrid,
   Line,
   LineChart,
@@ -20,6 +22,7 @@ interface PuntoPrecio {
   apertura?: string | null;
   maximo?: string | null;
   minimo?: string | null;
+  volumen?: number | null;
 }
 
 function TooltipPrecio({ active, payload, label }: any) {
@@ -69,7 +72,10 @@ export default function IndicatorChart({
     sma5: indicadoresActivos.includes("sma5") ? sma5[i] : null,
     sma10: indicadoresActivos.includes("sma10") ? sma10[i] : null,
     sma20: indicadoresActivos.includes("sma20") ? sma20[i] : null,
+    volumen: p.volumen ?? null,
   }));
+
+  const hayVolumen = historial.some((p) => p.volumen !== null && p.volumen !== undefined);
 
   const precioApertura = precios[0];
   const precioActual = precios[precios.length - 1];
@@ -171,6 +177,30 @@ export default function IndicatorChart({
             )}
           </AreaChart>
         </ResponsiveContainer>
+
+        {hayVolumen && (
+          <div className="-mt-2">
+            <ResponsiveContainer width="100%" height={50}>
+              <BarChart data={datos} margin={{ top: 0, right: 56, left: 0, bottom: 0 }}>
+                <XAxis dataKey="fecha" hide />
+                <YAxis hide domain={[0, "auto"]} />
+                <Tooltip
+                  content={({ active, payload, label }: any) => {
+                    if (!active || !payload || payload.length === 0) return null;
+                    return (
+                      <div className="border border-fg/20 bg-panel px-3 py-2 font-mono text-xs shadow-lg">
+                        <p className="text-fg/50">{label}</p>
+                        <p className="text-fg/70">Vol: {Number(payload[0].value).toLocaleString("en-US")}</p>
+                      </div>
+                    );
+                  }}
+                />
+                <Bar dataKey="volumen" fill={colorLinea} opacity={0.35} isAnimationActive={false} />
+              </BarChart>
+            </ResponsiveContainer>
+            <p className="text-center font-mono text-[10px] uppercase tracking-widest text-fg/30">Volumen</p>
+          </div>
+        )}
       </div>
 
       {datosRsi && (

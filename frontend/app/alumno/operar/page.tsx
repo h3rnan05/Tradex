@@ -22,6 +22,7 @@ interface PuntoHistorial {
   apertura: string | null;
   maximo: string | null;
   minimo: string | null;
+  volumen: number | null;
 }
 
 interface HistorialResponse {
