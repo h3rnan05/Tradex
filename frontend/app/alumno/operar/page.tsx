@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import IndicatorChart from "@/components/IndicatorChart";
 import { Badge, Card } from "@/components/primitives";
@@ -13,9 +14,17 @@ interface PrecioResponse {
   precio: string;
 }
 
+interface PuntoHistorial {
+  fecha: string;
+  precio: string;
+  apertura: string | null;
+  maximo: string | null;
+  minimo: string | null;
+}
+
 interface HistorialResponse {
   ticker: string;
-  historial: { fecha: string; precio: string }[];
+  historial: PuntoHistorial[];
 }
 
 interface Destacado {
@@ -57,9 +66,18 @@ interface OrdenResponse {
 }
 
 export default function OperarPage() {
+  return (
+    <Suspense fallback={null}>
+      <OperarPageInterna />
+    </Suspense>
+  );
+}
+
+function OperarPageInterna() {
+  const searchParams = useSearchParams();
   const [ticker, setTicker] = useState("");
   const [precio, setPrecio] = useState<string | null>(null);
-  const [historial, setHistorial] = useState<{ fecha: string; precio: string }[]>([]);
+  const [historial, setHistorial] = useState<PuntoHistorial[]>([]);
   const [noticias, setNoticias] = useState<Noticia[]>([]);
   const [destacados, setDestacados] = useState<Destacado[]>([]);
   const [cantidad, setCantidad] = useState("1");
@@ -88,6 +106,12 @@ export default function OperarPage() {
         .catch(() => {});
     }
   }, []);
+
+  useEffect(() => {
+    const tickerUrl = searchParams.get("t");
+    if (tickerUrl) buscar(tickerUrl);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   async function buscar(tickerBuscado: string) {
     setError(null);
@@ -158,8 +182,10 @@ export default function OperarPage() {
   const precioNum = precio ? Number(precio) : null;
   const cambioPorcentaje =
     precioNum !== null && precioInicial ? ((precioNum - precioInicial) / precioInicial) * 100 : null;
-  const maximo = historial.length > 0 ? Math.max(...historial.map((h) => Number(h.precio))) : null;
-  const minimo = historial.length > 0 ? Math.min(...historial.map((h) => Number(h.precio))) : null;
+  const maximo =
+    historial.length > 0 ? Math.max(...historial.map((h) => Number(h.maximo ?? h.precio))) : null;
+  const minimo =
+    historial.length > 0 ? Math.min(...historial.map((h) => Number(h.minimo ?? h.precio))) : null;
   const subiendo = (cambioPorcentaje ?? 0) >= 0;
 
   return (

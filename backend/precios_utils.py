@@ -123,14 +123,27 @@ def obtener_historial_precios(ticker: str, dias: int = 30) -> list[dict]:
     resultado = _consultar_chart(ticker, dias=dias)
 
     timestamps = resultado.get("timestamp") or []
-    cierres = ((resultado.get("indicators") or {}).get("quote") or [{}])[0].get("close") or []
+    cotizacion = ((resultado.get("indicators") or {}).get("quote") or [{}])[0]
+    cierres = cotizacion.get("close") or []
+    aperturas = cotizacion.get("open") or []
+    maximos = cotizacion.get("high") or []
+    minimos = cotizacion.get("low") or []
 
     historial = []
-    for ts, cierre in zip(timestamps, cierres):
+    for i, (ts, cierre) in enumerate(zip(timestamps, cierres)):
         if cierre is None:
             continue
         fecha = datetime.fromtimestamp(int(ts), tz=timezone.utc).date()
-        historial.append({"fecha": fecha.isoformat(), "precio": Decimal(str(cierre))})
+        apertura = aperturas[i] if i < len(aperturas) else None
+        maximo = maximos[i] if i < len(maximos) else None
+        minimo = minimos[i] if i < len(minimos) else None
+        historial.append({
+            "fecha": fecha.isoformat(),
+            "precio": Decimal(str(cierre)),
+            "apertura": Decimal(str(apertura)) if apertura is not None else None,
+            "maximo": Decimal(str(maximo)) if maximo is not None else None,
+            "minimo": Decimal(str(minimo)) if minimo is not None else None,
+        })
 
     if not historial:
         raise HTTPException(

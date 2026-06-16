@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cerrarSesion, obtenerSesion } from "@/lib/auth";
@@ -8,10 +9,19 @@ export default function Navbar() {
   const router = useRouter();
   const pathname = usePathname();
   const sesion = obtenerSesion();
+  const [comando, setComando] = useState("");
 
   function salir() {
     cerrarSesion();
     router.push("/login");
+  }
+
+  function ejecutarComando(e: React.FormEvent) {
+    e.preventDefault();
+    const ticker = comando.trim().toUpperCase();
+    if (!ticker) return;
+    router.push(`/alumno/operar?t=${encodeURIComponent(ticker)}`);
+    setComando("");
   }
 
   const enlaces =
@@ -37,7 +47,7 @@ export default function Navbar() {
         {sesion && (
           <>
             <span className="mx-3 hidden h-4 w-px bg-fg/20 md:block" aria-hidden />
-            <nav className="hidden flex-1 items-center md:flex">
+            <nav className="hidden items-center md:flex">
               {enlaces.map((enlace) => {
                 const activo = pathname?.startsWith(enlace.href);
                 return (
@@ -54,6 +64,26 @@ export default function Navbar() {
               })}
             </nav>
           </>
+        )}
+
+        {sesion && sesion.rol === "alumno" && (
+          <form onSubmit={ejecutarComando} className="ml-4 hidden flex-1 items-center justify-center md:flex">
+            <div className="flex w-full max-w-xs items-center border border-fg/20 bg-panel">
+              <span className="px-2 font-mono text-[11px] text-fg/40">$</span>
+              <input
+                value={comando}
+                onChange={(e) => setComando(e.target.value)}
+                placeholder="AAPL <GO>"
+                className="w-full bg-transparent py-1.5 font-mono text-[12px] uppercase tracking-wide text-fg outline-none placeholder:text-fg/30"
+              />
+              <button
+                type="submit"
+                className="shrink-0 bg-accent px-2 py-1.5 font-mono text-[10px] font-bold uppercase text-black"
+              >
+                Go
+              </button>
+            </div>
+          </form>
         )}
 
         {sesion && (
