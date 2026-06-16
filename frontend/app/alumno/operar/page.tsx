@@ -98,26 +98,26 @@ export default function OperarPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50">
+    <main className="min-h-screen bg-canvas">
       <Navbar />
       <div className="mx-auto max-w-2xl p-6">
-        <h1 className="mb-6 text-2xl font-bold text-slate-900">Operar</h1>
+        <h1 className="mb-6 text-2xl font-bold text-ink">Operar</h1>
 
-        <form onSubmit={buscarPrecio} className="mb-6 flex items-end gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <form onSubmit={buscarPrecio} className="mb-6 flex items-end gap-3 rounded-xl border border-ink/10 bg-white p-4 shadow-sm">
           <div className="flex-1">
-            <label className="mb-1 block text-sm font-medium text-slate-700">Ticker</label>
+            <label className="mb-1 block text-sm font-medium text-ink/70">Ticker</label>
             <input
               required
               value={ticker}
               onChange={(e) => setTicker(e.target.value)}
               placeholder="AAPL"
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm uppercase"
+              className="w-full rounded-md border border-ink/20 px-3 py-2 text-sm uppercase"
             />
           </div>
           <button
             type="submit"
             disabled={buscando}
-            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
+            className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-ink/80 disabled:opacity-50"
           >
             {buscando ? "Buscando..." : "Buscar"}
           </button>
@@ -125,8 +125,8 @@ export default function OperarPage() {
 
         {precio && (
           <Card className="mb-6">
-            <p className="text-sm text-slate-500">Precio actual de {ticker.toUpperCase()}</p>
-            <p className="mb-4 text-3xl font-bold text-slate-900">${Number(precio).toFixed(2)}</p>
+            <p className="text-sm text-ink/40">Precio actual de {ticker.toUpperCase()}</p>
+            <p className="mb-4 text-3xl font-bold text-ink">${Number(precio).toFixed(2)}</p>
 
             {historial.length > 0 && (
               <div className="mb-4">
@@ -134,17 +134,17 @@ export default function OperarPage() {
               </div>
             )}
 
-            <label className="mb-1 block text-sm font-medium text-slate-700">Cantidad</label>
+            <label className="mb-1 block text-sm font-medium text-ink/70">Cantidad</label>
             <input
               type="number"
               min="0.0001"
               step="0.0001"
               value={cantidad}
               onChange={(e) => setCantidad(e.target.value)}
-              className="mb-4 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+              className="mb-4 w-full rounded-md border border-ink/20 px-3 py-2 text-sm"
             />
 
-            <p className="mb-4 text-sm text-slate-500">
+            <p className="mb-4 text-sm text-ink/40">
               Total estimado: ${(Number(precio) * Number(cantidad || 0)).toFixed(2)}
             </p>
 

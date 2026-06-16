@@ -67,14 +67,14 @@ export default function GruposPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50">
+    <main className="min-h-screen bg-canvas">
       <Navbar />
       <div className="mx-auto max-w-4xl p-6">
         <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-slate-900">Mis grupos</h1>
+          <h1 className="text-2xl font-bold text-ink">Mis grupos</h1>
           <button
             onClick={() => setMostrarForm(!mostrarForm)}
-            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
+            className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-ink/80"
           >
             {mostrarForm ? "Cancelar" : "Crear grupo"}
           </button>
@@ -83,41 +83,41 @@ export default function GruposPage() {
         {mostrarForm && (
           <form
             onSubmit={crearGrupo}
-            className="mb-6 flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-6"
+            className="mb-6 flex flex-col gap-4 rounded-lg border border-ink/10 bg-white p-6"
           >
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Nombre del grupo</label>
+              <label className="mb-1 block text-sm font-medium text-ink/70">Nombre del grupo</label>
               <input
                 required
                 value={nombre}
                 onChange={(e) => setNombre(e.target.value)}
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                className="w-full rounded-md border border-ink/20 px-3 py-2 text-sm"
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Fecha inicio</label>
+                <label className="mb-1 block text-sm font-medium text-ink/70">Fecha inicio</label>
                 <input
                   type="date"
                   required
                   value={fechaInicio}
                   onChange={(e) => setFechaInicio(e.target.value)}
-                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                  className="w-full rounded-md border border-ink/20 px-3 py-2 text-sm"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Fecha fin</label>
+                <label className="mb-1 block text-sm font-medium text-ink/70">Fecha fin</label>
                 <input
                   type="date"
                   required
                   value={fechaFin}
                   onChange={(e) => setFechaFin(e.target.value)}
-                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                  className="w-full rounded-md border border-ink/20 px-3 py-2 text-sm"
                 />
               </div>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Capital inicial</label>
+              <label className="mb-1 block text-sm font-medium text-ink/70">Capital inicial</label>
               <input
                 type="number"
                 min="0"
@@ -125,13 +125,13 @@ export default function GruposPage() {
                 required
                 value={capitalInicial}
                 onChange={(e) => setCapitalInicial(e.target.value)}
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                className="w-full rounded-md border border-ink/20 px-3 py-2 text-sm"
               />
             </div>
             <button
               type="submit"
               disabled={guardando}
-              className="self-start rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
+              className="self-start rounded-md bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-ink/80 disabled:opacity-50"
             >
               {guardando ? "Creando..." : "Guardar grupo"}
             </button>
@@ -141,13 +141,13 @@ export default function GruposPage() {
         {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
 
         {cargando ? (
-          <p className="text-slate-500">Cargando grupos...</p>
+          <p className="text-ink/40">Cargando grupos...</p>
         ) : grupos.length === 0 ? (
-          <p className="text-slate-500">Todavía no has creado ningún grupo.</p>
+          <p className="text-ink/40">Todavía no has creado ningún grupo.</p>
         ) : (
-          <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+          <div className="overflow-hidden rounded-lg border border-ink/10 bg-white">
             <table className="w-full text-sm">
-              <thead className="bg-slate-100 text-left text-slate-600">
+              <thead className="bg-ink/5 text-left text-ink/60">
                 <tr>
                   <th className="px-4 py-3">Nombre</th>
                   <th className="px-4 py-3">Inicio</th>
@@ -158,13 +158,13 @@ export default function GruposPage() {
               </thead>
               <tbody>
                 {grupos.map((g) => (
-                  <tr key={g.id} className="border-t border-slate-100">
-                    <td className="px-4 py-3 font-medium text-slate-900">{g.nombre}</td>
+                  <tr key={g.id} className="border-t border-ink/5">
+                    <td className="px-4 py-3 font-medium text-ink">{g.nombre}</td>
                     <td className="px-4 py-3">{new Date(g.fecha_inicio).toLocaleDateString("es-MX")}</td>
                     <td className="px-4 py-3">{new Date(g.fecha_fin).toLocaleDateString("es-MX")}</td>
                     <td className="px-4 py-3">${Number(g.capital_inicial).toLocaleString("es-MX")}</td>
                     <td className="px-4 py-3 text-right">
-                      <Link href={`/maestro/grupos/${g.id}`} className="text-slate-700 underline hover:text-slate-900">
+                      <Link href={`/maestro/grupos/${g.id}`} className="text-ink/70 underline hover:text-ink">
                         Ver detalle
                       </Link>
                     </td>

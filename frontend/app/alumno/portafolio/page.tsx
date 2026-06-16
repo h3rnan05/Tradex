@@ -49,15 +49,15 @@ export default function PortafolioPage() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-slate-50">
+    <main className="min-h-screen bg-canvas">
       <Navbar />
       <div className="mx-auto max-w-4xl p-6">
-        <h1 className="mb-6 text-2xl font-bold text-slate-900">Mi portafolio</h1>
+        <h1 className="mb-6 text-2xl font-bold text-ink">Mi portafolio</h1>
 
         {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
 
         {!portafolio ? (
-          <p className="text-slate-500">Cargando...</p>
+          <p className="text-ink/40">Cargando...</p>
         ) : (
           <>
             <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -70,10 +70,10 @@ export default function PortafolioPage() {
               />
             </div>
 
-            <h2 className="mb-3 text-lg font-semibold text-slate-900">Posiciones</h2>
+            <h2 className="mb-3 text-lg font-semibold text-ink">Posiciones</h2>
             <Card className="overflow-hidden p-0">
               <table className="w-full text-sm">
-                <thead className="bg-slate-100 text-left text-slate-600">
+                <thead className="bg-ink/5 text-left text-ink/60">
                   <tr>
                     <th className="px-4 py-3">Ticker</th>
                     <th className="px-4 py-3">Cantidad</th>
@@ -84,8 +84,8 @@ export default function PortafolioPage() {
                 </thead>
                 <tbody>
                   {portafolio.holdings.map((h) => (
-                    <tr key={h.id} className="border-t border-slate-100">
-                      <td className="px-4 py-3 font-medium text-slate-900">{h.ticker}</td>
+                    <tr key={h.id} className="border-t border-ink/5">
+                      <td className="px-4 py-3 font-medium text-ink">{h.ticker}</td>
                       <td className="px-4 py-3">{h.cantidad}</td>
                       <td className="px-4 py-3">{formatoMoneda(h.precio_promedio)}</td>
                       <td className="px-4 py-3">{formatoMoneda(h.precio_actual)}</td>
@@ -100,7 +100,7 @@ export default function PortafolioPage() {
                   ))}
                   {portafolio.holdings.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="px-4 py-3 text-slate-500">
+                      <td colSpan={5} className="px-4 py-3 text-ink/40">
                         Aún no tienes posiciones abiertas.
                       </td>
                     </tr>

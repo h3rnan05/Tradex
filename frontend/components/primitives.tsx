@@ -8,7 +8,7 @@ export function Card({
   className?: string;
 }) {
   return (
-    <div className={`rounded-xl border border-slate-200 bg-white p-5 shadow-sm ${className}`}>
+    <div className={`rounded-xl border border-ink/10 bg-white p-5 ${className}`}>
       {children}
     </div>
   );
@@ -19,15 +19,18 @@ export function Badge({
   tone = "neutral",
 }: {
   children: ReactNode;
-  tone?: "neutral" | "ganancia" | "perdida";
+  tone?: "neutral" | "ganancia" | "perdida" | "accent";
 }) {
   const tonos: Record<string, string> = {
-    neutral: "bg-slate-100 text-slate-700",
+    neutral: "bg-ink/5 text-ink/70",
     ganancia: "bg-emerald-50 text-ganancia",
     perdida: "bg-red-50 text-perdida",
+    accent: "bg-accent/10 text-accent",
   };
   return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${tonos[tone]}`}>
+    <span
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 font-mono text-xs font-semibold uppercase tracking-wide ${tonos[tone]}`}
+    >
       {children}
     </span>
   );
@@ -36,21 +39,25 @@ export function Badge({
 export function StatTile({
   label,
   value,
+  detail,
   tone = "neutral",
 }: {
   label: string;
   value: string;
-  tone?: "neutral" | "ganancia" | "perdida";
+  detail?: string;
+  tone?: "neutral" | "ganancia" | "perdida" | "accent";
 }) {
   const colores: Record<string, string> = {
-    neutral: "text-slate-900",
+    neutral: "text-ink",
     ganancia: "text-ganancia",
     perdida: "text-perdida",
+    accent: "text-accent",
   };
   return (
     <Card>
-      <p className="text-sm text-slate-500">{label}</p>
-      <p className={`mt-1 text-2xl font-bold ${colores[tone]}`}>{value}</p>
+      <p className="font-mono text-[11px] uppercase tracking-widest text-ink/40">{label}</p>
+      <p className={`mt-2 font-mono text-2xl font-bold tabular-nums ${colores[tone]}`}>{value}</p>
+      {detail && <p className="mt-1 text-xs text-ink/40">{detail}</p>}
     </Card>
   );
 }

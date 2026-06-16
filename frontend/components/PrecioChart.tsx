@@ -5,7 +5,7 @@ interface PuntoPrecio {
 
 export default function PrecioChart({ historial }: { historial: PuntoPrecio[] }) {
   if (historial.length < 2) {
-    return <p className="text-sm text-slate-500">No hay suficiente historial para graficar.</p>;
+    return <p className="text-sm text-ink/40">No hay suficiente historial para graficar.</p>;
   }
 
   const precios = historial.map((p) => Number(p.precio));
@@ -36,7 +36,7 @@ export default function PrecioChart({ historial }: { historial: PuntoPrecio[] })
           strokeWidth={2}
         />
       </svg>
-      <div className="mt-1 flex justify-between text-xs text-slate-400">
+      <div className="mt-1 flex justify-between text-xs text-ink/30">
         <span>{historial[0].fecha}</span>
         <span>{historial[historial.length - 1].fecha}</span>
       </div>

@@ -35,19 +35,19 @@ export default function RankingPage() {
   const sesion = obtenerSesion();
 
   return (
-    <main className="min-h-screen bg-slate-50">
+    <main className="min-h-screen bg-canvas">
       <Navbar />
       <div className="mx-auto max-w-3xl p-6">
-        <h1 className="mb-6 text-2xl font-bold text-slate-900">Ranking del grupo</h1>
+        <h1 className="mb-6 text-2xl font-bold text-ink">Ranking del grupo</h1>
 
         {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
 
         {!ranking ? (
-          <p className="text-slate-500">Cargando...</p>
+          <p className="text-ink/40">Cargando...</p>
         ) : (
           <Card className="overflow-hidden p-0">
             <table className="w-full text-sm">
-              <thead className="bg-slate-100 text-left text-slate-600">
+              <thead className="bg-ink/5 text-left text-ink/60">
                 <tr>
                   <th className="px-4 py-3">#</th>
                   <th className="px-4 py-3">Alumno</th>
@@ -59,12 +59,12 @@ export default function RankingPage() {
                 {ranking.map((entrada, i) => (
                   <tr
                     key={entrada.alumno_id}
-                    className={`border-t border-slate-100 ${
-                      entrada.alumno_id === sesion?.userId ? "bg-slate-50 font-medium" : ""
+                    className={`border-t border-ink/5 ${
+                      entrada.alumno_id === sesion?.userId ? "bg-canvas font-medium" : ""
                     }`}
                   >
-                    <td className="px-4 py-3 text-slate-500">{i + 1}</td>
-                    <td className="px-4 py-3 text-slate-900">{entrada.nombre}</td>
+                    <td className="px-4 py-3 text-ink/40">{i + 1}</td>
+                    <td className="px-4 py-3 text-ink">{entrada.nombre}</td>
                     <td className="px-4 py-3">{formatoMoneda(entrada.valor_total)}</td>
                     <td
                       className={`px-4 py-3 ${

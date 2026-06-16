@@ -10,6 +10,13 @@ const config: Config = {
       colors: {
         ganancia: "#16a34a",
         perdida: "#dc2626",
+        canvas: "#f3efe5",
+        ink: "#14161b",
+        panel: "#1d2026",
+        accent: "#e8722c",
+      },
+      fontFamily: {
+        mono: ["var(--font-mono)", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
       },
     },
   },

@@ -47,57 +47,57 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-50 p-6">
-      <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h1 className="mb-1 text-2xl font-bold text-slate-900">Tradex</h1>
-        <p className="mb-6 text-sm text-slate-500">
+    <main className="flex min-h-screen items-center justify-center bg-canvas p-6">
+      <div className="w-full max-w-sm rounded-xl border border-ink/10 bg-white p-8 shadow-sm">
+        <h1 className="mb-1 text-2xl font-bold text-ink">Tradex</h1>
+        <p className="mb-6 text-sm text-ink/40">
           {modo === "login" ? "Inicia sesión en tu cuenta" : "Crea una nueva cuenta"}
         </p>
 
         <form onSubmit={manejarSubmit} className="flex flex-col gap-4">
           {modo === "registro" && (
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Nombre</label>
+              <label className="mb-1 block text-sm font-medium text-ink/70">Nombre</label>
               <input
                 type="text"
                 required
                 value={nombre}
                 onChange={(e) => setNombre(e.target.value)}
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                className="w-full rounded-md border border-ink/20 px-3 py-2 text-sm"
               />
             </div>
           )}
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Correo</label>
+            <label className="mb-1 block text-sm font-medium text-ink/70">Correo</label>
             <input
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-md border border-ink/20 px-3 py-2 text-sm"
             />
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Contraseña</label>
+            <label className="mb-1 block text-sm font-medium text-ink/70">Contraseña</label>
             <input
               type="password"
               required
               minLength={6}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-md border border-ink/20 px-3 py-2 text-sm"
             />
           </div>
 
           {modo === "registro" && (
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Rol</label>
+              <label className="mb-1 block text-sm font-medium text-ink/70">Rol</label>
               <select
                 value={rol}
                 onChange={(e) => setRol(e.target.value as "maestro" | "alumno")}
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                className="w-full rounded-md border border-ink/20 px-3 py-2 text-sm"
               >
                 <option value="alumno">Alumno</option>
                 <option value="maestro">Maestro</option>
@@ -110,7 +110,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={cargando}
-            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
+            className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-ink/80 disabled:opacity-50"
           >
             {cargando ? "Cargando..." : modo === "login" ? "Iniciar sesión" : "Registrarme"}
           </button>
@@ -118,7 +118,7 @@ export default function LoginPage() {
 
         <button
           onClick={() => setModo(modo === "login" ? "registro" : "login")}
-          className="mt-4 w-full text-center text-sm text-slate-500 hover:text-slate-700"
+          className="mt-4 w-full text-center text-sm text-ink/40 hover:text-ink/70"
         >
           {modo === "login" ? "¿No tienes cuenta? Regístrate" : "¿Ya tienes cuenta? Inicia sesión"}
         </button>

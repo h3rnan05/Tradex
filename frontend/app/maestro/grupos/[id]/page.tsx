@@ -75,7 +75,7 @@ export default function DetalleGrupoPage() {
 
   if (error) {
     return (
-      <main className="min-h-screen bg-slate-50">
+      <main className="min-h-screen bg-canvas">
         <Navbar />
         <p className="p-6 text-red-600">{error}</p>
       </main>
@@ -84,9 +84,9 @@ export default function DetalleGrupoPage() {
 
   if (!grupo) {
     return (
-      <main className="min-h-screen bg-slate-50">
+      <main className="min-h-screen bg-canvas">
         <Navbar />
-        <p className="p-6 text-slate-500">Cargando...</p>
+        <p className="p-6 text-ink/40">Cargando...</p>
       </main>
     );
   }
@@ -95,17 +95,17 @@ export default function DetalleGrupoPage() {
     grupo.holdings.filter((h) => h.alumno_id === alumnoId && Number(h.cantidad) > 0);
 
   return (
-    <main className="min-h-screen bg-slate-50">
+    <main className="min-h-screen bg-canvas">
       <Navbar />
       <div className="mx-auto max-w-5xl p-6">
-        <h1 className="mb-1 text-2xl font-bold text-slate-900">{grupo.nombre}</h1>
-        <p className="mb-6 text-sm text-slate-500">
+        <h1 className="mb-1 text-2xl font-bold text-ink">{grupo.nombre}</h1>
+        <p className="mb-6 text-sm text-ink/40">
           Capital inicial: ${Number(grupo.capital_inicial).toLocaleString("es-MX")}
         </p>
 
-        <form onSubmit={invitarAlumno} className="mb-8 flex items-end gap-3 rounded-lg border border-slate-200 bg-white p-4">
+        <form onSubmit={invitarAlumno} className="mb-8 flex items-end gap-3 rounded-lg border border-ink/10 bg-white p-4">
           <div className="flex-1">
-            <label className="mb-1 block text-sm font-medium text-slate-700">
+            <label className="mb-1 block text-sm font-medium text-ink/70">
               Correo del alumno a invitar
             </label>
             <input
@@ -113,22 +113,22 @@ export default function DetalleGrupoPage() {
               required
               value={emailInvitar}
               onChange={(e) => setEmailInvitar(e.target.value)}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-md border border-ink/20 px-3 py-2 text-sm"
             />
           </div>
           <button
             type="submit"
-            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
+            className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-ink/80"
           >
             Invitar
           </button>
         </form>
-        {mensajeInvitar && <p className="mb-6 text-sm text-slate-600">{mensajeInvitar}</p>}
+        {mensajeInvitar && <p className="mb-6 text-sm text-ink/60">{mensajeInvitar}</p>}
 
-        <h2 className="mb-3 text-lg font-semibold text-slate-900">Alumnos</h2>
-        <div className="mb-8 overflow-hidden rounded-lg border border-slate-200 bg-white">
+        <h2 className="mb-3 text-lg font-semibold text-ink">Alumnos</h2>
+        <div className="mb-8 overflow-hidden rounded-lg border border-ink/10 bg-white">
           <table className="w-full text-sm">
-            <thead className="bg-slate-100 text-left text-slate-600">
+            <thead className="bg-ink/5 text-left text-ink/60">
               <tr>
                 <th className="px-4 py-3">Alumno</th>
                 <th className="px-4 py-3">Capital disponible</th>
@@ -137,15 +137,15 @@ export default function DetalleGrupoPage() {
             </thead>
             <tbody>
               {grupo.memberships.map((m) => (
-                <tr key={m.id} className="border-t border-slate-100">
-                  <td className="px-4 py-3 font-medium text-slate-900">{m.alumno_id}</td>
+                <tr key={m.id} className="border-t border-ink/5">
+                  <td className="px-4 py-3 font-medium text-ink">{m.alumno_id}</td>
                   <td className="px-4 py-3">${Number(m.capital_disponible).toLocaleString("es-MX")}</td>
                   <td className="px-4 py-3">{holdingsPorAlumno(m.alumno_id).length}</td>
                 </tr>
               ))}
               {grupo.memberships.length === 0 && (
                 <tr>
-                  <td colSpan={3} className="px-4 py-3 text-slate-500">
+                  <td colSpan={3} className="px-4 py-3 text-ink/40">
                     Aún no hay alumnos en este grupo.
                   </td>
                 </tr>
@@ -154,10 +154,10 @@ export default function DetalleGrupoPage() {
           </table>
         </div>
 
-        <h2 className="mb-3 text-lg font-semibold text-slate-900">Últimas operaciones</h2>
-        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+        <h2 className="mb-3 text-lg font-semibold text-ink">Últimas operaciones</h2>
+        <div className="overflow-hidden rounded-lg border border-ink/10 bg-white">
           <table className="w-full text-sm">
-            <thead className="bg-slate-100 text-left text-slate-600">
+            <thead className="bg-ink/5 text-left text-ink/60">
               <tr>
                 <th className="px-4 py-3">Fecha</th>
                 <th className="px-4 py-3">Ticker</th>
@@ -168,7 +168,7 @@ export default function DetalleGrupoPage() {
             </thead>
             <tbody>
               {grupo.ordenes.map((o) => (
-                <tr key={o.id} className="border-t border-slate-100">
+                <tr key={o.id} className="border-t border-ink/5">
                   <td className="px-4 py-3">{new Date(o.timestamp).toLocaleString("es-MX")}</td>
                   <td className="px-4 py-3 font-medium">{o.ticker}</td>
                   <td className="px-4 py-3 capitalize">{o.tipo}</td>
@@ -178,7 +178,7 @@ export default function DetalleGrupoPage() {
               ))}
               {grupo.ordenes.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-3 text-slate-500">
+                  <td colSpan={5} className="px-4 py-3 text-ink/40">
                     Todavía no hay operaciones registradas.
                   </td>
                 </tr>
