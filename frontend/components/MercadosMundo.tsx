@@ -1,11 +1,28 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Badge } from "@/components/primitives";
+import dynamic from "next/dynamic";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { calcularEstadoMercado, MERCADOS } from "@/lib/mercados";
 
+const Globe = dynamic(() => import("react-globe.gl"), { ssr: false });
+
+interface PuntoMercado {
+  codigo: string;
+  nombre: string;
+  ciudad: string;
+  lat: number;
+  lng: number;
+  abierto: boolean;
+  descripcion: string;
+  horaLocal: string;
+}
+
 export default function MercadosMundo() {
+  const contenedorRef = useRef<HTMLDivElement>(null);
+  const globoRef = useRef<any>(null);
   const [ahora, setAhora] = useState<Date | null>(null);
+  const [tamano, setTamano] = useState({ ancho: 400, alto: 400 });
+  const [seleccionado, setSeleccionado] = useState<PuntoMercado | null>(null);
 
   useEffect(() => {
     setAhora(new Date());
@@ -13,68 +30,83 @@ export default function MercadosMundo() {
     return () => clearInterval(intervalo);
   }, []);
 
-  if (!ahora) return null;
+  useEffect(() => {
+    function medir() {
+      if (contenedorRef.current) {
+        const ancho = contenedorRef.current.clientWidth;
+        setTamano({ ancho, alto: Math.max(ancho, 320) });
+      }
+    }
+    medir();
+    window.addEventListener("resize", medir);
+    return () => window.removeEventListener("resize", medir);
+  }, []);
 
-  const minutosAhoraUtc = ahora.getUTCHours() * 60 + ahora.getUTCMinutes();
+  useEffect(() => {
+    if (globoRef.current) {
+      globoRef.current.controls().autoRotate = true;
+      globoRef.current.controls().autoRotateSpeed = 0.4;
+      globoRef.current.pointOfView({ lat: 20, lng: -30, altitude: 2.2 });
+    }
+  }, [tamano]);
+
+  const puntos: PuntoMercado[] = useMemo(() => {
+    if (!ahora) return [];
+    return MERCADOS.map((mercado) => {
+      const estado = calcularEstadoMercado(mercado, ahora);
+      return {
+        codigo: mercado.codigo,
+        nombre: mercado.nombre,
+        ciudad: mercado.ciudad,
+        lat: mercado.lat,
+        lng: mercado.lng,
+        abierto: estado.abierto,
+        descripcion: estado.descripcion,
+        horaLocal: estado.horaLocal,
+      };
+    });
+  }, [ahora]);
 
   return (
-    <div className="flex h-full min-h-[300px] flex-col rounded-none border border-fg/20 bg-panel/50 p-4">
-      <p className="mb-3 font-mono text-[11px] font-semibold uppercase tracking-widest text-fg/40">
+    <div className="flex h-full min-h-[300px] flex-col rounded-none border border-fg/20 bg-black p-3">
+      <p className="mb-2 font-mono text-[11px] font-semibold uppercase tracking-widest text-fg/40">
         Mercados globales en vivo
       </p>
 
-      <div className="flex flex-col gap-2 overflow-y-auto">
-        {MERCADOS.map((mercado) => {
-          const estado = calcularEstadoMercado(mercado, ahora);
-          const span = estado.finUtcMin >= estado.inicioUtcMin
-            ? estado.finUtcMin - estado.inicioUtcMin
-            : 1440 - estado.inicioUtcMin + estado.finUtcMin;
+      <div ref={contenedorRef} className="relative w-full flex-1 overflow-hidden">
+        {ahora && (
+          <Globe
+            ref={globoRef}
+            width={tamano.ancho}
+            height={tamano.alto}
+            globeImageUrl="https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
+            backgroundColor="rgba(0,0,0,0)"
+            pointsData={puntos}
+            pointLat="lat"
+            pointLng="lng"
+            pointColor={(p: any) => (p.abierto ? "#00ff66" : "#ff3b3b")}
+            pointAltitude={0.01}
+            pointRadius={0.45}
+            pointLabel={(p: any) => `${p.nombre}`}
+            onPointClick={(p: any) => setSeleccionado(p)}
+            onPointHover={(p: any) => setSeleccionado(p ?? null)}
+          />
+        )}
 
-          return (
-            <div
-              key={mercado.codigo}
-              className={`border p-3 ${
-                estado.abierto ? "border-ganancia/40 bg-ganancia/5" : "border-fg/10"
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span aria-hidden>{estado.esDeNoche ? "🌙" : "☀️"}</span>
-                  <div>
-                    <p className="font-mono text-[12px] font-semibold text-fg">{mercado.nombre}</p>
-                    <p className="font-mono text-[10px] text-fg/40">{mercado.ciudad}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="font-mono text-[13px] font-bold tabular-nums text-fg">{estado.horaLocal}</p>
-                  <Badge tone={estado.abierto ? "ganancia" : "neutral"}>
-                    {estado.abierto ? "Abierta" : "Cerrada"}
-                  </Badge>
-                </div>
-              </div>
-
-              <p className="mt-2 font-mono text-[11px] text-fg/60">{estado.descripcion}</p>
-
-              <div className="relative mt-2 h-1.5 w-full bg-fg/10">
-                <div
-                  className="absolute top-0 h-1.5 bg-accent/50"
-                  style={{
-                    left: `${(estado.inicioUtcMin / 1440) * 100}%`,
-                    width: `${(span / 1440) * 100}%`,
-                  }}
-                />
-                <div
-                  className="absolute top-0 h-1.5 w-[2px] bg-fg"
-                  style={{ left: `${(minutosAhoraUtc / 1440) * 100}%` }}
-                />
-              </div>
-            </div>
-          );
-        })}
+        {seleccionado && (
+          <div className="absolute left-2 top-2 max-w-[200px] border border-fg/20 bg-panel/90 p-2 font-mono">
+            <p className="text-[11px] font-bold text-fg">{seleccionado.ciudad}</p>
+            <p className="text-[10px] text-fg/50">{seleccionado.nombre}</p>
+            <p className="mt-1 text-[10px] tabular-nums text-fg/70">{seleccionado.horaLocal} local</p>
+            <p className={`text-[10px] font-semibold ${seleccionado.abierto ? "text-ganancia" : "text-perdida"}`}>
+              {seleccionado.descripcion}
+            </p>
+          </div>
+        )}
       </div>
 
-      <p className="mt-3 text-center font-mono text-[10px] text-fg/30">
-        Busca un ticker arriba o elige uno de la watchlist para ver su cotización.
+      <p className="mt-2 text-center font-mono text-[10px] text-fg/30">
+        Arrastra el globo para explorar · puntos verdes = abierto · busca un ticker arriba para ver su cotización.
       </p>
     </div>
   );

@@ -5,15 +5,17 @@ export interface Mercado {
   timezone: string;
   apertura: string; // "HH:MM" en hora local del mercado
   cierre: string;
+  lat: number;
+  lng: number;
 }
 
 export const MERCADOS: Mercado[] = [
-  { codigo: "NYSE", nombre: "New York Stock Exchange", ciudad: "Nueva York", timezone: "America/New_York", apertura: "09:30", cierre: "16:00" },
-  { codigo: "LSE", nombre: "London Stock Exchange", ciudad: "Londres", timezone: "Europe/London", apertura: "08:00", cierre: "16:30" },
-  { codigo: "FRA", nombre: "Deutsche Börse", ciudad: "Fráncfort", timezone: "Europe/Berlin", apertura: "09:00", cierre: "17:30" },
-  { codigo: "TSE", nombre: "Tokyo Stock Exchange", ciudad: "Tokio", timezone: "Asia/Tokyo", apertura: "09:00", cierre: "15:00" },
-  { codigo: "HKEX", nombre: "Hong Kong Stock Exchange", ciudad: "Hong Kong", timezone: "Asia/Hong_Kong", apertura: "09:30", cierre: "16:00" },
-  { codigo: "ASX", nombre: "Australian Securities Exchange", ciudad: "Sídney", timezone: "Australia/Sydney", apertura: "10:00", cierre: "16:00" },
+  { codigo: "NYSE", nombre: "New York Stock Exchange", ciudad: "Nueva York", timezone: "America/New_York", apertura: "09:30", cierre: "16:00", lat: 40.7069, lng: -74.0113 },
+  { codigo: "LSE", nombre: "London Stock Exchange", ciudad: "Londres", timezone: "Europe/London", apertura: "08:00", cierre: "16:30", lat: 51.5145, lng: -0.0910 },
+  { codigo: "FRA", nombre: "Deutsche Börse", ciudad: "Fráncfort", timezone: "Europe/Berlin", apertura: "09:00", cierre: "17:30", lat: 50.1109, lng: 8.6821 },
+  { codigo: "TSE", nombre: "Tokyo Stock Exchange", ciudad: "Tokio", timezone: "Asia/Tokyo", apertura: "09:00", cierre: "15:00", lat: 35.6762, lng: 139.7671 },
+  { codigo: "HKEX", nombre: "Hong Kong Stock Exchange", ciudad: "Hong Kong", timezone: "Asia/Hong_Kong", apertura: "09:30", cierre: "16:00", lat: 22.2849, lng: 114.1577 },
+  { codigo: "ASX", nombre: "Australian Securities Exchange", ciudad: "Sídney", timezone: "Australia/Sydney", apertura: "10:00", cierre: "16:00", lat: -33.8688, lng: 151.2093 },
 ];
 
 const DIAS_HABILES = new Set(["Mon", "Tue", "Wed", "Thu", "Fri"]);
