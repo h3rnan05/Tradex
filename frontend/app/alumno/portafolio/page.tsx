@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid } from "recharts";
 import Navbar from "@/components/Navbar";
+import MercadosMundo from "@/components/MercadosMundo";
 import { Card, StatTile, formatoMoneda, formatoPorcentaje } from "@/components/primitives";
 import { api, ApiError } from "@/lib/api";
 import { obtenerSesion } from "@/lib/auth";
@@ -437,6 +438,10 @@ export default function PortafolioPage() {
                 </>
               )}
             </Card>
+
+            <div className="mt-4">
+              <MercadosMundo compacto />
+            </div>
           </div>
         </div>
       </div>
