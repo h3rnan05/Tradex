@@ -22,7 +22,6 @@ export default function MercadosMundo() {
   const globoRef = useRef<any>(null);
   const [ahora, setAhora] = useState<Date | null>(null);
   const [tamano, setTamano] = useState({ ancho: 400, alto: 400 });
-  const [seleccionado, setSeleccionado] = useState<PuntoMercado | null>(null);
 
   useEffect(() => {
     setAhora(new Date());
@@ -68,7 +67,7 @@ export default function MercadosMundo() {
   }, [ahora]);
 
   return (
-    <div className="flex h-full min-h-[300px] flex-col rounded-none border border-fg/20 bg-white p-3">
+    <div className="flex h-full min-h-[300px] flex-col rounded-none border border-fg/20 bg-canvas p-3">
       <p className="mb-2 font-mono text-[11px] font-semibold uppercase tracking-widest text-fg/40">
         Mercados globales en vivo
       </p>
@@ -80,37 +79,46 @@ export default function MercadosMundo() {
             width={tamano.ancho}
             height={tamano.alto}
             globeImageUrl="https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
-            backgroundColor="rgba(255,255,255,1)"
+            backgroundColor="#faf6ed"
             pointsData={puntos}
             pointLat="lat"
             pointLng="lng"
             pointColor={(p: any) => (p.abierto ? "#00ff66" : "#ff3b3b")}
             pointAltitude={0.01}
             pointRadius={0.45}
-            pointLabel={(p: any) => `${p.nombre}`}
-            onPointClick={(p: any) => setSeleccionado(p)}
-            onPointHover={(p: any) => setSeleccionado(p ?? null)}
-            labelsData={puntos}
-            labelLat="lat"
-            labelLng="lng"
-            labelText={(p: any) => `${p.codigo} · ${p.ciudad}`}
-            labelSize={0.5}
-            labelDotRadius={0}
-            labelColor={(p: any) => (p.abierto ? "#007a2e" : "#cc1a1a")}
-            labelAltitude={0.01}
-            labelResolution={3}
+            htmlElementsData={puntos}
+            htmlLat="lat"
+            htmlLng="lng"
+            htmlAltitude={0.015}
+            htmlElement={(p: any) => {
+              const el = document.createElement("div");
+              el.style.display = "flex";
+              el.style.alignItems = "center";
+              el.style.gap = "4px";
+              el.style.pointerEvents = "none";
+              el.style.fontFamily = "IBM Plex Mono, monospace";
+              el.style.whiteSpace = "nowrap";
+              el.style.transform = "translate(8px, -10px)";
+              el.innerHTML = `
+                <div style="
+                  background:#faf6ed;
+                  border:1px solid rgba(26,14,0,0.25);
+                  padding:3px 6px;
+                  font-size:10px;
+                  line-height:1.3;
+                  color:#1a0e00;
+                  box-shadow:0 1px 3px rgba(0,0,0,0.15);
+                ">
+                  <div style="font-weight:700;">${p.ciudad} · ${p.codigo}</div>
+                  <div style="color:${p.abierto ? "#007a2e" : "#cc1a1a"};font-weight:600;">
+                    ${p.abierto ? "Abierta" : "Cerrada"} · ${p.horaLocal}
+                  </div>
+                  <div style="color:rgba(26,14,0,0.55);">${p.descripcion}</div>
+                </div>
+              `;
+              return el;
+            }}
           />
-        )}
-
-        {seleccionado && (
-          <div className="absolute left-2 top-2 max-w-[200px] border border-fg/20 bg-panel/90 p-2 font-mono">
-            <p className="text-[11px] font-bold text-fg">{seleccionado.ciudad}</p>
-            <p className="text-[10px] text-fg/50">{seleccionado.nombre}</p>
-            <p className="mt-1 text-[10px] tabular-nums text-fg/70">{seleccionado.horaLocal} local</p>
-            <p className={`text-[10px] font-semibold ${seleccionado.abierto ? "text-ganancia" : "text-perdida"}`}>
-              {seleccionado.descripcion}
-            </p>
-          </div>
         )}
       </div>
 
