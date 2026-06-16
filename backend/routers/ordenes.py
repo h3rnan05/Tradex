@@ -27,14 +27,11 @@ def _get_membership(db: Session, alumno: User, grupo_id) -> Membership:
     return membership
 
 
-@router.post("/compra", response_model=OrdenOut, status_code=status.HTTP_201_CREATED)
-def comprar(payload: OrdenCreate, db: Session = Depends(get_db), alumno: User = Depends(require_alumno)):
-    if payload.cantidad <= 0:
+def ejecutar_compra(db: Session, alumno: User, membership: Membership, grupo: Grupo, ticker: str, cantidad: Decimal) -> Orden:
+    if cantidad <= 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La cantidad debe ser mayor a cero")
 
-    membership = _get_membership(db, alumno, payload.grupo_id)
-    grupo = db.query(Grupo).filter(Grupo.id == payload.grupo_id).first()
-    ticker = payload.ticker.upper().strip()
+    ticker = ticker.upper().strip()
 
     tipo_activo = clasificar_ticker(ticker)
     fases_activo = db.query(FaseActivo).filter(FaseActivo.grupo_id == grupo.id).all()
@@ -45,7 +42,7 @@ def comprar(payload: OrdenCreate, db: Session = Depends(get_db), alumno: User = 
         )
 
     precio = obtener_precio_actual(ticker)
-    costo_total = precio * payload.cantidad
+    costo_total = precio * cantidad
     comision = costo_total * grupo.comision_porcentaje
 
     if grupo.limite_orden_valor is not None and costo_total > grupo.limite_orden_valor:
@@ -58,20 +55,20 @@ def comprar(payload: OrdenCreate, db: Session = Depends(get_db), alumno: User = 
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Capital disponible insuficiente")
 
     holding = db.query(Holding).filter(
-        Holding.alumno_id == alumno.id, Holding.grupo_id == payload.grupo_id, Holding.ticker == ticker
+        Holding.alumno_id == alumno.id, Holding.grupo_id == membership.grupo_id, Holding.ticker == ticker
     ).first()
 
     if holding:
-        cantidad_total = holding.cantidad + payload.cantidad
+        cantidad_total = holding.cantidad + cantidad
         costo_previo = holding.precio_promedio * holding.cantidad
         holding.precio_promedio = (costo_previo + costo_total) / cantidad_total
         holding.cantidad = cantidad_total
     else:
         holding = Holding(
             alumno_id=alumno.id,
-            grupo_id=payload.grupo_id,
+            grupo_id=membership.grupo_id,
             ticker=ticker,
-            cantidad=payload.cantidad,
+            cantidad=cantidad,
             precio_promedio=precio,
         )
         db.add(holding)
@@ -80,14 +77,23 @@ def comprar(payload: OrdenCreate, db: Session = Depends(get_db), alumno: User = 
 
     orden = Orden(
         alumno_id=alumno.id,
-        grupo_id=payload.grupo_id,
+        grupo_id=membership.grupo_id,
         ticker=ticker,
         tipo=TipoOrdenEnum.compra,
-        cantidad=payload.cantidad,
+        cantidad=cantidad,
         precio_ejecucion=precio,
         comision=comision,
     )
     db.add(orden)
+    return orden
+
+
+@router.post("/compra", response_model=OrdenOut, status_code=status.HTTP_201_CREATED)
+def comprar(payload: OrdenCreate, db: Session = Depends(get_db), alumno: User = Depends(require_alumno)):
+    membership = _get_membership(db, alumno, payload.grupo_id)
+    grupo = db.query(Grupo).filter(Grupo.id == payload.grupo_id).first()
+
+    orden = ejecutar_compra(db, alumno, membership, grupo, payload.ticker, payload.cantidad)
     db.commit()
     db.refresh(orden)
     return orden

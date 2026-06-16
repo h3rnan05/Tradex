@@ -20,6 +20,7 @@ export default function Navbar() {
       : [
           { href: "/alumno/portafolio", label: "Portafolio" },
           { href: "/alumno/operar", label: "Operar" },
+          { href: "/alumno/plantillas", label: "Plantillas" },
           { href: "/alumno/historial", label: "Historial" },
           { href: "/alumno/ranking", label: "Ranking" },
         ];
