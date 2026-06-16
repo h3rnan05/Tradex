@@ -10,25 +10,19 @@ interface PrecioDestacado {
   cambio_porcentaje: number;
 }
 
-const SIMULADOS: PrecioDestacado[] = [
-  { ticker: "AAPL", precio: "—", cambio_porcentaje: 0.4 },
-  { ticker: "MSFT", precio: "—", cambio_porcentaje: 0.2 },
-  { ticker: "GOOGL", precio: "—", cambio_porcentaje: -0.3 },
-  { ticker: "AMZN", precio: "—", cambio_porcentaje: 0.6 },
-  { ticker: "NVDA", precio: "—", cambio_porcentaje: 1.1 },
-  { ticker: "TSLA", precio: "—", cambio_porcentaje: -0.8 },
-  { ticker: "META", precio: "—", cambio_porcentaje: 0.3 },
-  { ticker: "NFLX", precio: "—", cambio_porcentaje: -0.1 },
-];
-
 export default function TickerTape() {
-  const [datos, setDatos] = useState<PrecioDestacado[]>(SIMULADOS);
+  const [datos, setDatos] = useState<PrecioDestacado[]>([]);
+  const [autenticado, setAutenticado] = useState(false);
 
   useEffect(() => {
+    setAutenticado(!!obtenerSesion());
+  }, []);
+
+  useEffect(() => {
+    if (!autenticado) return;
     let activo = true;
 
     async function cargar() {
-      if (!obtenerSesion()) return;
       try {
         const data = await api.get<PrecioDestacado[]>("/precios/destacados");
         if (activo && data.length > 0) setDatos(data);
@@ -43,7 +37,9 @@ export default function TickerTape() {
       activo = false;
       clearInterval(interval);
     };
-  }, []);
+  }, [autenticado]);
+
+  if (!autenticado || datos.length === 0) return null;
 
   const promedioCambio = datos.reduce((acc, d) => acc + d.cambio_porcentaje, 0) / datos.length;
   const crisis = promedioCambio <= -2.5;

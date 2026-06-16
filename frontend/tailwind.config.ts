@@ -8,12 +8,13 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ganancia: "#16a34a",
-        perdida: "#dc2626",
-        canvas: "#f3efe5",
+        ganancia: "#00ff8c",
+        perdida: "#ff3b3b",
+        canvas: "#05070a",
         ink: "#14161b",
-        panel: "#1d2026",
-        accent: "#e8722c",
+        fg: "#d7dee8",
+        panel: "#0d1117",
+        accent: "#ffb000",
         term: "#05070a",
         "term-green": "#00ff8c",
         "term-amber": "#ffb000",

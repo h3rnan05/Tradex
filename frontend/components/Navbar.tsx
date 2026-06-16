@@ -27,11 +27,11 @@ export default function Navbar() {
         ];
 
   return (
-    <nav className="border-b border-black/40 bg-ink">
+    <nav className="border-b border-term-green/20 bg-ink shadow-[0_1px_12px_rgba(0,255,140,0.08)]">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
         <div className="flex items-center gap-10">
-          <span className="font-mono text-sm font-bold uppercase tracking-widest text-white">
-            <span className="text-accent">■</span> Tradex
+          <span className="font-mono text-sm font-bold uppercase tracking-widest text-white drop-shadow-[0_0_6px_rgba(0,255,140,0.6)]">
+            <span className="text-term-green">■</span> Tradex
           </span>
           {sesion && (
             <div className="flex items-center gap-6">
@@ -59,7 +59,7 @@ export default function Navbar() {
             </span>
             <button
               onClick={salir}
-              className="rounded-md border border-white/20 px-3 py-1.5 font-mono text-xs uppercase tracking-wider text-white/70 hover:bg-white/10"
+              className="rounded-md border border-white/20 px-3 py-1.5 font-mono text-xs uppercase tracking-wider text-white/70 hover:bg-panel/10"
             >
               Salir
             </button>

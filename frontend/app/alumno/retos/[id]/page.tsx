@@ -114,7 +114,7 @@ export default function RetoTradingPage() {
     return (
       <main className="min-h-screen bg-canvas">
         <Navbar />
-        <p className="p-6 text-ink/40">Cargando...</p>
+        <p className="p-6 text-fg/40">Cargando...</p>
       </main>
     );
   }
@@ -125,8 +125,8 @@ export default function RetoTradingPage() {
     <main className="min-h-screen bg-canvas">
       <Navbar />
       <div className="mx-auto max-w-5xl p-6">
-        <h1 className="mb-1 text-2xl font-bold text-ink">{estado.reto.nombre}</h1>
-        <p className="mb-6 text-sm text-ink/40">
+        <h1 className="mb-1 text-2xl font-bold text-fg">{estado.reto.nombre}</h1>
+        <p className="mb-6 text-sm text-fg/40">
           Escenario: {escenario?.nombre ?? estado.reto.escenario_id}
           {" · "}
           {terminado ? "Reto finalizado" : `Progreso: ${estado.progreso_porcentaje.toFixed(0)}%`}
@@ -144,14 +144,14 @@ export default function RetoTradingPage() {
 
         {!terminado && escenario && (
           <Card className="mb-6">
-            <p className="mb-3 font-mono text-[11px] uppercase tracking-widest text-ink/40">Operar</p>
+            <p className="mb-3 font-mono text-[11px] uppercase tracking-widest text-fg/40">Operar</p>
             <div className="mb-3 flex flex-wrap gap-2">
               {escenario.tickers_sugeridos.map((t) => (
                 <button
                   key={t}
                   onClick={() => setTicker(t)}
                   className={`rounded-full px-3 py-1 font-mono text-xs uppercase tracking-wide ${
-                    ticker === t ? "bg-accent text-white" : "bg-ink/5 text-ink/70 hover:bg-ink/10"
+                    ticker === t ? "bg-accent text-white" : "bg-fg/5 text-fg/70 hover:bg-fg/10"
                   }`}
                 >
                   {t}
@@ -161,14 +161,14 @@ export default function RetoTradingPage() {
             {ticker && (
               <div className="flex items-end gap-3">
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-ink/70">Cantidad</label>
+                  <label className="mb-1 block text-sm font-medium text-fg/70">Cantidad</label>
                   <input
                     type="number"
                     min="0.0001"
                     step="0.0001"
                     value={cantidad}
                     onChange={(e) => setCantidad(e.target.value)}
-                    className="w-32 rounded-md border border-ink/20 px-3 py-2 text-sm"
+                    className="w-32 rounded-md border border-fg/20 px-3 py-2 text-sm"
                   />
                 </div>
                 <button
@@ -187,7 +187,7 @@ export default function RetoTradingPage() {
                 </button>
               </div>
             )}
-            {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+            {error && <p className="mt-3 text-sm text-perdida">{error}</p>}
             {mensaje && <p className="mt-3 text-sm text-ganancia">{mensaje}</p>}
           </Card>
         )}
@@ -195,7 +195,7 @@ export default function RetoTradingPage() {
         {estado.holdings.length > 0 && (
           <Card className="mb-6 overflow-hidden p-0">
             <table className="w-full text-sm">
-              <thead className="bg-ink/5 text-left text-ink/60">
+              <thead className="bg-fg/5 text-left text-fg/60">
                 <tr>
                   <th className="px-4 py-3">Ticker</th>
                   <th className="px-4 py-3">Cantidad</th>
@@ -206,8 +206,8 @@ export default function RetoTradingPage() {
               </thead>
               <tbody>
                 {estado.holdings.map((h) => (
-                  <tr key={h.ticker} className="border-t border-ink/5">
-                    <td className="px-4 py-3 font-medium text-ink">{h.ticker}</td>
+                  <tr key={h.ticker} className="border-t border-fg/5">
+                    <td className="px-4 py-3 font-medium text-fg">{h.ticker}</td>
                     <td className="px-4 py-3">{h.cantidad}</td>
                     <td className="px-4 py-3">{formatoMoneda(h.precio_promedio)}</td>
                     <td className="px-4 py-3">{formatoMoneda(h.precio_actual)}</td>
@@ -219,10 +219,10 @@ export default function RetoTradingPage() {
           </Card>
         )}
 
-        <h2 className="mb-3 text-lg font-semibold text-ink">Ranking del reto</h2>
+        <h2 className="mb-3 text-lg font-semibold text-fg">Ranking del reto</h2>
         <Card className="overflow-hidden p-0">
           <table className="w-full text-sm">
-            <thead className="bg-ink/5 text-left text-ink/60">
+            <thead className="bg-fg/5 text-left text-fg/60">
               <tr>
                 <th className="px-4 py-3">#</th>
                 <th className="px-4 py-3">Alumno</th>
@@ -232,9 +232,9 @@ export default function RetoTradingPage() {
             </thead>
             <tbody>
               {ranking.map((r, i) => (
-                <tr key={r.alumno_id} className="border-t border-ink/5">
-                  <td className="px-4 py-3 text-ink/40">{i + 1}</td>
-                  <td className="px-4 py-3 font-medium text-ink">{r.nombre}</td>
+                <tr key={r.alumno_id} className="border-t border-fg/5">
+                  <td className="px-4 py-3 text-fg/40">{i + 1}</td>
+                  <td className="px-4 py-3 font-medium text-fg">{r.nombre}</td>
                   <td className="px-4 py-3">{formatoMoneda(r.valor_total)}</td>
                   <td className="px-4 py-3">
                     <Badge tone={Number(r.rendimiento_porcentaje) >= 0 ? "ganancia" : "perdida"}>

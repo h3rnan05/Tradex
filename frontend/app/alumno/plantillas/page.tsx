@@ -67,30 +67,30 @@ export default function PlantillasPage() {
     <main className="min-h-screen bg-canvas">
       <Navbar />
       <div className="mx-auto max-w-4xl p-6">
-        <h1 className="mb-2 text-2xl font-bold text-ink">Portafolios por perfil de riesgo</h1>
-        <p className="mb-6 text-sm text-ink/40">
+        <h1 className="mb-2 text-2xl font-bold text-fg">Portafolios por perfil de riesgo</h1>
+        <p className="mb-6 text-sm text-fg/40">
           Elige una plantilla y se distribuirá tu capital disponible entre los activos sugeridos según los
           porcentajes definidos.
         </p>
 
-        {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
+        {error && <p className="mb-4 text-sm text-perdida">{error}</p>}
 
         {!plantillas ? (
-          <p className="text-ink/40">Cargando...</p>
+          <p className="text-fg/40">Cargando...</p>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             {plantillas.map((p) => (
               <Card key={p.perfil_riesgo} className="flex flex-col">
                 <div className="mb-2 flex items-center justify-between">
-                  <h2 className="font-mono text-sm font-bold uppercase tracking-wide text-ink">{p.nombre}</h2>
+                  <h2 className="font-mono text-sm font-bold uppercase tracking-wide text-fg">{p.nombre}</h2>
                   <Badge tone={TONOS[p.perfil_riesgo] ?? "neutral"}>{p.perfil_riesgo}</Badge>
                 </div>
-                <p className="mb-4 text-xs text-ink/40">{p.descripcion}</p>
+                <p className="mb-4 text-xs text-fg/40">{p.descripcion}</p>
                 <ul className="mb-4 flex flex-col gap-1">
                   {p.activos.map((a) => (
                     <li key={a.ticker} className="flex justify-between text-sm">
-                      <span className="font-medium text-ink">{a.ticker}</span>
-                      <span className="text-ink/50">{(Number(a.porcentaje) * 100).toFixed(0)}%</span>
+                      <span className="font-medium text-fg">{a.ticker}</span>
+                      <span className="text-fg/50">{(Number(a.porcentaje) * 100).toFixed(0)}%</span>
                     </li>
                   ))}
                 </ul>
@@ -108,7 +108,7 @@ export default function PlantillasPage() {
 
         {resultado && (
           <Card className="mt-6">
-            <h2 className="mb-3 text-lg font-semibold text-ink">Resultado</h2>
+            <h2 className="mb-3 text-lg font-semibold text-fg">Resultado</h2>
             {resultado.ordenes.length > 0 && (
               <ul className="mb-3 flex flex-col gap-1 text-sm">
                 {resultado.ordenes.map((o) => (

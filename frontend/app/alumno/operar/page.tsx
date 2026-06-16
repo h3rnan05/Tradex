@@ -151,11 +151,11 @@ export default function OperarPage() {
     <main className="min-h-screen bg-canvas">
       <Navbar />
       <div className="mx-auto max-w-5xl p-6">
-        <h1 className="mb-6 text-2xl font-bold text-ink">Operar</h1>
+        <h1 className="mb-6 text-2xl font-bold text-fg">Operar</h1>
 
         {activosProximos.length > 0 && (
           <Card className="mb-6 border-accent/30 bg-accent/5">
-            <p className="text-sm text-ink/70">
+            <p className="text-sm text-fg/70">
               Algunos tipos de activos de tu grupo aún no están disponibles:{" "}
               {activosProximos
                 .map(
@@ -167,15 +167,15 @@ export default function OperarPage() {
           </Card>
         )}
 
-        <form onSubmit={buscarPrecio} className="mb-6 flex items-end gap-3 rounded-xl border border-ink/10 bg-white p-4 shadow-sm">
+        <form onSubmit={buscarPrecio} className="mb-6 flex items-end gap-3 rounded-xl border border-fg/10 bg-panel p-4 shadow-sm">
           <div className="flex-1">
-            <label className="mb-1 block text-sm font-medium text-ink/70">Ticker</label>
+            <label className="mb-1 block text-sm font-medium text-fg/70">Ticker</label>
             <input
               required
               value={ticker}
               onChange={(e) => setTicker(e.target.value)}
               placeholder="AAPL"
-              className="w-full rounded-md border border-ink/20 px-3 py-2 text-sm uppercase"
+              className="w-full rounded-md border border-fg/20 px-3 py-2 text-sm uppercase"
             />
           </div>
           <button
@@ -189,7 +189,7 @@ export default function OperarPage() {
 
         {destacados.length > 0 && (
           <div className="mb-6">
-            <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-ink/40">
+            <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">
               Acciones recomendadas
             </p>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -197,10 +197,10 @@ export default function OperarPage() {
                 <button
                   key={d.ticker}
                   onClick={() => buscar(d.ticker)}
-                  className="rounded-xl border border-ink/10 bg-white p-3 text-left hover:border-accent hover:bg-accent/5"
+                  className="rounded-xl border border-fg/10 bg-panel p-3 text-left hover:border-accent hover:bg-accent/5"
                 >
-                  <p className="font-mono text-sm font-bold text-ink">{d.ticker}</p>
-                  <p className="font-mono text-xs text-ink/50">${Number(d.precio).toFixed(2)}</p>
+                  <p className="font-mono text-sm font-bold text-fg">{d.ticker}</p>
+                  <p className="font-mono text-xs text-fg/50">${Number(d.precio).toFixed(2)}</p>
                 </button>
               ))}
             </div>
@@ -210,8 +210,8 @@ export default function OperarPage() {
         {precio && (
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
             <Card className="lg:col-span-2">
-              <p className="text-sm text-ink/40">Precio actual de {ticker.toUpperCase()}</p>
-              <p className="mb-4 font-mono text-3xl font-bold text-ink">${Number(precio).toFixed(2)}</p>
+              <p className="text-sm text-fg/40">Precio actual de {ticker.toUpperCase()}</p>
+              <p className="mb-4 font-mono text-3xl font-bold text-fg">${Number(precio).toFixed(2)}</p>
 
               {historial.length > 0 && (
                 <div className="mb-4">
@@ -219,17 +219,17 @@ export default function OperarPage() {
                 </div>
               )}
 
-              <label className="mb-1 block text-sm font-medium text-ink/70">Cantidad</label>
+              <label className="mb-1 block text-sm font-medium text-fg/70">Cantidad</label>
               <input
                 type="number"
                 min="0.0001"
                 step="0.0001"
                 value={cantidad}
                 onChange={(e) => setCantidad(e.target.value)}
-                className="mb-4 w-full rounded-md border border-ink/20 px-3 py-2 text-sm"
+                className="mb-4 w-full rounded-md border border-fg/20 px-3 py-2 text-sm"
               />
 
-              <p className="mb-4 text-sm text-ink/40">
+              <p className="mb-4 text-sm text-fg/40">
                 Total estimado: ${(Number(precio) * Number(cantidad || 0)).toFixed(2)}
               </p>
 
@@ -252,27 +252,27 @@ export default function OperarPage() {
             </Card>
 
             <Card>
-              <p className="mb-3 font-mono text-[11px] uppercase tracking-widest text-ink/40">
+              <p className="mb-3 font-mono text-[11px] uppercase tracking-widest text-fg/40">
                 Noticias de {ticker.toUpperCase()}
               </p>
               {noticias.length === 0 ? (
-                <p className="text-sm text-ink/40">No hay noticias recientes.</p>
+                <p className="text-sm text-fg/40">No hay noticias recientes.</p>
               ) : (
                 <ul className="flex flex-col gap-4">
                   {noticias.map((n, i) => (
-                    <li key={i} className="border-b border-ink/5 pb-3 last:border-0 last:pb-0">
+                    <li key={i} className="border-b border-fg/5 pb-3 last:border-0 last:pb-0">
                       <a
                         href={n.link}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-sm font-medium text-ink hover:text-accent"
+                        className="text-sm font-medium text-fg hover:text-accent"
                       >
                         {n.titulo}
                       </a>
                       <div className="mt-1 flex items-center gap-2">
                         {n.fuente && <Badge>{n.fuente}</Badge>}
                         {n.fecha && (
-                          <span className="text-xs text-ink/40">
+                          <span className="text-xs text-fg/40">
                             {new Date(n.fecha).toLocaleDateString("es-MX")}
                           </span>
                         )}
@@ -285,7 +285,7 @@ export default function OperarPage() {
           </div>
         )}
 
-        {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
+        {error && <p className="mt-4 text-sm text-perdida">{error}</p>}
         {mensaje && <p className="mt-4 text-sm text-ganancia">{mensaje}</p>}
       </div>
     </main>

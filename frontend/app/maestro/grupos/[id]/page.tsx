@@ -155,7 +155,7 @@ export default function DetalleGrupoPage() {
     return (
       <main className="min-h-screen bg-canvas">
         <Navbar />
-        <p className="p-6 text-red-600">{error}</p>
+        <p className="p-6 text-perdida">{error}</p>
       </main>
     );
   }
@@ -164,7 +164,7 @@ export default function DetalleGrupoPage() {
     return (
       <main className="min-h-screen bg-canvas">
         <Navbar />
-        <p className="p-6 text-ink/40">Cargando...</p>
+        <p className="p-6 text-fg/40">Cargando...</p>
       </main>
     );
   }
@@ -176,14 +176,14 @@ export default function DetalleGrupoPage() {
     <main className="min-h-screen bg-canvas">
       <Navbar />
       <div className="mx-auto max-w-5xl p-6">
-        <h1 className="mb-1 text-2xl font-bold text-ink">{grupo.nombre}</h1>
-        <p className="mb-1 text-sm text-ink/40">
+        <h1 className="mb-1 text-2xl font-bold text-fg">{grupo.nombre}</h1>
+        <p className="mb-1 text-sm text-fg/40">
           Capital inicial: ${Number(grupo.capital_inicial).toLocaleString("es-MX")}
           {" · "}
           Alumnos: {grupo.memberships.length}
           {grupo.max_alumnos !== null && ` / ${grupo.max_alumnos}`}
         </p>
-        <p className="mb-6 text-sm text-ink/40">
+        <p className="mb-6 text-sm text-fg/40">
           Activos permitidos: {grupo.activos_permitidos.join(", ")}
           {grupo.limite_orden_valor && (
             <>
@@ -200,7 +200,7 @@ export default function DetalleGrupoPage() {
         </p>
 
         {grupo.fases_activo.length > 0 && (
-          <p className="mb-6 text-sm text-ink/40">
+          <p className="mb-6 text-sm text-fg/40">
             Activación progresiva:{" "}
             {grupo.fases_activo
               .map(
@@ -216,9 +216,9 @@ export default function DetalleGrupoPage() {
             Este grupo alcanzó el límite de {grupo.max_alumnos} alumnos.
           </p>
         ) : (
-          <form onSubmit={invitarAlumno} className="mb-8 flex items-end gap-3 rounded-lg border border-ink/10 bg-white p-4">
+          <form onSubmit={invitarAlumno} className="mb-8 flex items-end gap-3 rounded-lg border border-fg/10 bg-panel p-4">
             <div className="flex-1">
-              <label className="mb-1 block text-sm font-medium text-ink/70">
+              <label className="mb-1 block text-sm font-medium text-fg/70">
                 Correo del alumno a invitar
               </label>
               <input
@@ -226,7 +226,7 @@ export default function DetalleGrupoPage() {
                 required
                 value={emailInvitar}
                 onChange={(e) => setEmailInvitar(e.target.value)}
-                className="w-full rounded-md border border-ink/20 px-3 py-2 text-sm"
+                className="w-full rounded-md border border-fg/20 px-3 py-2 text-sm"
               />
             </div>
             <button
@@ -237,12 +237,12 @@ export default function DetalleGrupoPage() {
             </button>
           </form>
         )}
-        {mensajeInvitar && <p className="mb-6 text-sm text-ink/60">{mensajeInvitar}</p>}
+        {mensajeInvitar && <p className="mb-6 text-sm text-fg/60">{mensajeInvitar}</p>}
 
-        <h2 className="mb-3 text-lg font-semibold text-ink">Alumnos</h2>
-        <div className="mb-8 overflow-hidden rounded-lg border border-ink/10 bg-white">
+        <h2 className="mb-3 text-lg font-semibold text-fg">Alumnos</h2>
+        <div className="mb-8 overflow-hidden rounded-lg border border-fg/10 bg-panel">
           <table className="w-full text-sm">
-            <thead className="bg-ink/5 text-left text-ink/60">
+            <thead className="bg-fg/5 text-left text-fg/60">
               <tr>
                 <th className="px-4 py-3">Alumno</th>
                 <th className="px-4 py-3">Capital disponible</th>
@@ -251,15 +251,15 @@ export default function DetalleGrupoPage() {
             </thead>
             <tbody>
               {grupo.memberships.map((m) => (
-                <tr key={m.id} className="border-t border-ink/5">
-                  <td className="px-4 py-3 font-medium text-ink">{m.alumno_id}</td>
+                <tr key={m.id} className="border-t border-fg/5">
+                  <td className="px-4 py-3 font-medium text-fg">{m.alumno_id}</td>
                   <td className="px-4 py-3">${Number(m.capital_disponible).toLocaleString("es-MX")}</td>
                   <td className="px-4 py-3">{holdingsPorAlumno(m.alumno_id).length}</td>
                 </tr>
               ))}
               {grupo.memberships.length === 0 && (
                 <tr>
-                  <td colSpan={3} className="px-4 py-3 text-ink/40">
+                  <td colSpan={3} className="px-4 py-3 text-fg/40">
                     Aún no hay alumnos en este grupo.
                   </td>
                 </tr>
@@ -268,10 +268,10 @@ export default function DetalleGrupoPage() {
           </table>
         </div>
 
-        <h2 className="mb-3 text-lg font-semibold text-ink">Últimas operaciones</h2>
-        <div className="overflow-hidden rounded-lg border border-ink/10 bg-white">
+        <h2 className="mb-3 text-lg font-semibold text-fg">Últimas operaciones</h2>
+        <div className="overflow-hidden rounded-lg border border-fg/10 bg-panel">
           <table className="w-full text-sm">
-            <thead className="bg-ink/5 text-left text-ink/60">
+            <thead className="bg-fg/5 text-left text-fg/60">
               <tr>
                 <th className="px-4 py-3">Fecha</th>
                 <th className="px-4 py-3">Ticker</th>
@@ -283,7 +283,7 @@ export default function DetalleGrupoPage() {
             </thead>
             <tbody>
               {grupo.ordenes.map((o) => (
-                <tr key={o.id} className="border-t border-ink/5">
+                <tr key={o.id} className="border-t border-fg/5">
                   <td className="px-4 py-3">{new Date(o.timestamp).toLocaleString("es-MX")}</td>
                   <td className="px-4 py-3 font-medium">{o.ticker}</td>
                   <td className="px-4 py-3 capitalize">{o.tipo}</td>
@@ -294,7 +294,7 @@ export default function DetalleGrupoPage() {
               ))}
               {grupo.ordenes.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-3 text-ink/40">
+                  <td colSpan={6} className="px-4 py-3 text-fg/40">
                     Todavía no hay operaciones registradas.
                   </td>
                 </tr>
@@ -304,7 +304,7 @@ export default function DetalleGrupoPage() {
         </div>
 
         <div className="mt-8 mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-ink">Retos cronometrados</h2>
+          <h2 className="text-lg font-semibold text-fg">Retos cronometrados</h2>
           <button
             onClick={() => setMostrarFormReto(!mostrarFormReto)}
             className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-ink/80"
@@ -316,24 +316,24 @@ export default function DetalleGrupoPage() {
         {mostrarFormReto && (
           <form
             onSubmit={crearReto}
-            className="mb-6 flex flex-col gap-4 rounded-lg border border-ink/10 bg-white p-6"
+            className="mb-6 flex flex-col gap-4 rounded-lg border border-fg/10 bg-panel p-6"
           >
             <div>
-              <label className="mb-1 block text-sm font-medium text-ink/70">Nombre del reto</label>
+              <label className="mb-1 block text-sm font-medium text-fg/70">Nombre del reto</label>
               <input
                 required
                 value={nombreReto}
                 onChange={(e) => setNombreReto(e.target.value)}
-                className="w-full rounded-md border border-ink/20 px-3 py-2 text-sm"
+                className="w-full rounded-md border border-fg/20 px-3 py-2 text-sm"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-ink/70">Escenario histórico</label>
+              <label className="mb-1 block text-sm font-medium text-fg/70">Escenario histórico</label>
               <select
                 required
                 value={escenarioId}
                 onChange={(e) => setEscenarioId(e.target.value)}
-                className="w-full rounded-md border border-ink/20 px-3 py-2 text-sm"
+                className="w-full rounded-md border border-fg/20 px-3 py-2 text-sm"
               >
                 <option value="" disabled>
                   Selecciona un escenario
@@ -347,18 +347,18 @@ export default function DetalleGrupoPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="mb-1 block text-sm font-medium text-ink/70">Duración (minutos)</label>
+                <label className="mb-1 block text-sm font-medium text-fg/70">Duración (minutos)</label>
                 <input
                   type="number"
                   min="1"
                   required
                   value={duracionMinutos}
                   onChange={(e) => setDuracionMinutos(e.target.value)}
-                  className="w-full rounded-md border border-ink/20 px-3 py-2 text-sm"
+                  className="w-full rounded-md border border-fg/20 px-3 py-2 text-sm"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-ink/70">Capital inicial del reto</label>
+                <label className="mb-1 block text-sm font-medium text-fg/70">Capital inicial del reto</label>
                 <input
                   type="number"
                   min="0"
@@ -366,11 +366,11 @@ export default function DetalleGrupoPage() {
                   required
                   value={capitalReto}
                   onChange={(e) => setCapitalReto(e.target.value)}
-                  className="w-full rounded-md border border-ink/20 px-3 py-2 text-sm"
+                  className="w-full rounded-md border border-fg/20 px-3 py-2 text-sm"
                 />
               </div>
             </div>
-            {errorReto && <p className="text-sm text-red-600">{errorReto}</p>}
+            {errorReto && <p className="text-sm text-perdida">{errorReto}</p>}
             <button
               type="submit"
               disabled={guardandoReto}
@@ -381,9 +381,9 @@ export default function DetalleGrupoPage() {
           </form>
         )}
 
-        <div className="overflow-hidden rounded-lg border border-ink/10 bg-white">
+        <div className="overflow-hidden rounded-lg border border-fg/10 bg-panel">
           <table className="w-full text-sm">
-            <thead className="bg-ink/5 text-left text-ink/60">
+            <thead className="bg-fg/5 text-left text-fg/60">
               <tr>
                 <th className="px-4 py-3">Nombre</th>
                 <th className="px-4 py-3">Escenario</th>
@@ -394,13 +394,13 @@ export default function DetalleGrupoPage() {
             </thead>
             <tbody>
               {retos.map((r) => (
-                <tr key={r.id} className="border-t border-ink/5">
-                  <td className="px-4 py-3 font-medium text-ink">{r.nombre}</td>
+                <tr key={r.id} className="border-t border-fg/5">
+                  <td className="px-4 py-3 font-medium text-fg">{r.nombre}</td>
                   <td className="px-4 py-3">{r.escenario_id}</td>
                   <td className="px-4 py-3">{new Date(r.fecha_inicio).toLocaleString("es-MX")}</td>
                   <td className="px-4 py-3">{new Date(r.fecha_fin).toLocaleString("es-MX")}</td>
                   <td className="px-4 py-3 text-right">
-                    <Link href={`/maestro/retos/${r.id}`} className="text-ink/70 underline hover:text-ink">
+                    <Link href={`/maestro/retos/${r.id}`} className="text-fg/70 underline hover:text-fg">
                       Ver ranking
                     </Link>
                   </td>
@@ -408,7 +408,7 @@ export default function DetalleGrupoPage() {
               ))}
               {retos.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-3 text-ink/40">
+                  <td colSpan={5} className="px-4 py-3 text-fg/40">
                     Todavía no se ha lanzado ningún reto en este grupo.
                   </td>
                 </tr>

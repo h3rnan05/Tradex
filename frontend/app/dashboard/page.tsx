@@ -22,7 +22,7 @@ export default function DashboardPage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center">
-      <p className="text-ink/40">Redirigiendo...</p>
+      <p className="text-fg/40">Redirigiendo...</p>
     </main>
   );
 }
