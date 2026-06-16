@@ -90,41 +90,47 @@ export default function IndicatorChart({
 
   return (
     <div>
-      <div className="rounded-none bg-canvas p-3">
-        <ResponsiveContainer width="100%" height={280}>
-          <AreaChart data={datos} margin={{ top: 12, right: 56, left: 0, bottom: 0 }}>
+      <div className="rounded-sm border border-fg/10 bg-canvas p-4 shadow-sm">
+        <ResponsiveContainer width="100%" height={420}>
+          <AreaChart data={datos} margin={{ top: 16, right: 64, left: 4, bottom: 0 }}>
             <defs>
               <linearGradient id="precioGradiente" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={colorLinea} stopOpacity={0.35} />
+                <stop offset="0%" stopColor={colorLinea} stopOpacity={0.4} />
+                <stop offset="60%" stopColor={colorLinea} stopOpacity={0.08} />
                 <stop offset="100%" stopColor={colorLinea} stopOpacity={0} />
               </linearGradient>
+              <filter id="brilloLinea" x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="0" stdDeviation="3" floodColor={colorLinea} floodOpacity="0.45" />
+              </filter>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(26,14,0,0.08)" vertical={false} />
+            <CartesianGrid strokeDasharray="2 4" stroke="rgba(26,14,0,0.07)" vertical={false} />
             <XAxis
               dataKey="fecha"
-              tick={{ fontSize: 10, fill: "rgba(26,14,0,0.45)" }}
-              minTickGap={50}
+              tick={{ fontSize: 11, fill: "rgba(26,14,0,0.45)" }}
+              minTickGap={60}
               axisLine={{ stroke: "rgba(26,14,0,0.15)" }}
               tickLine={false}
+              tickMargin={10}
             />
             <YAxis
               domain={[min - margen, max + margen]}
-              tick={{ fontSize: 10, fill: "rgba(26,14,0,0.45)" }}
+              tick={{ fontSize: 11, fill: "rgba(26,14,0,0.5)" }}
               tickFormatter={(v) => `$${v.toFixed(0)}`}
               orientation="right"
-              width={52}
+              width={60}
               axisLine={false}
               tickLine={false}
             />
             <ReferenceLine
               y={precioApertura}
               stroke="rgba(26,14,0,0.4)"
-              strokeDasharray="3 3"
+              strokeDasharray="4 4"
               label={{
                 value: `$${precioApertura.toFixed(2)}`,
                 position: "insideTopLeft",
-                fill: "rgba(26,14,0,0.55)",
-                fontSize: 10,
+                fill: "rgba(26,14,0,0.6)",
+                fontSize: 11,
+                fontWeight: 600,
               }}
             />
             <Tooltip content={<TooltipPrecio />} />
@@ -133,10 +139,11 @@ export default function IndicatorChart({
               dataKey="precio"
               name="Precio"
               stroke={colorLinea}
-              strokeWidth={2}
+              strokeWidth={2.5}
               fill="url(#precioGradiente)"
+              filter="url(#brilloLinea)"
               dot={crearPuntoFinal(colorLinea, datos.length - 1) as any}
-              activeDot={{ r: 4, fill: colorLinea, stroke: "#faf6ed", strokeWidth: 2 }}
+              activeDot={{ r: 5, fill: colorLinea, stroke: "#faf6ed", strokeWidth: 2 }}
               isAnimationActive={false}
             />
             {indicadoresActivos.includes("sma5") && (
@@ -180,8 +187,8 @@ export default function IndicatorChart({
 
         {hayVolumen && (
           <div className="-mt-2">
-            <ResponsiveContainer width="100%" height={50}>
-              <BarChart data={datos} margin={{ top: 0, right: 56, left: 0, bottom: 0 }}>
+            <ResponsiveContainer width="100%" height={72}>
+              <BarChart data={datos} margin={{ top: 0, right: 64, left: 4, bottom: 0 }}>
                 <XAxis dataKey="fecha" hide />
                 <YAxis hide domain={[0, "auto"]} />
                 <Tooltip
@@ -195,7 +202,7 @@ export default function IndicatorChart({
                     );
                   }}
                 />
-                <Bar dataKey="volumen" fill={colorLinea} opacity={0.35} isAnimationActive={false} />
+                <Bar dataKey="volumen" fill={colorLinea} opacity={0.45} radius={[2, 2, 0, 0]} isAnimationActive={false} />
               </BarChart>
             </ResponsiveContainer>
             <p className="text-center font-mono text-[10px] uppercase tracking-widest text-fg/30">Volumen</p>
@@ -204,17 +211,17 @@ export default function IndicatorChart({
       </div>
 
       {datosRsi && (
-        <div className="mt-3 h-24 w-full border-t border-fg/10 pt-2">
+        <div className="mt-3 h-28 w-full rounded-sm border border-fg/10 bg-canvas p-3 shadow-sm">
           <p className="mb-1 font-mono text-[10px] uppercase tracking-widest text-fg/40">RSI (14)</p>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={datosRsi} margin={{ top: 4, right: 4, left: -16, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(26,14,0,0.1)" />
+              <CartesianGrid strokeDasharray="2 4" stroke="rgba(26,14,0,0.08)" />
               <XAxis dataKey="fecha" tick={{ fontSize: 10 }} minTickGap={30} />
               <YAxis tick={{ fontSize: 10 }} domain={[0, 100]} ticks={[30, 50, 70]} />
               <ReferenceLine y={70} stroke="#cc1a1a" strokeDasharray="3 3" />
               <ReferenceLine y={30} stroke="#007a2e" strokeDasharray="3 3" />
               <Tooltip formatter={(value: number) => value?.toFixed(1)} />
-              <Line type="monotone" dataKey="rsi" stroke={colorDe("rsi")} strokeWidth={1.5} dot={false} name="RSI" />
+              <Line type="monotone" dataKey="rsi" stroke={colorDe("rsi")} strokeWidth={2} dot={false} name="RSI" />
             </LineChart>
           </ResponsiveContainer>
         </div>
