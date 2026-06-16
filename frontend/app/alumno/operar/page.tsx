@@ -4,8 +4,8 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import ProChart from "@/components/ProChart";
-import MercadosMundo from "@/components/MercadosMundo";
 import BarraIndices from "@/components/BarraIndices";
+import Tooltip from "@/components/Tooltip";
 import { Badge, Card } from "@/components/primitives";
 import { api, ApiError } from "@/lib/api";
 import { obtenerSesion } from "@/lib/auth";
@@ -487,16 +487,16 @@ function OperarPageInterna() {
                     v != null ? `$${(v / 1e9).toFixed(1)}B` : null;
 
                   const statsAccion = [
-                    { label: "P/E", value: fmt(ficha.pe_ratio) },
-                    { label: "EPS", value: fmt(ficha.eps, "$") },
-                    { label: "Beta", value: fmt(ficha.beta) },
-                    { label: "Cap. Mkt", value: fmtB(ficha.market_cap) },
-                    { label: "P/E Fwd", value: fmt(ficha.forward_pe) },
-                    { label: "Objetivo", value: fmt(ficha.precio_objetivo, "$") },
+                    { label: "P/E", value: fmt(ficha.pe_ratio), hint: "Precio/Ganancia: cuántas veces el precio de la acción supera sus ganancias anuales. Un P/E alto puede indicar que el mercado espera mucho crecimiento futuro." },
+                    { label: "EPS", value: fmt(ficha.eps, "$"), hint: "Earnings Per Share (Ganancia por acción): cuánto dinero generó la empresa por cada acción emitida en el último año." },
+                    { label: "Beta", value: fmt(ficha.beta), hint: "Mide la volatilidad de la acción vs el mercado. Beta > 1 = más volátil que el mercado; Beta < 1 = más estable." },
+                    { label: "Cap. Mkt", value: fmtB(ficha.market_cap), hint: "Capitalización de mercado: valor total de la empresa según el precio actual de sus acciones (precio × acciones en circulación)." },
+                    { label: "P/E Fwd", value: fmt(ficha.forward_pe), hint: "P/E Forward: igual que el P/E pero usando las ganancias proyectadas para los próximos 12 meses en vez de las pasadas." },
+                    { label: "Objetivo", value: fmt(ficha.precio_objetivo, "$"), hint: "Precio objetivo promedio de los analistas de Wall Street para los próximos 12 meses." },
                   ];
                   const statsComun = [
-                    { label: "Máx 52s", value: fmt(ficha.max_52s, "$") },
-                    { label: "Mín 52s", value: fmt(ficha.min_52s, "$") },
+                    { label: "Máx 52s", value: fmt(ficha.max_52s, "$"), hint: "Precio máximo al que cotizó la acción en los últimos 52 semanas (1 año)." },
+                    { label: "Mín 52s", value: fmt(ficha.min_52s, "$"), hint: "Precio mínimo al que cotizó la acción en los últimos 52 semanas (1 año)." },
                   ];
                   const stats = esIndice
                     ? statsComun
@@ -511,7 +511,10 @@ function OperarPageInterna() {
                     <div className={`grid gap-2 ${esIndice ? "grid-cols-2" : "grid-cols-4"}`}>
                       {stats.map((s) => (
                         <div key={s.label} className="rounded-none border border-fg/10 bg-canvas px-2.5 py-2">
-                          <p className="font-mono text-[9px] uppercase tracking-widest text-fg/40">{s.label}</p>
+                          <p className="flex items-center font-mono text-[9px] uppercase tracking-widest text-fg/40">
+                            {s.label}
+                            {"hint" in s && s.hint && <Tooltip texto={s.hint} />}
+                          </p>
                           <p className="font-mono text-sm font-semibold tabular-nums text-fg">{s.value ?? "—"}</p>
                         </div>
                       ))}
@@ -531,8 +534,9 @@ function OperarPageInterna() {
                       return (
                         <div className="mt-2 rounded-none border border-fg/10 bg-canvas px-3 py-2.5">
                           <div className="mb-1.5 flex items-center justify-between">
-                            <p className="font-mono text-[10px] uppercase tracking-widest text-fg/40">
+                            <p className="flex items-center font-mono text-[10px] uppercase tracking-widest text-fg/40">
                               Consenso analistas · {total} analistas
+                              <Tooltip texto="Opinión de analistas profesionales de Wall Street sobre si conviene comprar, mantener o vender esta acción. No garantiza el desempeño futuro." />
                             </p>
                             {rec && (
                               <span className={`font-mono text-[11px] font-bold uppercase ${
@@ -562,19 +566,25 @@ function OperarPageInterna() {
 
                 <div className="mb-4 grid grid-cols-3 gap-3">
                   <div className="rounded-none border border-fg/10 bg-canvas px-3 py-2">
-                    <p className="font-mono text-[10px] uppercase tracking-widest text-fg/40">Máx. 30d</p>
+                    <p className="flex items-center font-mono text-[10px] uppercase tracking-widest text-fg/40">
+                      Máx. 30d <Tooltip texto="Precio más alto registrado en los últimos 30 días." />
+                    </p>
                     <p className="font-mono text-sm font-semibold tabular-nums text-fg">
                       {maximo !== null ? `$${maximo.toFixed(2)}` : "—"}
                     </p>
                   </div>
                   <div className="rounded-none border border-fg/10 bg-canvas px-3 py-2">
-                    <p className="font-mono text-[10px] uppercase tracking-widest text-fg/40">Mín. 30d</p>
+                    <p className="flex items-center font-mono text-[10px] uppercase tracking-widest text-fg/40">
+                      Mín. 30d <Tooltip texto="Precio más bajo registrado en los últimos 30 días." />
+                    </p>
                     <p className="font-mono text-sm font-semibold tabular-nums text-fg">
                       {minimo !== null ? `$${minimo.toFixed(2)}` : "—"}
                     </p>
                   </div>
                   <div className="rounded-none border border-fg/10 bg-canvas px-3 py-2">
-                    <p className="font-mono text-[10px] uppercase tracking-widest text-fg/40">Apertura 30d</p>
+                    <p className="flex items-center font-mono text-[10px] uppercase tracking-widest text-fg/40">
+                      Apertura 30d <Tooltip texto="Precio al que cerró la acción hace 30 días, usado como referencia para calcular el cambio porcentual del período." />
+                    </p>
                     <p className="font-mono text-sm font-semibold tabular-nums text-fg">
                       {precioInicial !== null ? `$${precioInicial.toFixed(2)}` : "—"}
                     </p>
@@ -714,9 +724,6 @@ function OperarPageInterna() {
                 })}
             </div>
 
-            <div className="mt-4">
-              <MercadosMundo compacto />
-            </div>
           </div>
         </div>
       </div>
