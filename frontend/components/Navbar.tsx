@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { cerrarSesion, obtenerSesion } from "@/lib/auth";
 
@@ -12,9 +13,32 @@ export default function Navbar() {
     router.push("/login");
   }
 
+  const enlaces =
+    sesion?.rol === "maestro"
+      ? [{ href: "/maestro/grupos", label: "Mis grupos" }]
+      : [
+          { href: "/alumno/portafolio", label: "Portafolio" },
+          { href: "/alumno/operar", label: "Operar" },
+        ];
+
   return (
     <nav className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
-      <span className="text-xl font-bold text-slate-900">Tradex</span>
+      <div className="flex items-center gap-8">
+        <span className="text-xl font-bold text-slate-900">Tradex</span>
+        {sesion && (
+          <div className="flex items-center gap-4">
+            {enlaces.map((enlace) => (
+              <Link
+                key={enlace.href}
+                href={enlace.href}
+                className="text-sm font-medium text-slate-600 hover:text-slate-900"
+              >
+                {enlace.label}
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
       {sesion && (
         <div className="flex items-center gap-4">
           <span className="text-sm text-slate-600">
