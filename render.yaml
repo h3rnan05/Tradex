@@ -13,3 +13,5 @@ services:
         sync: false
       - key: JWT_SECRET
         sync: false
+      - key: EODHD_API_KEY
+        sync: false
