@@ -8,10 +8,13 @@ from fastapi import HTTPException, status
 logger = logging.getLogger(__name__)
 
 YF_BASE_URL = "https://query1.finance.yahoo.com/v8/finance/chart/"
+YF_SEARCH_URL = "https://query1.finance.yahoo.com/v1/finance/search"
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 )
+
+TICKERS_DESTACADOS = ["AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "TSLA", "META", "NFLX"]
 
 
 def _to_unix_ts(d: date, end_of_day: bool = False) -> int:
@@ -121,3 +124,48 @@ def obtener_historial_precios(ticker: str, dias: int = 30) -> list[dict]:
             detail=f"No se encontro historial de precios para el ticker {ticker}",
         )
     return historial
+
+
+def obtener_noticias(ticker: str, cantidad: int = 6) -> list[dict]:
+    ticker = ticker.upper().strip()
+    headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
+    params = {"q": ticker, "newsCount": str(cantidad), "quotesCount": "0"}
+
+    try:
+        resp = httpx.get(YF_SEARCH_URL, params=params, headers=headers, timeout=15.0)
+    except httpx.HTTPError:
+        logger.exception("Error de red consultando noticias para %s", ticker)
+        return []
+
+    if resp.status_code != 200:
+        logger.error("yahoo search status %s para %s", resp.status_code, ticker)
+        return []
+
+    noticias = (resp.json() or {}).get("news") or []
+    resultado = []
+    for n in noticias[:cantidad]:
+        publicado = n.get("providerPublishTime")
+        resultado.append(
+            {
+                "titulo": n.get("title"),
+                "fuente": n.get("publisher"),
+                "link": n.get("link"),
+                "fecha": (
+                    datetime.fromtimestamp(int(publicado), tz=timezone.utc).isoformat()
+                    if publicado
+                    else None
+                ),
+            }
+        )
+    return resultado
+
+
+def obtener_precios_destacados() -> list[dict]:
+    destacados = []
+    for ticker in TICKERS_DESTACADOS:
+        try:
+            precio = obtener_precio_actual(ticker)
+        except HTTPException:
+            continue
+        destacados.append({"ticker": ticker, "precio": precio})
+    return destacados
