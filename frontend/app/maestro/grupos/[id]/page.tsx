@@ -176,28 +176,50 @@ export default function DetalleGrupoPage() {
     <main className="min-h-screen bg-canvas">
       <Navbar />
       <div className="mx-auto max-w-5xl p-6">
-        <h1 className="mb-1 text-2xl font-bold text-fg">{grupo.nombre}</h1>
-        <p className="mb-1 text-sm text-fg/40">
-          Capital inicial: ${Number(grupo.capital_inicial).toLocaleString("es-MX")}
-          {" · "}
-          Alumnos: {grupo.memberships.length}
-          {grupo.max_alumnos !== null && ` / ${grupo.max_alumnos}`}
-        </p>
-        <p className="mb-6 text-sm text-fg/40">
-          Activos permitidos: {grupo.activos_permitidos.join(", ")}
-          {grupo.limite_orden_valor && (
-            <>
-              {" · "}
-              Límite por orden: ${Number(grupo.limite_orden_valor).toLocaleString("es-MX")}
-            </>
-          )}
-          {Number(grupo.comision_porcentaje) > 0 && (
-            <>
-              {" · "}
-              Comisión: {(Number(grupo.comision_porcentaje) * 100).toFixed(2)}%
-            </>
-          )}
-        </p>
+        <Link href="/maestro/grupos" className="mb-2 inline-block text-sm text-fg/50 hover:text-fg/80">
+          ← Volver a mis grupos
+        </Link>
+        <h1 className="mb-4 text-2xl font-bold text-fg">{grupo.nombre}</h1>
+
+        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="rounded-none border border-fg/10 bg-panel p-4">
+            <p className="text-xs uppercase tracking-wide text-fg/40">Capital inicial</p>
+            <p className="text-lg font-semibold text-ganancia">
+              ${Number(grupo.capital_inicial).toLocaleString("es-MX")}
+            </p>
+          </div>
+          <div className="rounded-none border border-fg/10 bg-panel p-4">
+            <p className="text-xs uppercase tracking-wide text-fg/40">Alumnos</p>
+            <p className="text-lg font-semibold text-fg">
+              {grupo.memberships.length}
+              {grupo.max_alumnos !== null && (
+                <span className="text-sm font-normal text-fg/40"> / {grupo.max_alumnos}</span>
+              )}
+            </p>
+          </div>
+          <div className="rounded-none border border-fg/10 bg-panel p-4">
+            <p className="text-xs uppercase tracking-wide text-fg/40">Límite por orden</p>
+            <p className="text-lg font-semibold text-fg">
+              {grupo.limite_orden_valor
+                ? `$${Number(grupo.limite_orden_valor).toLocaleString("es-MX")}`
+                : "Sin límite"}
+            </p>
+          </div>
+          <div className="rounded-none border border-fg/10 bg-panel p-4">
+            <p className="text-xs uppercase tracking-wide text-fg/40">Comisión</p>
+            <p className="text-lg font-semibold text-fg">
+              {(Number(grupo.comision_porcentaje) * 100).toFixed(2)}%
+            </p>
+          </div>
+        </div>
+
+        <div className="mb-6 flex flex-wrap gap-1.5">
+          {grupo.activos_permitidos.map((tipo) => (
+            <span key={tipo} className="rounded-full bg-fg/5 px-2.5 py-1 text-xs text-fg/60">
+              {tipo}
+            </span>
+          ))}
+        </div>
 
         {grupo.fases_activo.length > 0 && (
           <p className="mb-6 text-sm text-fg/40">
