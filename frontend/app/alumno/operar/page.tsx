@@ -33,6 +33,7 @@ interface Destacado {
   ticker: string;
   precio: string;
   cambio_porcentaje: number;
+  sparkline?: number[];
 }
 
 interface Noticia {
@@ -40,10 +41,15 @@ interface Noticia {
   fuente: string;
   link: string;
   fecha: string | null;
+  imagen?: string | null;
 }
 
 interface NoticiasResponse {
   ticker: string;
+  noticias: Noticia[];
+}
+
+interface NoticiasGeneralesResponse {
   noticias: Noticia[];
 }
 
@@ -67,6 +73,23 @@ interface OrdenResponse {
   precio_ejecucion: string;
 }
 
+function WatchlistSparkline({ data, subiendo }: { data: number[]; subiendo: boolean }) {
+  if (data.length < 2) return null;
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+  const w = 52;
+  const h = 24;
+  const points = data
+    .map((v, i) => `${(i / (data.length - 1)) * w},${h - ((v - min) / range) * h}`)
+    .join(" ");
+  return (
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="shrink-0">
+      <polyline points={points} fill="none" stroke={subiendo ? "#16a34a" : "#dc2626"} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export default function OperarPage() {
   return (
     <Suspense fallback={null}>
@@ -81,6 +104,7 @@ function OperarPageInterna() {
   const [precio, setPrecio] = useState<string | null>(null);
   const [historial, setHistorial] = useState<PuntoHistorial[]>([]);
   const [noticias, setNoticias] = useState<Noticia[]>([]);
+  const [noticiasGenerales, setNoticiasGenerales] = useState<Noticia[]>([]);
   const [destacados, setDestacados] = useState<Destacado[]>([]);
   const [cantidad, setCantidad] = useState("1");
   const [buscando, setBuscando] = useState(false);
@@ -93,6 +117,11 @@ function OperarPageInterna() {
     api
       .get<Destacado[]>("/precios/destacados")
       .then(setDestacados)
+      .catch(() => {});
+
+    api
+      .get<NoticiasGeneralesResponse>("/precios/noticias-generales")
+      .then((r) => setNoticiasGenerales(r.noticias))
       .catch(() => {});
 
     const sesion = obtenerSesion();
@@ -232,36 +261,42 @@ function OperarPageInterna() {
           {/* Columna izquierda: watchlist */}
           <div className="lg:col-span-3">
             <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">Watchlist</p>
-            <div className="overflow-hidden rounded-none border border-fg/10 bg-panel">
+            <div className="flex flex-col gap-2">
+              {destacados.length === 0 && (
+                <p className="rounded-none border border-fg/10 bg-panel p-3 text-sm text-fg/40">Cargando watchlist...</p>
+              )}
               {destacados.map((d) => {
                 const sube = d.cambio_porcentaje >= 0;
                 const activo = ticker === d.ticker;
+                const sparkData = (d.sparkline || []).map(Number);
                 return (
                   <button
                     key={d.ticker}
                     onClick={() => buscar(d.ticker)}
-                    className={`flex w-full items-center justify-between border-b border-fg/5 px-3 py-2.5 text-left last:border-0 ${
-                      activo ? "bg-accent/10" : "hover:bg-fg/5"
+                    className={`flex w-full items-center justify-between rounded-none border border-fg/10 px-3 py-3 text-left transition-colors ${
+                      activo ? "border-accent/40 bg-accent/10" : "bg-panel hover:bg-fg/5"
                     }`}
                   >
-                    <span className="font-mono text-sm font-bold text-fg">{d.ticker}</span>
-                    <span className="flex flex-col items-end">
-                      <span className="font-mono text-sm tabular-nums text-fg/80">
-                        ${Number(d.precio).toFixed(2)}
-                      </span>
+                    <div className="flex flex-col">
+                      <span className="font-mono text-sm font-bold text-fg">{d.ticker}</span>
                       <span
                         className={`font-mono text-[11px] font-semibold tabular-nums ${
                           sube ? "text-ganancia" : "text-perdida"
                         }`}
                       >
-                        {sube ? "▲" : "▼"} {sube ? "+" : ""}
+                        {sube ? "▲ +" : "▼ "}
                         {d.cambio_porcentaje.toFixed(2)}%
                       </span>
+                    </div>
+                    {sparkData.length > 1 && (
+                      <WatchlistSparkline data={sparkData} subiendo={sube} />
+                    )}
+                    <span className="font-mono text-sm tabular-nums text-fg/80">
+                      ${Number(d.precio).toFixed(2)}
                     </span>
                   </button>
                 );
               })}
-              {destacados.length === 0 && <p className="p-3 text-sm text-fg/40">Cargando watchlist...</p>}
             </div>
           </div>
 
@@ -373,38 +408,110 @@ function OperarPageInterna() {
           {/* Columna derecha: noticias */}
           <div className="lg:col-span-3">
             <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">
-              Noticias {ticker ? `· ${ticker.toUpperCase()}` : ""}
+              Noticias {ticker ? `· ${ticker.toUpperCase()}` : "· Mercados"}
             </p>
-            <Card className="max-h-[640px] overflow-y-auto">
-              {noticias.length === 0 ? (
-                <p className="text-sm text-fg/40">
-                  {ticker ? "No hay noticias recientes." : "Busca un ticker para ver sus noticias."}
-                </p>
-              ) : (
-                <ul className="flex flex-col gap-4">
-                  {noticias.map((n, i) => (
-                    <li key={i} className="border-b border-fg/5 pb-3 last:border-0 last:pb-0">
-                      <a
-                        href={n.link}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-sm font-medium text-fg hover:text-accent"
-                      >
-                        {n.titulo}
-                      </a>
-                      <div className="mt-1 flex items-center gap-2">
-                        {n.fuente && <Badge>{n.fuente}</Badge>}
-                        {n.fecha && (
+
+            {!ticker && noticiasGenerales.length > 0 ? (
+              <div className="flex flex-col gap-3">
+                {/* Featured story */}
+                {noticiasGenerales[0] && (
+                  <a
+                    href={noticiasGenerales[0].link}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="group block overflow-hidden rounded-none border border-fg/10 bg-panel"
+                  >
+                    {noticiasGenerales[0].imagen && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={noticiasGenerales[0].imagen}
+                        alt=""
+                        className="h-36 w-full object-cover"
+                      />
+                    )}
+                    <div className="p-3">
+                      <p className="text-sm font-semibold leading-snug text-fg group-hover:text-accent">
+                        {noticiasGenerales[0].titulo}
+                      </p>
+                      <div className="mt-2 flex items-center gap-2">
+                        {noticiasGenerales[0].fuente && <Badge>{noticiasGenerales[0].fuente}</Badge>}
+                        {noticiasGenerales[0].fecha && (
                           <span className="text-xs text-fg/40">
-                            {new Date(n.fecha).toLocaleDateString("es-MX")}
+                            {new Date(noticiasGenerales[0].fecha).toLocaleDateString("es-MX")}
                           </span>
                         )}
                       </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </Card>
+                    </div>
+                  </a>
+                )}
+                {/* Secondary list */}
+                <div className="overflow-hidden rounded-none border border-fg/10 bg-panel">
+                  <ul className="flex flex-col">
+                    {noticiasGenerales.slice(1).map((n, i) => (
+                      <li key={i} className="border-b border-fg/5 last:border-0">
+                        <a
+                          href={n.link}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-start gap-2 p-3 hover:bg-fg/5"
+                        >
+                          {n.imagen && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={n.imagen} alt="" className="mt-0.5 h-12 w-16 shrink-0 rounded-sm object-cover" />
+                          )}
+                          <div>
+                            <p className="text-xs font-medium leading-snug text-fg">{n.titulo}</p>
+                            <div className="mt-1 flex items-center gap-2">
+                              {n.fuente && <span className="text-[10px] text-fg/40">{n.fuente}</span>}
+                              {n.fecha && (
+                                <span className="text-[10px] text-fg/30">
+                                  {new Date(n.fecha).toLocaleDateString("es-MX")}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            ) : (
+              <Card className="max-h-[640px] overflow-y-auto">
+                {noticias.length === 0 ? (
+                  <p className="text-sm text-fg/40">
+                    {ticker ? "No hay noticias recientes." : "Cargando noticias..."}
+                  </p>
+                ) : (
+                  <ul className="flex flex-col gap-4">
+                    {noticias.map((n, i) => (
+                      <li key={i} className="border-b border-fg/5 pb-3 last:border-0 last:pb-0">
+                        {n.imagen && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={n.imagen} alt="" className="mb-2 h-28 w-full rounded-sm object-cover" />
+                        )}
+                        <a
+                          href={n.link}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-sm font-medium text-fg hover:text-accent"
+                        >
+                          {n.titulo}
+                        </a>
+                        <div className="mt-1 flex items-center gap-2">
+                          {n.fuente && <Badge>{n.fuente}</Badge>}
+                          {n.fecha && (
+                            <span className="text-xs text-fg/40">
+                              {new Date(n.fecha).toLocaleDateString("es-MX")}
+                            </span>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Card>
+            )}
 
             <div className="mt-4">
               <MercadosMundo compacto />

@@ -4,6 +4,29 @@ interface Destacado {
   ticker: string;
   precio: string;
   cambio_porcentaje: number;
+  sparkline?: number[];
+}
+
+function Sparkline({ data, subiendo }: { data: number[]; subiendo: boolean }) {
+  if (data.length < 2) return null;
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+  const w = 64;
+  const h = 28;
+  const points = data
+    .map((v, i) => {
+      const x = (i / (data.length - 1)) * w;
+      const y = h - ((v - min) / range) * h;
+      return `${x},${y}`;
+    })
+    .join(" ");
+  const color = subiendo ? "#16a34a" : "#dc2626";
+  return (
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="shrink-0">
+      <polyline points={points} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
+  );
 }
 
 export default function TopMovers({
@@ -26,22 +49,28 @@ export default function TopMovers({
         <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">{titulo}</p>
         <div className="overflow-hidden rounded-none border border-fg/10 bg-canvas">
           {datos.length === 0 && <p className="p-3 text-sm text-fg/40">Sin datos.</p>}
-          {datos.map((d) => (
-            <button
-              key={d.ticker}
-              onClick={() => onSeleccionar(d.ticker)}
-              className="flex w-full items-center justify-between border-b border-fg/5 px-3 py-2.5 text-left last:border-0 hover:bg-fg/5"
-            >
-              <span className="font-mono text-sm font-bold text-fg">{d.ticker}</span>
-              <span className="flex items-center gap-3">
-                <span className="font-mono text-sm tabular-nums text-fg/80">${Number(d.precio).toFixed(2)}</span>
-                <Badge tone={tono}>
-                  {d.cambio_porcentaje >= 0 ? "▲ +" : "▼ "}
-                  {d.cambio_porcentaje.toFixed(2)}%
-                </Badge>
-              </span>
-            </button>
-          ))}
+          {datos.map((d) => {
+            const sube = d.cambio_porcentaje >= 0;
+            return (
+              <button
+                key={d.ticker}
+                onClick={() => onSeleccionar(d.ticker)}
+                className="flex w-full items-center justify-between border-b border-fg/5 px-3 py-2.5 text-left last:border-0 hover:bg-fg/5"
+              >
+                <span className="font-mono text-sm font-bold text-fg">{d.ticker}</span>
+                {d.sparkline && d.sparkline.length > 1 && (
+                  <Sparkline data={d.sparkline.map(Number)} subiendo={sube} />
+                )}
+                <span className="flex items-center gap-2">
+                  <span className="font-mono text-sm tabular-nums text-fg/80">${Number(d.precio).toFixed(2)}</span>
+                  <Badge tone={tono}>
+                    {sube ? "▲ +" : "▼ "}
+                    {d.cambio_porcentaje.toFixed(2)}%
+                  </Badge>
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
     );

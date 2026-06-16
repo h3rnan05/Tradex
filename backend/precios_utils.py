@@ -212,25 +212,25 @@ def obtener_historial_precios_rango(ticker: str, fecha_inicio: date, fecha_fin: 
     return historial
 
 
-def obtener_noticias(ticker: str, cantidad: int = 6) -> list[dict]:
-    ticker = ticker.upper().strip()
+def _buscar_noticias_yahoo(query: str, cantidad: int) -> list[dict]:
     headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
-    params = {"q": ticker, "newsCount": str(cantidad), "quotesCount": "0"}
+    params = {"q": query, "newsCount": str(cantidad), "quotesCount": "0"}
 
     try:
         resp = httpx.get(YF_SEARCH_URL, params=params, headers=headers, timeout=15.0)
     except httpx.HTTPError:
-        logger.exception("Error de red consultando noticias para %s", ticker)
+        logger.exception("Error de red consultando noticias para %s", query)
         return []
 
     if resp.status_code != 200:
-        logger.error("yahoo search status %s para %s", resp.status_code, ticker)
+        logger.error("yahoo search status %s para %s", resp.status_code, query)
         return []
 
     noticias = (resp.json() or {}).get("news") or []
     resultado = []
     for n in noticias[:cantidad]:
         publicado = n.get("providerPublishTime")
+        miniatura = (n.get("thumbnail") or {}).get("resolutions") or []
         resultado.append(
             {
                 "titulo": n.get("title"),
@@ -241,9 +241,18 @@ def obtener_noticias(ticker: str, cantidad: int = 6) -> list[dict]:
                     if publicado
                     else None
                 ),
+                "imagen": miniatura[0].get("url") if miniatura else None,
             }
         )
     return resultado
+
+
+def obtener_noticias(ticker: str, cantidad: int = 6) -> list[dict]:
+    return _buscar_noticias_yahoo(ticker.upper().strip(), cantidad)
+
+
+def obtener_noticias_generales(cantidad: int = 8) -> list[dict]:
+    return _buscar_noticias_yahoo("stock market", cantidad)
 
 
 def obtener_precios_destacados() -> list[dict]:
@@ -253,5 +262,16 @@ def obtener_precios_destacados() -> list[dict]:
             precio, cambio_porcentaje = _obtener_precio_y_cambio(ticker)
         except HTTPException:
             continue
-        destacados.append({"ticker": ticker, "precio": precio, "cambio_porcentaje": cambio_porcentaje})
+        sparkline = []
+        try:
+            historial = obtener_historial_precios(ticker, dias=10)
+            sparkline = [item["precio"] for item in historial]
+        except HTTPException:
+            pass
+        destacados.append({
+            "ticker": ticker,
+            "precio": precio,
+            "cambio_porcentaje": cambio_porcentaje,
+            "sparkline": sparkline,
+        })
     return destacados
