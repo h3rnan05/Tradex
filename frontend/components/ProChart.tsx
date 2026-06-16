@@ -9,10 +9,21 @@ import {
   IChartApi,
   ISeriesApi,
   LineSeries,
+  MouseEventParams,
+  Time,
   createChart,
 } from "lightweight-charts";
 import { api } from "@/lib/api";
-import { INDICADORES_DISPONIBLES, calcularRSI, calcularSMA } from "@/lib/indicadores";
+import {
+  INDICADORES_DISPONIBLES,
+  calcularBandasBollinger,
+  calcularEMA,
+  calcularEstocastico,
+  calcularMACD,
+  calcularRSI,
+  calcularSMA,
+  calcularVWAP,
+} from "@/lib/indicadores";
 
 interface PuntoHistorial {
   fecha: string;
@@ -75,8 +86,9 @@ export default function ProChart({
   const serieVelasRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const serieAreaRef = useRef<ISeriesApi<"Area"> | null>(null);
   const serieVolumenRef = useRef<ISeriesApi<"Histogram"> | null>(null);
-  const seriesSmaRef = useRef<Record<string, ISeriesApi<"Line">>>({});
-  const serieRsiRef = useRef<ISeriesApi<"Line"> | null>(null);
+  const overlaySeriesRef = useRef<Record<string, ISeriesApi<"Line">[]>>({});
+  const trendLinesRef = useRef<ISeriesApi<"Line">[]>([]);
+  const puntoInicioTrazoRef = useRef<{ time: Time; value: number } | null>(null);
 
   const [dias, setDias] = useState(30);
   const [tipo, setTipo] = useState<"area" | "velas">("area");
@@ -86,6 +98,8 @@ export default function ProChart({
   const [error, setError] = useState<string | null>(null);
   const [indicadoresActivos, setIndicadoresActivos] = useState<string[]>(["sma5"]);
   const [menuIndicadoresAbierto, setMenuIndicadoresAbierto] = useState(false);
+  const [dibujando, setDibujando] = useState(false);
+  const [numTrazos, setNumTrazos] = useState(0);
   const menuIndicadoresRef = useRef<HTMLDivElement>(null);
 
   function alternarIndicador(key: string) {
@@ -164,10 +178,57 @@ export default function ProChart({
       serieVelasRef.current = null;
       serieAreaRef.current = null;
       serieVolumenRef.current = null;
-      seriesSmaRef.current = {};
-      serieRsiRef.current = null;
+      overlaySeriesRef.current = {};
+      trendLinesRef.current = [];
+      puntoInicioTrazoRef.current = null;
+      setNumTrazos(0);
     };
   }, [pantallaCompleta]);
+
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart || !dibujando) return;
+
+    function alClicEnGrafico(param: MouseEventParams) {
+      if (!param.point || param.time === undefined) return;
+      const serieBase = serieVelasRef.current || serieAreaRef.current;
+      if (!serieBase) return;
+      const valor = serieBase.coordinateToPrice(param.point.y);
+      if (valor === null) return;
+
+      if (!puntoInicioTrazoRef.current) {
+        puntoInicioTrazoRef.current = { time: param.time as Time, value: valor };
+        return;
+      }
+
+      const linea = chart!.addSeries(LineSeries, {
+        color: "#ff6600",
+        lineWidth: 2,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false,
+      });
+      linea.setData([puntoInicioTrazoRef.current, { time: param.time as Time, value: valor }]);
+      trendLinesRef.current.push(linea);
+      puntoInicioTrazoRef.current = null;
+      setNumTrazos(trendLinesRef.current.length);
+    }
+
+    chart.subscribeClick(alClicEnGrafico);
+    return () => {
+      chart.unsubscribeClick(alClicEnGrafico);
+      puntoInicioTrazoRef.current = null;
+    };
+  }, [dibujando]);
+
+  function borrarTrazos() {
+    const chart = chartRef.current;
+    if (!chart) return;
+    trendLinesRef.current.forEach((s) => chart.removeSeries(s));
+    trendLinesRef.current = [];
+    puntoInicioTrazoRef.current = null;
+    setNumTrazos(0);
+  }
 
   useEffect(() => {
     const chart = chartRef.current;
@@ -185,12 +246,9 @@ export default function ProChart({
       chart.removeSeries(serieVolumenRef.current);
       serieVolumenRef.current = null;
     }
-    Object.values(seriesSmaRef.current).forEach((s) => chart.removeSeries(s));
-    seriesSmaRef.current = {};
-    if (serieRsiRef.current) {
-      chart.removeSeries(serieRsiRef.current);
-      serieRsiRef.current = null;
-    }
+    Object.values(overlaySeriesRef.current).forEach((series) => series.forEach((s) => chart.removeSeries(s)));
+    overlaySeriesRef.current = {};
+    while (chart.panes().length > 1) chart.removePane(chart.panes().length - 1);
 
     const ultimoCierre = Number(datos[datos.length - 1].precio);
     const primerCierre = Number(datos[0].precio);
@@ -244,47 +302,116 @@ export default function ProChart({
     }
 
     const precios = datos.map((d) => Number(d.precio));
-    const periodos: Record<string, number> = { sma5: 5, sma10: 10, sma20: 20 };
-    for (const [key, periodo] of Object.entries(periodos)) {
-      if (!indicadoresActivos.includes(key)) continue;
-      const valores = calcularSMA(precios, periodo);
-      const color = INDICADORES_DISPONIBLES.find((i) => i.key === key)?.color ?? "#888";
-      const serieSma = chart.addSeries(LineSeries, {
+    const maximos = datos.map((d) => Number(d.maximo ?? d.precio));
+    const minimos = datos.map((d) => Number(d.minimo ?? d.precio));
+    const volumenes = datos.map((d) => d.volumen ?? 0);
+    const fechas = datos.map((d) => d.fecha);
+
+    function lineaSimple(valores: (number | null)[], color: string, ancho: 1 | 2 = 1) {
+      const serie = chart!.addSeries(LineSeries, {
         color,
-        lineWidth: 1,
+        lineWidth: ancho,
         priceLineVisible: false,
         lastValueVisible: false,
         crosshairMarkerVisible: false,
       });
-      serieSma.setData(
-        datos
-          .map((d, i) => ({ time: d.fecha, value: valores[i] }))
+      serie.setData(
+        fechas
+          .map((time, i) => ({ time, value: valores[i] }))
           .filter((p): p is { time: string; value: number } => p.value !== null)
       );
-      seriesSmaRef.current[key] = serieSma;
+      return serie;
     }
 
-    if (indicadoresActivos.includes("rsi")) {
-      const valoresRsi = calcularRSI(precios, 14);
-      if (chart.panes().length < 2) chart.addPane();
-      chart.panes()[0].setStretchFactor(4);
-      chart.panes()[1].setStretchFactor(1.3);
-      const serieRsi = chart.addSeries(
-        LineSeries,
-        { color: "#cc1a1a", lineWidth: 2 },
-        1
-      );
-      serieRsi.setData(
-        datos
-          .map((d, i) => ({ time: d.fecha, value: valoresRsi[i] }))
-          .filter((p): p is { time: string; value: number } => p.value !== null)
-      );
-      serieRsi.createPriceLine({ price: 70, color: "rgba(204,26,26,0.5)", lineStyle: 2, lineWidth: 1, axisLabelVisible: true, title: "70" });
-      serieRsi.createPriceLine({ price: 30, color: "rgba(0,122,46,0.5)", lineStyle: 2, lineWidth: 1, axisLabelVisible: true, title: "30" });
-      serieRsiRef.current = serieRsi;
-    } else if (chart.panes().length > 1) {
-      chart.removePane(1);
+    const periodosSma: Record<string, number> = { sma5: 5, sma10: 10, sma20: 20 };
+    for (const [key, periodo] of Object.entries(periodosSma)) {
+      if (!indicadoresActivos.includes(key)) continue;
+      const color = INDICADORES_DISPONIBLES.find((i) => i.key === key)?.color ?? "#888";
+      overlaySeriesRef.current[key] = [lineaSimple(calcularSMA(precios, periodo), color)];
     }
+
+    const periodosEma: Record<string, number> = { ema9: 9, ema21: 21 };
+    for (const [key, periodo] of Object.entries(periodosEma)) {
+      if (!indicadoresActivos.includes(key)) continue;
+      const color = INDICADORES_DISPONIBLES.find((i) => i.key === key)?.color ?? "#888";
+      overlaySeriesRef.current[key] = [lineaSimple(calcularEMA(precios, periodo), color)];
+    }
+
+    if (indicadoresActivos.includes("bollinger")) {
+      const { superior, media, inferior } = calcularBandasBollinger(precios, 20, 2);
+      const color = INDICADORES_DISPONIBLES.find((i) => i.key === "bollinger")?.color ?? "#0077b6";
+      overlaySeriesRef.current["bollinger"] = [
+        lineaSimple(superior, `${color}aa`),
+        lineaSimple(media, color),
+        lineaSimple(inferior, `${color}aa`),
+      ];
+    }
+
+    if (indicadoresActivos.includes("vwap")) {
+      const color = INDICADORES_DISPONIBLES.find((i) => i.key === "vwap")?.color ?? "#cc8800";
+      overlaySeriesRef.current["vwap"] = [lineaSimple(calcularVWAP(maximos, minimos, precios, volumenes), color, 2)];
+    }
+
+    const osciladoresActivos = ["rsi", "macd", "estocastico"].filter((k) => indicadoresActivos.includes(k));
+    chart.panes()[0].setStretchFactor(osciladoresActivos.length > 0 ? 4 : 1);
+
+    osciladoresActivos.forEach((key, idx) => {
+      const paneIndex = idx + 1;
+      chart.addPane();
+      chart.panes()[paneIndex].setStretchFactor(1.3);
+
+      if (key === "rsi") {
+        const valoresRsi = calcularRSI(precios, 14);
+        const serieRsi = chart.addSeries(LineSeries, { color: "#cc1a1a", lineWidth: 2 }, paneIndex);
+        serieRsi.setData(
+          fechas
+            .map((time, i) => ({ time, value: valoresRsi[i] }))
+            .filter((p): p is { time: string; value: number } => p.value !== null)
+        );
+        serieRsi.createPriceLine({ price: 70, color: "rgba(204,26,26,0.5)", lineStyle: 2, lineWidth: 1, axisLabelVisible: true, title: "70" });
+        serieRsi.createPriceLine({ price: 30, color: "rgba(0,122,46,0.5)", lineStyle: 2, lineWidth: 1, axisLabelVisible: true, title: "30" });
+      }
+
+      if (key === "macd") {
+        const { macd, señal, histograma } = calcularMACD(precios, 12, 26, 9);
+        const serieHist = chart.addSeries(HistogramSeries, { priceFormat: { type: "price", precision: 2 } }, paneIndex);
+        serieHist.setData(
+          fechas
+            .map((time, i) => ({ time, value: histograma[i], color: (histograma[i] ?? 0) >= 0 ? `${COLOR_SUBE}66` : `${COLOR_BAJA}66` }))
+            .filter((p): p is { time: string; value: number; color: string } => p.value !== null)
+        );
+        const serieMacd = chart.addSeries(LineSeries, { color: "#0077b6", lineWidth: 2 }, paneIndex);
+        serieMacd.setData(
+          fechas
+            .map((time, i) => ({ time, value: macd[i] }))
+            .filter((p): p is { time: string; value: number } => p.value !== null)
+        );
+        const serieSeñal = chart.addSeries(LineSeries, { color: "#cc1a1a", lineWidth: 1 }, paneIndex);
+        serieSeñal.setData(
+          fechas
+            .map((time, i) => ({ time, value: señal[i] }))
+            .filter((p): p is { time: string; value: number } => p.value !== null)
+        );
+      }
+
+      if (key === "estocastico") {
+        const { k, d } = calcularEstocastico(maximos, minimos, precios, 14, 3);
+        const serieK = chart.addSeries(LineSeries, { color: "#6d28d9", lineWidth: 2 }, paneIndex);
+        serieK.setData(
+          fechas
+            .map((time, i) => ({ time, value: k[i] }))
+            .filter((p): p is { time: string; value: number } => p.value !== null)
+        );
+        const serieD = chart.addSeries(LineSeries, { color: "#ff6600", lineWidth: 1 }, paneIndex);
+        serieD.setData(
+          fechas
+            .map((time, i) => ({ time, value: d[i] }))
+            .filter((p): p is { time: string; value: number } => p.value !== null)
+        );
+        serieK.createPriceLine({ price: 80, color: "rgba(204,26,26,0.5)", lineStyle: 2, lineWidth: 1, axisLabelVisible: true, title: "80" });
+        serieK.createPriceLine({ price: 20, color: "rgba(0,122,46,0.5)", lineStyle: 2, lineWidth: 1, axisLabelVisible: true, title: "20" });
+      }
+    });
 
     chart.timeScale().fitContent();
   }, [datos, tipo, indicadoresActivos, pantallaCompleta]);
@@ -417,6 +544,23 @@ export default function ProChart({
             </div>
 
             <button
+              onClick={() => setDibujando((v) => !v)}
+              className={`rounded-md border px-2.5 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-wide transition ${
+                dibujando ? "border-accent bg-accent/10 text-accent" : "border-fg/15 text-fg/50 hover:bg-fg/5"
+              }`}
+            >
+              ✎ Dibujar
+            </button>
+            {numTrazos > 0 && (
+              <button
+                onClick={borrarTrazos}
+                className="rounded-md border border-fg/15 px-2.5 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-wide text-fg/50 transition hover:bg-fg/5"
+              >
+                Borrar líneas
+              </button>
+            )}
+
+            <button
               onClick={() => setPantallaCompleta((v) => !v)}
               className="rounded-md border border-fg/15 px-2.5 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-wide text-fg/50 transition hover:bg-fg/5"
             >
@@ -424,6 +568,12 @@ export default function ProChart({
             </button>
           </div>
         </div>
+
+        {dibujando && (
+          <p className="mb-2 font-mono text-[11px] text-accent">
+            Modo dibujo activo: haz clic en dos puntos de la gráfica para trazar una línea.
+          </p>
+        )}
 
         {indicadoresActivosInfo.length > 0 && (
           <div className="mb-2 flex flex-wrap gap-3">
