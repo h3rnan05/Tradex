@@ -90,6 +90,11 @@ export default function ProChart({ ticker, noticias = [] }: { ticker: string; no
         textColor: COLOR_TEXTO,
         fontFamily: "IBM Plex Mono, monospace",
         fontSize: 11,
+        panes: {
+          separatorColor: "rgba(26,14,0,0.12)",
+          separatorHoverColor: "rgba(255,102,0,0.15)",
+          enableResize: true,
+        },
       },
       grid: {
         vertLines: { color: COLOR_GRID },
@@ -105,6 +110,7 @@ export default function ProChart({ ticker, noticias = [] }: { ticker: string; no
       handleScale: true,
     });
     chartRef.current = chart;
+    chart.panes()[0].setStretchFactor(4);
 
     const resize = () => {
       if (contenedorRef.current) {
@@ -228,6 +234,8 @@ export default function ProChart({ ticker, noticias = [] }: { ticker: string; no
     if (indicadoresActivos.includes("rsi")) {
       const valoresRsi = calcularRSI(precios, 14);
       if (chart.panes().length < 2) chart.addPane();
+      chart.panes()[0].setStretchFactor(4);
+      chart.panes()[1].setStretchFactor(1.3);
       const serieRsi = chart.addSeries(
         LineSeries,
         { color: "#cc1a1a", lineWidth: 2 },
@@ -241,6 +249,8 @@ export default function ProChart({ ticker, noticias = [] }: { ticker: string; no
       serieRsi.createPriceLine({ price: 70, color: "rgba(204,26,26,0.5)", lineStyle: 2, lineWidth: 1, axisLabelVisible: true, title: "70" });
       serieRsi.createPriceLine({ price: 30, color: "rgba(0,122,46,0.5)", lineStyle: 2, lineWidth: 1, axisLabelVisible: true, title: "30" });
       serieRsiRef.current = serieRsi;
+    } else if (chart.panes().length > 1) {
+      chart.removePane(1);
     }
 
     chart.timeScale().fitContent();
