@@ -5,7 +5,6 @@ import { useSearchParams } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import ProChart from "@/components/ProChart";
 import MercadosMundo from "@/components/MercadosMundo";
-import TopMovers from "@/components/TopMovers";
 import { Badge, Card } from "@/components/primitives";
 import { api, ApiError } from "@/lib/api";
 import { obtenerSesion } from "@/lib/auth";
@@ -58,9 +57,20 @@ interface ActivoProximo {
   fecha_activacion: string;
 }
 
+interface Holding {
+  ticker: string;
+  cantidad: string;
+  precio_promedio: string;
+  precio_actual: string;
+  valor_mercado: string;
+  pnl: string;
+  pnl_porcentaje: string;
+}
+
 interface Portafolio {
   grupo_id: string;
   capital_disponible: string;
+  holdings: Holding[];
   activos_disponibles: string[];
   activos_proximos: ActivoProximo[];
 }
@@ -73,19 +83,26 @@ interface OrdenResponse {
   precio_ejecucion: string;
 }
 
-function WatchlistSparkline({ data, subiendo }: { data: number[]; subiendo: boolean }) {
+function Sparkline({ data, subiendo }: { data: number[]; subiendo: boolean }) {
   if (data.length < 2) return null;
   const min = Math.min(...data);
   const max = Math.max(...data);
   const range = max - min || 1;
-  const w = 52;
-  const h = 24;
+  const w = 56;
+  const h = 26;
   const points = data
     .map((v, i) => `${(i / (data.length - 1)) * w},${h - ((v - min) / range) * h}`)
     .join(" ");
   return (
     <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="shrink-0">
-      <polyline points={points} fill="none" stroke={subiendo ? "#16a34a" : "#dc2626"} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+      <polyline
+        points={points}
+        fill="none"
+        stroke={subiendo ? "#16a34a" : "#dc2626"}
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
@@ -106,6 +123,8 @@ function OperarPageInterna() {
   const [noticias, setNoticias] = useState<Noticia[]>([]);
   const [noticiasGenerales, setNoticiasGenerales] = useState<Noticia[]>([]);
   const [destacados, setDestacados] = useState<Destacado[]>([]);
+  const [holdings, setHoldings] = useState<Holding[]>([]);
+  const [capitalDisponible, setCapitalDisponible] = useState<string | null>(null);
   const [cantidad, setCantidad] = useState("1");
   const [buscando, setBuscando] = useState(false);
   const [operando, setOperando] = useState(false);
@@ -128,7 +147,11 @@ function OperarPageInterna() {
     if (sesion) {
       api
         .get<Portafolio>(`/alumnos/${sesion.userId}/portafolio`)
-        .then((p) => setActivosProximos(p.activos_proximos || []))
+        .then((p) => {
+          setActivosProximos(p.activos_proximos || []);
+          setHoldings(p.holdings || []);
+          setCapitalDisponible(p.capital_disponible);
+        })
         .catch(() => {});
     }
   }, []);
@@ -197,6 +220,12 @@ function OperarPageInterna() {
           orden.precio_ejecucion
         ).toFixed(2)}`
       );
+      // Refresh holdings after order
+      const p2 = await api.get<Portafolio>(`/alumnos/${sesion.userId}/portafolio`).catch(() => null);
+      if (p2) {
+        setHoldings(p2.holdings || []);
+        setCapitalDisponible(p2.capital_disponible);
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "No se pudo ejecutar la orden");
     } finally {
@@ -218,10 +247,10 @@ function OperarPageInterna() {
     <main className="min-h-screen bg-canvas">
       <Navbar />
       <div className="mx-auto max-w-7xl p-6">
-        <h1 className="mb-6 text-2xl font-bold text-fg">Operar</h1>
+        <h1 className="mb-4 text-2xl font-bold text-fg">Operar</h1>
 
         {activosProximos.length > 0 && (
-          <Card className="mb-6 border-accent/30 bg-accent/5">
+          <Card className="mb-4 border-accent/30 bg-accent/5">
             <p className="text-sm text-fg/70">
               Algunos tipos de activos de tu grupo aún no están disponibles:{" "}
               {activosProximos
@@ -236,7 +265,7 @@ function OperarPageInterna() {
 
         <form
           onSubmit={buscarPrecio}
-          className="mb-6 flex items-end gap-3 rounded-none border border-fg/10 bg-panel p-4 shadow-sm"
+          className="mb-4 flex items-end gap-3 rounded-none border border-fg/10 bg-panel p-4 shadow-sm"
         >
           <div className="flex-1">
             <label className="mb-1 block text-sm font-medium text-fg/70">Ticker</label>
@@ -245,7 +274,7 @@ function OperarPageInterna() {
               value={ticker}
               onChange={(e) => setTicker(e.target.value)}
               placeholder="AAPL"
-              className="w-full rounded-none border border-fg/20 px-3 py-2 font-mono text-sm uppercase"
+              className="w-full rounded-none border border-fg/20 bg-canvas px-3 py-2 font-mono text-sm uppercase"
             />
           </div>
           <button
@@ -258,53 +287,147 @@ function OperarPageInterna() {
         </form>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-          {/* Columna izquierda: watchlist */}
+
+          {/* ── Columna izquierda: Mi cartera ── */}
           <div className="lg:col-span-3">
-            <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">Watchlist</p>
-            <div className="flex flex-col gap-2">
-              {destacados.length === 0 && (
-                <p className="rounded-none border border-fg/10 bg-panel p-3 text-sm text-fg/40">Cargando watchlist...</p>
-              )}
-              {destacados.map((d) => {
-                const sube = d.cambio_porcentaje >= 0;
-                const activo = ticker === d.ticker;
-                const sparkData = (d.sparkline || []).map(Number);
-                return (
-                  <button
-                    key={d.ticker}
-                    onClick={() => buscar(d.ticker)}
-                    className={`flex w-full items-center justify-between rounded-none border border-fg/10 px-3 py-3 text-left transition-colors ${
-                      activo ? "border-accent/40 bg-accent/10" : "bg-panel hover:bg-fg/5"
-                    }`}
-                  >
-                    <div className="flex flex-col">
-                      <span className="font-mono text-sm font-bold text-fg">{d.ticker}</span>
-                      <span
-                        className={`font-mono text-[11px] font-semibold tabular-nums ${
-                          sube ? "text-ganancia" : "text-perdida"
-                        }`}
-                      >
-                        {sube ? "▲ +" : "▼ "}
-                        {d.cambio_porcentaje.toFixed(2)}%
-                      </span>
-                    </div>
-                    {sparkData.length > 1 && (
-                      <WatchlistSparkline data={sparkData} subiendo={sube} />
-                    )}
-                    <span className="font-mono text-sm tabular-nums text-fg/80">
-                      ${Number(d.precio).toFixed(2)}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+            <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">Mi cartera</p>
+
+            {capitalDisponible !== null && (
+              <div className="mb-2 rounded-none border border-fg/10 bg-panel px-3 py-2">
+                <p className="font-mono text-[10px] uppercase tracking-widest text-fg/40">Capital disponible</p>
+                <p className="font-mono text-base font-bold tabular-nums text-fg">
+                  ${Number(capitalDisponible).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+              </div>
+            )}
+
+            {holdings.length === 0 ? (
+              <div className="rounded-none border border-fg/10 bg-panel p-4">
+                <p className="text-sm text-fg/40">No tienes posiciones abiertas.</p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {holdings.map((h) => {
+                  const pnlNum = Number(h.pnl);
+                  const pnlPct = Number(h.pnl_porcentaje);
+                  const gana = pnlNum >= 0;
+                  return (
+                    <button
+                      key={h.ticker}
+                      onClick={() => buscar(h.ticker)}
+                      className={`w-full rounded-none border bg-panel px-3 py-3 text-left transition-colors hover:bg-fg/5 ${
+                        ticker === h.ticker ? "border-accent/40 bg-accent/5" : "border-fg/10"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-sm font-bold text-fg">{h.ticker}</span>
+                        <span className={`font-mono text-xs font-semibold ${gana ? "text-ganancia" : "text-perdida"}`}>
+                          {gana ? "▲ +" : "▼ "}{pnlPct.toFixed(2)}%
+                        </span>
+                      </div>
+                      <div className="mt-1 flex items-center justify-between">
+                        <span className="font-mono text-xs tabular-nums text-fg/50">
+                          {Number(h.cantidad).toFixed(4)} acc
+                        </span>
+                        <span className="font-mono text-xs tabular-nums text-fg/70">
+                          ${Number(h.valor_mercado).toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="mt-0.5">
+                        <span className={`font-mono text-xs tabular-nums ${gana ? "text-ganancia" : "text-perdida"}`}>
+                          {gana ? "+" : ""}${pnlNum.toFixed(2)} P&L
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
-          {/* Columna central: precio, gráfico, orden */}
+          {/* ── Columna central: Noticias / Gráfica ── */}
           <div className="lg:col-span-6">
             {!precio ? (
-              <TopMovers destacados={destacados} onSeleccionar={buscar} />
+              /* Landing: noticias generales */
+              <div>
+                <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">
+                  Noticias · Mercados
+                </p>
+                {noticiasGenerales.length === 0 ? (
+                  <Card><p className="text-sm text-fg/40">Cargando noticias...</p></Card>
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    {/* Featured story */}
+                    {noticiasGenerales[0] && (
+                      <a
+                        href={noticiasGenerales[0].link}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="group block overflow-hidden rounded-none border border-fg/10 bg-panel"
+                      >
+                        {noticiasGenerales[0].imagen && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={noticiasGenerales[0].imagen}
+                            alt=""
+                            className="h-44 w-full object-cover"
+                          />
+                        )}
+                        <div className="p-4">
+                          <p className="text-base font-semibold leading-snug text-fg group-hover:text-accent">
+                            {noticiasGenerales[0].titulo}
+                          </p>
+                          <div className="mt-2 flex items-center gap-2">
+                            {noticiasGenerales[0].fuente && <Badge>{noticiasGenerales[0].fuente}</Badge>}
+                            {noticiasGenerales[0].fecha && (
+                              <span className="text-xs text-fg/40">
+                                {new Date(noticiasGenerales[0].fecha).toLocaleDateString("es-MX")}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </a>
+                    )}
+                    {/* Secondary list */}
+                    <div className="overflow-hidden rounded-none border border-fg/10 bg-panel">
+                      <ul className="flex flex-col">
+                        {noticiasGenerales.slice(1).map((n, i) => (
+                          <li key={i} className="border-b border-fg/5 last:border-0">
+                            <a
+                              href={n.link}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="flex items-start gap-3 p-3 hover:bg-fg/5"
+                            >
+                              {n.imagen && (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={n.imagen}
+                                  alt=""
+                                  className="mt-0.5 h-14 w-20 shrink-0 rounded-sm object-cover"
+                                />
+                              )}
+                              <div>
+                                <p className="text-sm font-medium leading-snug text-fg">{n.titulo}</p>
+                                <div className="mt-1 flex items-center gap-2">
+                                  {n.fuente && <span className="text-[10px] text-fg/40">{n.fuente}</span>}
+                                  {n.fecha && (
+                                    <span className="text-[10px] text-fg/30">
+                                      {new Date(n.fecha).toLocaleDateString("es-MX")}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                )}
+              </div>
             ) : (
+              /* Ticker seleccionado: gráfica + orden */
               <Card>
                 <div className="mb-4 flex items-start justify-between">
                   <div>
@@ -325,7 +448,7 @@ function OperarPageInterna() {
                   </div>
                 </div>
 
-                <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                <div className="mb-4 grid grid-cols-3 gap-3">
                   <div className="rounded-none border border-fg/10 bg-canvas px-3 py-2">
                     <p className="font-mono text-[10px] uppercase tracking-widest text-fg/40">Máx. 30d</p>
                     <p className="font-mono text-sm font-semibold tabular-nums text-fg">
@@ -359,6 +482,42 @@ function OperarPageInterna() {
                   </div>
                 )}
 
+                {/* Noticias del ticker debajo de la gráfica */}
+                {noticias.length > 0 && (
+                  <div className="mb-4">
+                    <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">
+                      Noticias · {ticker}
+                    </p>
+                    <ul className="flex flex-col gap-3">
+                      {noticias.map((n, i) => (
+                        <li key={i} className="flex items-start gap-3 border-b border-fg/5 pb-3 last:border-0 last:pb-0">
+                          {n.imagen && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={n.imagen} alt="" className="mt-0.5 h-12 w-16 shrink-0 rounded-sm object-cover" />
+                          )}
+                          <div>
+                            <a
+                              href={n.link}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-sm font-medium leading-snug text-fg hover:text-accent"
+                            >
+                              {n.titulo}
+                            </a>
+                            <div className="mt-1 flex items-center gap-2">
+                              {n.fuente && <Badge>{n.fuente}</Badge>}
+                              {n.fecha && (
+                                <span className="text-xs text-fg/40">
+                                  {new Date(n.fecha).toLocaleDateString("es-MX")}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
 
                 <div className="rounded-none border border-fg/10 bg-canvas p-4">
                   <p className="mb-3 font-mono text-[11px] uppercase tracking-widest text-fg/40">
@@ -373,14 +532,12 @@ function OperarPageInterna() {
                     onChange={(e) => setCantidad(e.target.value)}
                     className="mb-3 w-full rounded-none border border-fg/20 bg-panel px-3 py-2 font-mono text-sm"
                   />
-
                   <p className="mb-3 text-sm text-fg/40">
                     Total estimado:{" "}
                     <span className="font-mono font-semibold text-fg">
                       ${(Number(precio) * Number(cantidad || 0)).toFixed(2)}
                     </span>
                   </p>
-
                   <div className="flex gap-3">
                     <button
                       onClick={() => ejecutarOrden("compra")}
@@ -397,7 +554,6 @@ function OperarPageInterna() {
                       Vender
                     </button>
                   </div>
-
                   {error && <p className="mt-3 text-sm text-perdida">{error}</p>}
                   {mensaje && <p className="mt-3 text-sm text-ganancia">{mensaje}</p>}
                 </div>
@@ -405,113 +561,46 @@ function OperarPageInterna() {
             )}
           </div>
 
-          {/* Columna derecha: noticias */}
+          {/* ── Columna derecha: Tendencias ── */}
           <div className="lg:col-span-3">
-            <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">
-              Noticias {ticker ? `· ${ticker.toUpperCase()}` : "· Mercados"}
-            </p>
-
-            {!ticker && noticiasGenerales.length > 0 ? (
-              <div className="flex flex-col gap-3">
-                {/* Featured story */}
-                {noticiasGenerales[0] && (
-                  <a
-                    href={noticiasGenerales[0].link}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="group block overflow-hidden rounded-none border border-fg/10 bg-panel"
-                  >
-                    {noticiasGenerales[0].imagen && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={noticiasGenerales[0].imagen}
-                        alt=""
-                        className="h-36 w-full object-cover"
-                      />
-                    )}
-                    <div className="p-3">
-                      <p className="text-sm font-semibold leading-snug text-fg group-hover:text-accent">
-                        {noticiasGenerales[0].titulo}
-                      </p>
-                      <div className="mt-2 flex items-center gap-2">
-                        {noticiasGenerales[0].fuente && <Badge>{noticiasGenerales[0].fuente}</Badge>}
-                        {noticiasGenerales[0].fecha && (
-                          <span className="text-xs text-fg/40">
-                            {new Date(noticiasGenerales[0].fecha).toLocaleDateString("es-MX")}
-                          </span>
-                        )}
+            <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">Tendencias</p>
+            <div className="flex flex-col gap-2">
+              {destacados.length === 0 && (
+                <p className="rounded-none border border-fg/10 bg-panel p-3 text-sm text-fg/40">Cargando...</p>
+              )}
+              {[...destacados]
+                .sort((a, b) => Math.abs(b.cambio_porcentaje) - Math.abs(a.cambio_porcentaje))
+                .map((d) => {
+                  const sube = d.cambio_porcentaje >= 0;
+                  const activo = ticker === d.ticker;
+                  const sparkData = (d.sparkline || []).map(Number);
+                  return (
+                    <button
+                      key={d.ticker}
+                      onClick={() => buscar(d.ticker)}
+                      className={`flex w-full items-center gap-2 rounded-none border px-3 py-3 text-left transition-colors ${
+                        activo ? "border-accent/40 bg-accent/5" : "border-fg/10 bg-panel hover:bg-fg/5"
+                      }`}
+                    >
+                      <div className="flex min-w-0 flex-1 flex-col">
+                        <span className="font-mono text-sm font-bold text-fg">{d.ticker}</span>
+                        <span className="font-mono text-xs tabular-nums text-fg/60">
+                          ${Number(d.precio).toFixed(2)}
+                        </span>
                       </div>
-                    </div>
-                  </a>
-                )}
-                {/* Secondary list */}
-                <div className="overflow-hidden rounded-none border border-fg/10 bg-panel">
-                  <ul className="flex flex-col">
-                    {noticiasGenerales.slice(1).map((n, i) => (
-                      <li key={i} className="border-b border-fg/5 last:border-0">
-                        <a
-                          href={n.link}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex items-start gap-2 p-3 hover:bg-fg/5"
-                        >
-                          {n.imagen && (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={n.imagen} alt="" className="mt-0.5 h-12 w-16 shrink-0 rounded-sm object-cover" />
-                          )}
-                          <div>
-                            <p className="text-xs font-medium leading-snug text-fg">{n.titulo}</p>
-                            <div className="mt-1 flex items-center gap-2">
-                              {n.fuente && <span className="text-[10px] text-fg/40">{n.fuente}</span>}
-                              {n.fecha && (
-                                <span className="text-[10px] text-fg/30">
-                                  {new Date(n.fecha).toLocaleDateString("es-MX")}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            ) : (
-              <Card className="max-h-[640px] overflow-y-auto">
-                {noticias.length === 0 ? (
-                  <p className="text-sm text-fg/40">
-                    {ticker ? "No hay noticias recientes." : "Cargando noticias..."}
-                  </p>
-                ) : (
-                  <ul className="flex flex-col gap-4">
-                    {noticias.map((n, i) => (
-                      <li key={i} className="border-b border-fg/5 pb-3 last:border-0 last:pb-0">
-                        {n.imagen && (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={n.imagen} alt="" className="mb-2 h-28 w-full rounded-sm object-cover" />
-                        )}
-                        <a
-                          href={n.link}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-sm font-medium text-fg hover:text-accent"
-                        >
-                          {n.titulo}
-                        </a>
-                        <div className="mt-1 flex items-center gap-2">
-                          {n.fuente && <Badge>{n.fuente}</Badge>}
-                          {n.fecha && (
-                            <span className="text-xs text-fg/40">
-                              {new Date(n.fecha).toLocaleDateString("es-MX")}
-                            </span>
-                          )}
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </Card>
-            )}
+                      {sparkData.length > 1 && <Sparkline data={sparkData} subiendo={sube} />}
+                      <span
+                        className={`shrink-0 font-mono text-xs font-semibold tabular-nums ${
+                          sube ? "text-ganancia" : "text-perdida"
+                        }`}
+                      >
+                        {sube ? "▲ +" : "▼ "}
+                        {d.cambio_porcentaje.toFixed(2)}%
+                      </span>
+                    </button>
+                  );
+                })}
+            </div>
 
             <div className="mt-4">
               <MercadosMundo compacto />
