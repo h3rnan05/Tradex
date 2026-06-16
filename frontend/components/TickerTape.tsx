@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { api } from "@/lib/api";
 import { obtenerSesion } from "@/lib/auth";
 
@@ -10,16 +11,21 @@ interface PrecioDestacado {
   cambio_porcentaje: number;
 }
 
+const RUTAS_PUBLICAS = ["/", "/login"];
+
 export default function TickerTape() {
+  const pathname = usePathname();
   const [datos, setDatos] = useState<PrecioDestacado[]>([]);
   const [autenticado, setAutenticado] = useState(false);
 
   useEffect(() => {
     setAutenticado(!!obtenerSesion());
-  }, []);
+  }, [pathname]);
+
+  const esRutaPublica = RUTAS_PUBLICAS.includes(pathname ?? "");
 
   useEffect(() => {
-    if (!autenticado) return;
+    if (!autenticado || esRutaPublica) return;
     let activo = true;
 
     async function cargar() {
@@ -37,9 +43,9 @@ export default function TickerTape() {
       activo = false;
       clearInterval(interval);
     };
-  }, [autenticado]);
+  }, [autenticado, esRutaPublica]);
 
-  if (!autenticado || datos.length === 0) return null;
+  if (esRutaPublica || !autenticado || datos.length === 0) return null;
 
   const promedioCambio = datos.reduce((acc, d) => acc + d.cambio_porcentaje, 0) / datos.length;
   const crisis = promedioCambio <= -2.5;
