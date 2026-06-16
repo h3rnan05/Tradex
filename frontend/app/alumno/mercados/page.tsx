@@ -77,14 +77,6 @@ function sectorBg(pct: number | null): string {
   return "bg-[#6b1212]";
 }
 
-function sectorSize(pct: number | null): string {
-  const abs = Math.abs(pct ?? 0);
-  if (abs >= 3) return "py-8 text-base";
-  if (abs >= 1.5) return "py-6 text-sm";
-  if (abs >= 0.5) return "py-5 text-sm";
-  return "py-4 text-xs";
-}
-
 export default function MercadosPage() {
   const router = useRouter();
 
@@ -144,14 +136,14 @@ export default function MercadosPage() {
           ) : sectores.length === 0 ? (
             <p className="border border-fg/10 bg-panel p-4 text-sm text-fg/40">No se pudieron cargar los sectores.</p>
           ) : (
-            <div className="grid grid-cols-3 gap-px bg-fg/10 border border-fg/10 sm:grid-cols-4 lg:grid-cols-6" style={{gridAutoRows: "1fr"}}>
+            <div className="grid grid-cols-3 gap-px bg-fg/20 border border-fg/20 sm:grid-cols-4">
               {sectores.map((s) => (
                 <div
                   key={s.sector}
-                  className={`flex flex-col items-center justify-center px-2 text-center text-white cursor-default select-none ${sectorBg(s.cambio_porcentaje)} ${sectorSize(s.cambio_porcentaje)}`}
+                  className={`flex flex-col items-center justify-center px-3 py-6 text-center text-white cursor-default select-none ${sectorBg(s.cambio_porcentaje)}`}
                 >
-                  <span className="font-mono text-[10px] font-semibold uppercase tracking-wide leading-tight opacity-90">{s.sector}</span>
-                  <span className="mt-1 font-mono font-bold tabular-nums">
+                  <span className="font-mono text-[10px] uppercase tracking-widest leading-tight opacity-75">{s.sector}</span>
+                  <span className="mt-2 font-mono text-xl font-bold tabular-nums">
                     {fmtPct(s.cambio_porcentaje)}
                   </span>
                 </div>
