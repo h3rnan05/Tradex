@@ -1,0 +1,110 @@
+from decimal import Decimal
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+
+from auth_utils import require_alumno
+from database import get_db
+from models.holding import Holding
+from models.membership import Membership
+from models.orden import Orden, TipoOrdenEnum
+from models.user import User
+from precios_utils import obtener_precio_actual
+from schemas.orden import OrdenCreate, OrdenOut
+
+router = APIRouter(prefix="/ordenes", tags=["ordenes"])
+
+
+def _get_membership(db: Session, alumno: User, grupo_id) -> Membership:
+    membership = db.query(Membership).filter(
+        Membership.alumno_id == alumno.id, Membership.grupo_id == grupo_id
+    ).first()
+    if not membership:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No perteneces a ese grupo")
+    return membership
+
+
+@router.post("/compra", response_model=OrdenOut, status_code=status.HTTP_201_CREATED)
+def comprar(payload: OrdenCreate, db: Session = Depends(get_db), alumno: User = Depends(require_alumno)):
+    if payload.cantidad <= 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La cantidad debe ser mayor a cero")
+
+    membership = _get_membership(db, alumno, payload.grupo_id)
+    ticker = payload.ticker.upper().strip()
+    precio = obtener_precio_actual(ticker)
+    costo_total = precio * payload.cantidad
+
+    if costo_total > membership.capital_disponible:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Capital disponible insuficiente")
+
+    holding = db.query(Holding).filter(
+        Holding.alumno_id == alumno.id, Holding.grupo_id == payload.grupo_id, Holding.ticker == ticker
+    ).first()
+
+    if holding:
+        cantidad_total = holding.cantidad + payload.cantidad
+        costo_previo = holding.precio_promedio * holding.cantidad
+        holding.precio_promedio = (costo_previo + costo_total) / cantidad_total
+        holding.cantidad = cantidad_total
+    else:
+        holding = Holding(
+            alumno_id=alumno.id,
+            grupo_id=payload.grupo_id,
+            ticker=ticker,
+            cantidad=payload.cantidad,
+            precio_promedio=precio,
+        )
+        db.add(holding)
+
+    membership.capital_disponible -= costo_total
+
+    orden = Orden(
+        alumno_id=alumno.id,
+        grupo_id=payload.grupo_id,
+        ticker=ticker,
+        tipo=TipoOrdenEnum.compra,
+        cantidad=payload.cantidad,
+        precio_ejecucion=precio,
+    )
+    db.add(orden)
+    db.commit()
+    db.refresh(orden)
+    return orden
+
+
+@router.post("/venta", response_model=OrdenOut, status_code=status.HTTP_201_CREATED)
+def vender(payload: OrdenCreate, db: Session = Depends(get_db), alumno: User = Depends(require_alumno)):
+    if payload.cantidad <= 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La cantidad debe ser mayor a cero")
+
+    membership = _get_membership(db, alumno, payload.grupo_id)
+    ticker = payload.ticker.upper().strip()
+
+    holding = db.query(Holding).filter(
+        Holding.alumno_id == alumno.id, Holding.grupo_id == payload.grupo_id, Holding.ticker == ticker
+    ).first()
+
+    if not holding or holding.cantidad < payload.cantidad:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No tienes suficientes acciones para vender")
+
+    precio = obtener_precio_actual(ticker)
+    monto_total = precio * payload.cantidad
+
+    holding.cantidad -= payload.cantidad
+    if holding.cantidad == 0:
+        holding.precio_promedio = Decimal("0")
+
+    membership.capital_disponible += monto_total
+
+    orden = Orden(
+        alumno_id=alumno.id,
+        grupo_id=payload.grupo_id,
+        ticker=ticker,
+        tipo=TipoOrdenEnum.venta,
+        cantidad=payload.cantidad,
+        precio_ejecucion=precio,
+    )
+    db.add(orden)
+    db.commit()
+    db.refresh(orden)
+    return orden
