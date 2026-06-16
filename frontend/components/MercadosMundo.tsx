@@ -68,7 +68,7 @@ export default function MercadosMundo() {
   }, [ahora]);
 
   return (
-    <div className="flex h-full min-h-[300px] flex-col rounded-none border border-fg/20 bg-black p-3">
+    <div className="flex h-full min-h-[300px] flex-col rounded-none border border-fg/20 bg-white p-3">
       <p className="mb-2 font-mono text-[11px] font-semibold uppercase tracking-widest text-fg/40">
         Mercados globales en vivo
       </p>
@@ -80,7 +80,7 @@ export default function MercadosMundo() {
             width={tamano.ancho}
             height={tamano.alto}
             globeImageUrl="https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
-            backgroundColor="rgba(0,0,0,0)"
+            backgroundColor="rgba(255,255,255,1)"
             pointsData={puntos}
             pointLat="lat"
             pointLng="lng"
@@ -90,6 +90,15 @@ export default function MercadosMundo() {
             pointLabel={(p: any) => `${p.nombre}`}
             onPointClick={(p: any) => setSeleccionado(p)}
             onPointHover={(p: any) => setSeleccionado(p ?? null)}
+            labelsData={puntos}
+            labelLat="lat"
+            labelLng="lng"
+            labelText={(p: any) => `${p.codigo} · ${p.ciudad}`}
+            labelSize={0.5}
+            labelDotRadius={0}
+            labelColor={(p: any) => (p.abierto ? "#007a2e" : "#cc1a1a")}
+            labelAltitude={0.01}
+            labelResolution={3}
           />
         )}
 
