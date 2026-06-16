@@ -1,3 +1,5 @@
+from collections import defaultdict
+from datetime import date, timedelta, timezone
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -9,9 +11,9 @@ from database import get_db
 from models.fase_activo import FaseActivo
 from models.holding import Holding
 from models.membership import Membership
-from models.orden import Orden
+from models.orden import Orden, TipoOrdenEnum
 from models.user import RolEnum, User
-from precios_utils import obtener_precio_actual
+from precios_utils import obtener_historial_precios_rango, obtener_precio_actual
 from schemas.holding import HoldingConPrecio, PortafolioOut
 from schemas.orden import OrdenOut
 
@@ -91,3 +93,87 @@ def historial_ordenes(alumno_id: str, db: Session = Depends(get_db), current_use
         .order_by(Orden.timestamp.desc())
         .all()
     )
+
+
+@router.get("/{alumno_id}/historial-valor")
+def historial_valor_portafolio(
+    alumno_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if str(current_user.id) != alumno_id and current_user.rol != RolEnum.maestro:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No autorizado")
+
+    membership = db.query(Membership).filter(Membership.alumno_id == alumno_id).first()
+    if not membership:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="El alumno no pertenece a ningun grupo")
+
+    ordenes = (
+        db.query(Orden)
+        .filter(Orden.alumno_id == alumno_id, Orden.grupo_id == membership.grupo_id)
+        .order_by(Orden.timestamp.asc())
+        .all()
+    )
+
+    if not ordenes:
+        return []
+
+    capital_inicial = membership.grupo.capital_inicial
+    fecha_inicio = ordenes[0].timestamp.astimezone(timezone.utc).date()
+    fecha_fin = date.today()
+
+    # Collect all tickers and fetch their price history once
+    tickers = list({o.ticker for o in ordenes})
+    precios_por_ticker: dict[str, dict[str, Decimal]] = {}
+    for ticker in tickers:
+        try:
+            historial = obtener_historial_precios_rango(ticker, fecha_inicio, fecha_fin)
+            precios_por_ticker[ticker] = {p["fecha"]: p["precio"] for p in historial}
+        except Exception:
+            precios_por_ticker[ticker] = {}
+
+    # Build day-by-day portfolio value
+    resultado = []
+    capital = capital_inicial
+    cantidades: dict[str, Decimal] = defaultdict(Decimal)
+    orden_idx = 0
+
+    dia = fecha_inicio
+    while dia <= fecha_fin:
+        fecha_str = dia.isoformat()
+
+        # Apply all orders that happened on or before this day
+        while orden_idx < len(ordenes):
+            o = ordenes[orden_idx]
+            o_fecha = o.timestamp.astimezone(timezone.utc).date()
+            if o_fecha > dia:
+                break
+            costo = o.precio_ejecucion * o.cantidad + o.comision
+            if o.tipo == TipoOrdenEnum.compra:
+                capital -= costo
+                cantidades[o.ticker] += o.cantidad
+            else:
+                capital += o.precio_ejecucion * o.cantidad - o.comision
+                cantidades[o.ticker] -= o.cantidad
+            orden_idx += 1
+
+        # Calculate portfolio value using nearest available price for each ticker
+        valor_holdings = Decimal("0")
+        for ticker, cantidad in cantidades.items():
+            if cantidad <= 0:
+                continue
+            precio_dia = precios_por_ticker.get(ticker, {}).get(fecha_str)
+            if precio_dia is None:
+                # fallback: use most recent available price up to today
+                precios_ticker = precios_por_ticker.get(ticker, {})
+                fechas_disponibles = sorted(f for f in precios_ticker if f <= fecha_str)
+                if fechas_disponibles:
+                    precio_dia = precios_ticker[fechas_disponibles[-1]]
+            if precio_dia:
+                valor_holdings += precio_dia * cantidad
+
+        valor_total = capital + valor_holdings
+        resultado.append({"fecha": fecha_str, "valor": float(valor_total)})
+        dia += timedelta(days=1)
+
+    return resultado
