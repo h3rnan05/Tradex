@@ -311,6 +311,115 @@ def obtener_precios_indices() -> list[dict]:
     return resultado
 
 
+def obtener_earnings_calendar() -> list[dict]:
+    hoy = datetime.now(timezone.utc).date()
+    headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
+    resultados = []
+    for i in range(7):
+        fecha = hoy + timedelta(days=i)
+        url = "https://query1.finance.yahoo.com/v1/finance/calendar/earnings"
+        params = {"date": fecha.isoformat(), "size": "10", "offset": "0"}
+        try:
+            resp = httpx.get(url, params=params, headers=headers, timeout=15.0)
+        except httpx.HTTPError:
+            logger.exception("Error de red consultando earnings calendar para %s", fecha)
+            continue
+        if resp.status_code != 200:
+            logger.warning("earnings calendar status %s para %s", resp.status_code, fecha)
+            continue
+        datos = (resp.json() or {}).get("earnings") or {}
+        items = datos.get("result") or []
+        for item in items:
+            momento_raw = item.get("startdatetimetype", "")
+            if momento_raw == "BMO":
+                momento = "Antes apertura"
+            elif momento_raw == "AMC":
+                momento = "Después cierre"
+            else:
+                momento = "No definido"
+            resultados.append({
+                "fecha": fecha.isoformat(),
+                "ticker": item.get("ticker"),
+                "empresa": item.get("companyshortName"),
+                "momento": momento,
+                "eps_estimado": item.get("epsestimate"),
+                "eps_actual": item.get("epsactual"),
+            })
+    return resultados
+
+
+def obtener_sectores() -> list[dict]:
+    headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
+    params = {"formatted": "true", "lang": "en-US", "region": "US"}
+    for host in ("query1", "query2"):
+        url = f"https://{host}.finance.yahoo.com/v1/finance/sector"
+        try:
+            resp = httpx.get(url, params=params, headers=headers, timeout=15.0)
+        except httpx.HTTPError:
+            logger.exception("Error de red consultando sectores via %s", host)
+            continue
+        if resp.status_code != 200:
+            logger.warning("sectores status %s via %s", resp.status_code, host)
+            continue
+        items = ((resp.json() or {}).get("sectorPerformance") or {}).get("result") or []
+        if not items:
+            continue
+        return [
+            {
+                "sector": s.get("sector"),
+                "cambio_porcentaje": (s.get("changePercent") or {}).get("raw") if isinstance(s.get("changePercent"), dict) else s.get("changePercent"),
+            }
+            for s in items
+        ]
+    return []
+
+
+def obtener_screener(tipo: str) -> list[dict]:
+    tipos_validos = {"most_actives", "day_gainers", "day_losers"}
+    if tipo not in tipos_validos:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Tipo de screener inválido. Opciones: {', '.join(tipos_validos)}",
+        )
+    count = 20 if tipo == "most_actives" else 10
+    headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
+    params = {"formatted": "true", "scrIds": tipo, "count": str(count)}
+    url = "https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved"
+    try:
+        resp = httpx.get(url, params=params, headers=headers, timeout=15.0)
+    except httpx.HTTPError:
+        logger.exception("Error de red consultando screener %s", tipo)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="No se pudo consultar el screener",
+        )
+    if resp.status_code != 200:
+        logger.warning("screener status %s para %s", resp.status_code, tipo)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Yahoo Finance devolvió un error al consultar el screener",
+        )
+    quotes = (((resp.json() or {}).get("finance") or {}).get("result") or [{}])[0].get("quotes") or []
+
+    def raw(obj, key):
+        v = obj.get(key)
+        if isinstance(v, dict):
+            return v.get("raw")
+        return v
+
+    return [
+        {
+            "symbol": q.get("symbol"),
+            "shortName": q.get("shortName"),
+            "precio": raw(q, "regularMarketPrice"),
+            "cambio_porcentaje": raw(q, "regularMarketChangePercent"),
+            "volumen": raw(q, "regularMarketVolume"),
+            "market_cap": raw(q, "marketCap"),
+        }
+        for q in quotes
+    ]
+
+
 _yf_crumb: str | None = None
 _yf_cookies: dict = {}
 

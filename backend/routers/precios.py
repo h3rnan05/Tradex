@@ -4,6 +4,7 @@ from auth_utils import get_current_user
 from escenarios_historicos import ESCENARIOS_HISTORICOS
 from models.user import User
 from precios_utils import (
+    obtener_earnings_calendar,
     obtener_ficha_empresa,
     obtener_historial_precios,
     obtener_historial_precios_rango,
@@ -12,6 +13,8 @@ from precios_utils import (
     obtener_precio_actual,
     obtener_precios_destacados,
     obtener_precios_indices,
+    obtener_screener,
+    obtener_sectores,
 )
 
 router = APIRouter(prefix="/precios", tags=["precios"])
@@ -68,6 +71,24 @@ def noticias_generales_mercado(current_user: User = Depends(get_current_user)):
 @router.get("/indices")
 def indices_mercado(current_user: User = Depends(get_current_user)):
     return obtener_precios_indices()
+
+
+@router.get("/earnings-calendar")
+def earnings_calendar(current_user: User = Depends(get_current_user)):
+    return obtener_earnings_calendar()
+
+
+@router.get("/sectores")
+def sectores_mercado(current_user: User = Depends(get_current_user)):
+    return obtener_sectores()
+
+
+@router.get("/screener")
+def screener(
+    tipo: str = Query(default="most_actives"),
+    current_user: User = Depends(get_current_user),
+):
+    return obtener_screener(tipo)
 
 
 @router.get("/{ticker}")
