@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 
 interface Indice {
@@ -36,8 +37,9 @@ function MiniSparkline({ data, subiendo }: { data: number[]; subiendo: boolean }
   );
 }
 
-export default function BarraIndices() {
+export default function BarraIndices({ onSeleccionar }: { onSeleccionar?: (ticker: string) => void }) {
   const [indices, setIndices] = useState<Indice[]>([]);
+  const router = useRouter();
 
   useEffect(() => {
     api
@@ -48,6 +50,14 @@ export default function BarraIndices() {
 
   if (indices.length === 0) return null;
 
+  function handleClick(ticker: string) {
+    if (onSeleccionar) {
+      onSeleccionar(ticker);
+    } else {
+      router.push(`/alumno/operar?t=${encodeURIComponent(ticker)}`);
+    }
+  }
+
   return (
     <div className="mb-4 overflow-x-auto rounded-none border border-fg/10 bg-panel">
       <div className="flex min-w-max divide-x divide-fg/10">
@@ -55,8 +65,12 @@ export default function BarraIndices() {
           const sube = ind.cambio_porcentaje >= 0;
           const sparkData = (ind.sparkline || []).map(Number);
           return (
-            <div key={ind.ticker} className="flex items-center gap-3 px-4 py-2.5">
-              <div className="min-w-0">
+            <button
+              key={ind.ticker}
+              onClick={() => handleClick(ind.ticker)}
+              className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-fg/5"
+            >
+              <div className="min-w-0 text-left">
                 <p className="font-mono text-[11px] font-semibold text-accent">{ind.nombre}</p>
                 <p className="font-mono text-sm font-bold tabular-nums text-fg">
                   {Number(ind.precio).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -66,7 +80,7 @@ export default function BarraIndices() {
                 </p>
               </div>
               {sparkData.length > 1 && <MiniSparkline data={sparkData} subiendo={sube} />}
-            </div>
+            </button>
           );
         })}
       </div>

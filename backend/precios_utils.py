@@ -311,20 +311,66 @@ def obtener_precios_indices() -> list[dict]:
     return resultado
 
 
+_yf_crumb: str | None = None
+_yf_cookies: dict = {}
+
+
+def _obtener_crumb_yf() -> tuple[str, dict]:
+    """Fetch a valid Yahoo Finance crumb + cookies (cached in module-level vars)."""
+    global _yf_crumb, _yf_cookies
+    if _yf_crumb:
+        return _yf_crumb, _yf_cookies
+    headers = {"User-Agent": USER_AGENT, "Accept": "*/*"}
+    try:
+        # Step 1: get cookies
+        r = httpx.get("https://fc.yahoo.com", headers=headers, timeout=10.0, follow_redirects=True)
+        cookies = dict(r.cookies)
+        # Step 2: get crumb
+        r2 = httpx.get(
+            "https://query1.finance.yahoo.com/v1/test/getcrumb",
+            headers=headers,
+            cookies=cookies,
+            timeout=10.0,
+        )
+        if r2.status_code == 200 and r2.text and r2.text != "null":
+            _yf_crumb = r2.text.strip()
+            _yf_cookies = cookies
+    except Exception:
+        logger.warning("No se pudo obtener crumb de Yahoo Finance")
+    return _yf_crumb or "", _yf_cookies
+
+
 def obtener_ficha_empresa(ticker: str) -> dict:
     ticker = ticker.upper().strip()
+    crumb, cookies = _obtener_crumb_yf()
     params = {
         "modules": "summaryDetail,financialData,defaultKeyStatistics,recommendationTrend",
-        "crumb": "",
+        "crumb": crumb,
     }
     headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
     try:
         resp = httpx.get(
-            f"{YF_SUMMARY_URL}{ticker}", params=params, headers=headers, timeout=15.0
+            f"{YF_SUMMARY_URL}{ticker}", params=params, headers=headers,
+            cookies=cookies, timeout=15.0,
         )
     except httpx.HTTPError:
         logger.exception("Error de red consultando ficha empresa %s", ticker)
         return {}
+
+    if resp.status_code == 401:
+        # Crumb expired — reset and retry once
+        global _yf_crumb, _yf_cookies
+        _yf_crumb = None
+        _yf_cookies = {}
+        crumb, cookies = _obtener_crumb_yf()
+        try:
+            resp = httpx.get(
+                f"{YF_SUMMARY_URL}{ticker}",
+                params={**params, "crumb": crumb},
+                headers=headers, cookies=cookies, timeout=15.0,
+            )
+        except httpx.HTTPError:
+            return {}
 
     if resp.status_code != 200:
         logger.warning("quoteSummary status %s para %s", resp.status_code, ticker)
