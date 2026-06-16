@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import IndicatorChart from "@/components/IndicatorChart";
+import MercadosMundo from "@/components/MercadosMundo";
 import { Badge, Card } from "@/components/primitives";
 import { api, ApiError } from "@/lib/api";
 import { obtenerSesion } from "@/lib/auth";
@@ -271,9 +272,7 @@ function OperarPageInterna() {
           {/* Columna central: precio, gráfico, orden */}
           <div className="lg:col-span-6">
             {!precio ? (
-              <div className="flex h-full min-h-[300px] items-center justify-center rounded-none border border-dashed border-fg/20 bg-panel/50 p-12 text-center">
-                <p className="text-fg/40">Busca un ticker o elige uno de la watchlist para ver su cotización.</p>
-              </div>
+              <MercadosMundo />
             ) : (
               <Card>
                 <div className="mb-4 flex items-start justify-between">
