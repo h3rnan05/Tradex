@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import IndicatorChart from "@/components/IndicatorChart";
+import ProChart from "@/components/ProChart";
 import MercadosMundo from "@/components/MercadosMundo";
 import TopMovers from "@/components/TopMovers";
 import { Badge, Card } from "@/components/primitives";
@@ -318,6 +319,12 @@ function OperarPageInterna() {
                 </div>
 
                 {historial.length > 0 && (
+                  <div className="mb-4">
+                    <ProChart ticker={ticker} noticias={noticias} />
+                  </div>
+                )}
+
+                {historial.length > 0 && indicadoresActivos.length > 0 && (
                   <div className="mb-4 rounded-none border border-fg/10 bg-canvas p-3">
                     <IndicatorChart historial={historial} indicadoresActivos={indicadoresActivos} />
                   </div>

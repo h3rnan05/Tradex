@@ -66,7 +66,7 @@ def precio_actual(ticker: str, current_user: User = Depends(get_current_user)):
 @router.get("/{ticker}/historial")
 def historial_precio(
     ticker: str,
-    dias: int = Query(default=30, ge=1, le=365),
+    dias: int = Query(default=30, ge=1, le=1825),
     current_user: User = Depends(get_current_user),
 ):
     historial = obtener_historial_precios(ticker, dias=dias)
