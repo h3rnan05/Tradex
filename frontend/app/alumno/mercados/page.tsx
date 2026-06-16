@@ -24,9 +24,7 @@ interface EarningsItem {
   fecha: string;
   ticker: string | null;
   empresa: string | null;
-  momento: string;
   eps_estimado: number | null;
-  eps_actual: number | null;
 }
 
 type ScreenerTipo = "most_actives" | "day_gainers" | "day_losers";
@@ -254,27 +252,19 @@ export default function MercadosPage() {
                     </span>
                   </div>
                   <div className="divide-y divide-fg/5">
-                    {earningsByFecha[fecha].map((e, i) => {
-                      const supero = e.eps_actual != null && e.eps_estimado != null && e.eps_actual > e.eps_estimado;
-                      const quedo = e.eps_actual != null && e.eps_estimado != null && e.eps_actual < e.eps_estimado;
-                      return (
-                        <div
-                          key={i}
-                          onClick={() => router.push(`/alumno/operar?t=${encodeURIComponent(e.ticker ?? "")}`)}
-                          className="flex items-center gap-4 px-4 py-2.5 cursor-pointer hover:bg-fg/5 transition-colors"
-                        >
-                          <span className="w-14 font-mono text-sm font-bold text-fg shrink-0">{e.ticker ?? "—"}</span>
-                          <span className="flex-1 truncate font-mono text-xs text-fg/60">{e.empresa ?? "—"}</span>
-                          <span className="w-28 text-right font-mono text-[10px] text-fg/40 shrink-0">{e.momento}</span>
-                          <span className="w-20 text-right font-mono text-xs tabular-nums text-fg/60 shrink-0">
-                            {e.eps_estimado != null ? `Est. $${e.eps_estimado.toFixed(2)}` : "—"}
-                          </span>
-                          <span className={`w-20 text-right font-mono text-xs tabular-nums font-semibold shrink-0 ${supero ? "text-ganancia" : quedo ? "text-perdida" : "text-fg/40"}`}>
-                            {e.eps_actual != null ? `Real $${e.eps_actual.toFixed(2)}` : "Pendiente"}
-                          </span>
-                        </div>
-                      );
-                    })}
+                    {earningsByFecha[fecha].map((e, i) => (
+                      <div
+                        key={i}
+                        onClick={() => router.push(`/alumno/operar?t=${encodeURIComponent(e.ticker ?? "")}`)}
+                        className="flex items-center gap-4 px-4 py-2.5 cursor-pointer hover:bg-fg/5 transition-colors"
+                      >
+                        <span className="w-14 font-mono text-sm font-bold text-fg shrink-0">{e.ticker ?? "—"}</span>
+                        <span className="flex-1 truncate font-mono text-xs text-fg/60">{e.empresa ?? e.ticker ?? "—"}</span>
+                        <span className="w-32 text-right font-mono text-xs tabular-nums text-fg/50 shrink-0">
+                          {e.eps_estimado != null ? `EPS Est. $${e.eps_estimado.toFixed(2)}` : "EPS Est. —"}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               ))}

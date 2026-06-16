@@ -341,7 +341,7 @@ _EARNINGS_WATCHLIST = [
 
 def _fetch_earnings_ticker(ticker: str, crumb: str, cookies: dict, hoy, fin) -> dict | None:
     headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
-    params = {"modules": "calendarEvents,assetProfile", "crumb": crumb}
+    params = {"modules": "calendarEvents,price", "crumb": crumb}
     try:
         resp = httpx.get(
             f"{YF_SUMMARY_URL}{ticker}",
@@ -361,16 +361,15 @@ def _fetch_earnings_ticker(ticker: str, crumb: str, cookies: dict, hoy, fin) -> 
         fecha = datetime.fromtimestamp(ts, tz=timezone.utc).date()
         if not (hoy <= fecha <= fin):
             return None
-        nombre = (data.get("assetProfile") or {}).get("longName") or ticker
+        price_info = data.get("price") or {}
+        nombre = price_info.get("longName") or price_info.get("shortName") or ticker
         eps_est_raw = cal.get("epsEstimate") or {}
         eps_est = eps_est_raw.get("raw") if isinstance(eps_est_raw, dict) else eps_est_raw
         return {
             "fecha": fecha.isoformat(),
             "ticker": ticker,
             "empresa": nombre,
-            "momento": "No definido",
             "eps_estimado": eps_est,
-            "eps_actual": None,
         }
     except Exception:
         return None
