@@ -320,24 +320,37 @@ def _obtener_crumb_yf() -> tuple[str, dict]:
     global _yf_crumb, _yf_cookies
     if _yf_crumb:
         return _yf_crumb, _yf_cookies
-    headers = {"User-Agent": USER_AGENT, "Accept": "*/*"}
+
+    headers = {
+        "User-Agent": USER_AGENT,
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.5",
+    }
     try:
-        # Step 1: get cookies
-        r = httpx.get("https://fc.yahoo.com", headers=headers, timeout=10.0, follow_redirects=True)
-        cookies = dict(r.cookies)
-        # Step 2: get crumb
-        r2 = httpx.get(
-            "https://query1.finance.yahoo.com/v1/test/getcrumb",
+        # Step 1: visit Yahoo Finance to get cookies (incl. A3 consent cookie)
+        r = httpx.get(
+            "https://finance.yahoo.com",
             headers=headers,
-            cookies=cookies,
-            timeout=10.0,
+            timeout=15.0,
+            follow_redirects=True,
         )
-        if r2.status_code == 200 and r2.text and r2.text != "null":
-            _yf_crumb = r2.text.strip()
-            _yf_cookies = cookies
+        cookies = dict(r.cookies)
+        # Step 2: get crumb using those cookies
+        for host in ("query1", "query2"):
+            r2 = httpx.get(
+                f"https://{host}.finance.yahoo.com/v1/test/getcrumb",
+                headers={**headers, "Accept": "*/*"},
+                cookies=cookies,
+                timeout=10.0,
+            )
+            if r2.status_code == 200 and r2.text and r2.text not in ("", "null"):
+                _yf_crumb = r2.text.strip()
+                _yf_cookies = cookies
+                logger.info("Yahoo Finance crumb obtenido via %s", host)
+                return _yf_crumb, _yf_cookies
     except Exception:
         logger.warning("No se pudo obtener crumb de Yahoo Finance")
-    return _yf_crumb or "", _yf_cookies
+    return "", {}
 
 
 def obtener_ficha_empresa(ticker: str) -> dict:

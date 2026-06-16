@@ -479,22 +479,40 @@ function OperarPageInterna() {
                 </div>
 
                 {/* Ficha de empresa */}
-                {ficha && (
+                {ficha && (() => {
+                  const esIndice = ticker.startsWith("^") || ticker.endsWith("=F");
+                  const fmt = (v: number | null, prefix = "") =>
+                    v != null ? `${prefix}${v.toFixed(2)}` : null;
+                  const fmtB = (v: number | null) =>
+                    v != null ? `$${(v / 1e9).toFixed(1)}B` : null;
+
+                  const statsAccion = [
+                    { label: "P/E", value: fmt(ficha.pe_ratio) },
+                    { label: "EPS", value: fmt(ficha.eps, "$") },
+                    { label: "Beta", value: fmt(ficha.beta) },
+                    { label: "Cap. Mkt", value: fmtB(ficha.market_cap) },
+                    { label: "P/E Fwd", value: fmt(ficha.forward_pe) },
+                    { label: "Objetivo", value: fmt(ficha.precio_objetivo, "$") },
+                  ];
+                  const statsComun = [
+                    { label: "Máx 52s", value: fmt(ficha.max_52s, "$") },
+                    { label: "Mín 52s", value: fmt(ficha.min_52s, "$") },
+                  ];
+                  const stats = esIndice
+                    ? statsComun
+                    : [...statsAccion, ...statsComun];
+
+                  // Only render if at least one value is non-null
+                  const hayDatos = stats.some((s) => s.value !== null);
+                  if (!hayDatos) return null;
+
+                  return (
                   <div className="mb-4">
-                    <div className="grid grid-cols-4 gap-2 sm:grid-cols-4">
-                      {[
-                        { label: "P/E", value: ficha.pe_ratio != null ? ficha.pe_ratio.toFixed(2) : "—" },
-                        { label: "EPS", value: ficha.eps != null ? `$${ficha.eps.toFixed(2)}` : "—" },
-                        { label: "Beta", value: ficha.beta != null ? ficha.beta.toFixed(2) : "—" },
-                        { label: "Cap. Mkt", value: ficha.market_cap != null ? `$${(ficha.market_cap / 1e9).toFixed(1)}B` : "—" },
-                        { label: "Máx 52s", value: ficha.max_52s != null ? `$${ficha.max_52s.toFixed(2)}` : "—" },
-                        { label: "Mín 52s", value: ficha.min_52s != null ? `$${ficha.min_52s.toFixed(2)}` : "—" },
-                        { label: "Objetivo", value: ficha.precio_objetivo != null ? `$${ficha.precio_objetivo.toFixed(2)}` : "—" },
-                        { label: "P/E Fwd", value: ficha.forward_pe != null ? ficha.forward_pe.toFixed(2) : "—" },
-                      ].map((s) => (
+                    <div className={`grid gap-2 ${esIndice ? "grid-cols-2" : "grid-cols-4"}`}>
+                      {stats.map((s) => (
                         <div key={s.label} className="rounded-none border border-fg/10 bg-canvas px-2.5 py-2">
                           <p className="font-mono text-[9px] uppercase tracking-widest text-fg/40">{s.label}</p>
-                          <p className="font-mono text-sm font-semibold tabular-nums text-fg">{s.value}</p>
+                          <p className="font-mono text-sm font-semibold tabular-nums text-fg">{s.value ?? "—"}</p>
                         </div>
                       ))}
                     </div>
@@ -539,7 +557,8 @@ function OperarPageInterna() {
                       );
                     })()}
                   </div>
-                )}
+                  );
+                })()}
 
                 <div className="mb-4 grid grid-cols-3 gap-3">
                   <div className="rounded-none border border-fg/10 bg-canvas px-3 py-2">
