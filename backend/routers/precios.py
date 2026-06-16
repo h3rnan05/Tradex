@@ -4,6 +4,7 @@ from auth_utils import get_current_user
 from escenarios_historicos import ESCENARIOS_HISTORICOS
 from models.user import User
 from precios_utils import (
+    obtener_ficha_empresa,
     obtener_historial_precios,
     obtener_historial_precios_rango,
     obtener_noticias,
@@ -89,3 +90,8 @@ def historial_precio(
 def noticias_ticker(ticker: str, current_user: User = Depends(get_current_user)):
     noticias = obtener_noticias(ticker)
     return {"ticker": ticker.upper(), "noticias": noticias}
+
+
+@router.get("/{ticker}/ficha")
+def ficha_empresa(ticker: str, current_user: User = Depends(get_current_user)):
+    return obtener_ficha_empresa(ticker)

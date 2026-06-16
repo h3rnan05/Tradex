@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 YF_BASE_URL = "https://query1.finance.yahoo.com/v8/finance/chart/"
 YF_SEARCH_URL = "https://query1.finance.yahoo.com/v1/finance/search"
+YF_SUMMARY_URL = "https://query1.finance.yahoo.com/v10/finance/quoteSummary/"
 EODHD_EOD_URL = "https://eodhd.com/api/eod/"
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -308,3 +309,60 @@ def obtener_precios_indices() -> list[dict]:
             "sparkline": sparkline,
         })
     return resultado
+
+
+def obtener_ficha_empresa(ticker: str) -> dict:
+    ticker = ticker.upper().strip()
+    params = {
+        "modules": "summaryDetail,financialData,defaultKeyStatistics,recommendationTrend",
+        "crumb": "",
+    }
+    headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
+    try:
+        resp = httpx.get(
+            f"{YF_SUMMARY_URL}{ticker}", params=params, headers=headers, timeout=15.0
+        )
+    except httpx.HTTPError:
+        logger.exception("Error de red consultando ficha empresa %s", ticker)
+        return {}
+
+    if resp.status_code != 200:
+        logger.warning("quoteSummary status %s para %s", resp.status_code, ticker)
+        return {}
+
+    data = (resp.json() or {}).get("quoteSummary") or {}
+    if data.get("error") or not data.get("result"):
+        return {}
+
+    result = data["result"][0]
+    sd = result.get("summaryDetail") or {}
+    fd = result.get("financialData") or {}
+    ks = result.get("defaultKeyStatistics") or {}
+    rt = result.get("recommendationTrend") or {}
+
+    def raw(obj, key):
+        v = obj.get(key)
+        if isinstance(v, dict):
+            return v.get("raw")
+        return v
+
+    tendencia = (rt.get("trend") or [{}])[0]
+
+    return {
+        "pe_ratio": raw(sd, "trailingPE"),
+        "forward_pe": raw(sd, "forwardPE"),
+        "eps": raw(ks, "trailingEps"),
+        "market_cap": raw(sd, "marketCap"),
+        "beta": raw(sd, "beta"),
+        "max_52s": raw(sd, "fiftyTwoWeekHigh"),
+        "min_52s": raw(sd, "fiftyTwoWeekLow"),
+        "precio_objetivo": raw(fd, "targetMeanPrice"),
+        "recomendacion": fd.get("recommendationKey"),
+        "analistas": {
+            "strong_buy": tendencia.get("strongBuy", 0),
+            "buy": tendencia.get("buy", 0),
+            "hold": tendencia.get("hold", 0),
+            "sell": tendencia.get("sell", 0),
+            "strong_sell": tendencia.get("strongSell", 0),
+        },
+    }

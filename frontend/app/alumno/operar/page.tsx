@@ -84,6 +84,27 @@ interface OrdenResponse {
   precio_ejecucion: string;
 }
 
+interface Analistas {
+  strong_buy: number;
+  buy: number;
+  hold: number;
+  sell: number;
+  strong_sell: number;
+}
+
+interface FichaEmpresa {
+  pe_ratio: number | null;
+  forward_pe: number | null;
+  eps: number | null;
+  market_cap: number | null;
+  beta: number | null;
+  max_52s: number | null;
+  min_52s: number | null;
+  precio_objetivo: number | null;
+  recomendacion: string | null;
+  analistas: Analistas;
+}
+
 function Sparkline({ data, subiendo }: { data: number[]; subiendo: boolean }) {
   if (data.length < 2) return null;
   const min = Math.min(...data);
@@ -127,6 +148,7 @@ function OperarPageInterna() {
   const [noticiasGenerales, setNoticiasGenerales] = useState<Noticia[]>([]);
   const [destacados, setDestacados] = useState<Destacado[]>([]);
   const [holdings, setHoldings] = useState<Holding[]>([]);
+  const [ficha, setFicha] = useState<FichaEmpresa | null>(null);
   const [capitalDisponible, setCapitalDisponible] = useState<string | null>(null);
   const [cantidad, setCantidad] = useState("1");
   const [buscando, setBuscando] = useState(false);
@@ -181,8 +203,11 @@ function OperarPageInterna() {
       ]);
       setTicker(tickerNormalizado);
       setPrecio(data.precio);
+      setFicha(null);
       if (historialData) setHistorial(historialData.historial);
       if (noticiasData) setNoticias(noticiasData.noticias);
+      // Load company stats in background (non-blocking)
+      api.get<FichaEmpresa>(`/precios/${tickerNormalizado}/ficha`).then(setFicha).catch(() => {});
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "No se pudo obtener el precio");
     } finally {
@@ -452,6 +477,69 @@ function OperarPageInterna() {
                     </div>
                   </div>
                 </div>
+
+                {/* Ficha de empresa */}
+                {ficha && (
+                  <div className="mb-4">
+                    <div className="grid grid-cols-4 gap-2 sm:grid-cols-4">
+                      {[
+                        { label: "P/E", value: ficha.pe_ratio != null ? ficha.pe_ratio.toFixed(2) : "—" },
+                        { label: "EPS", value: ficha.eps != null ? `$${ficha.eps.toFixed(2)}` : "—" },
+                        { label: "Beta", value: ficha.beta != null ? ficha.beta.toFixed(2) : "—" },
+                        { label: "Cap. Mkt", value: ficha.market_cap != null ? `$${(ficha.market_cap / 1e9).toFixed(1)}B` : "—" },
+                        { label: "Máx 52s", value: ficha.max_52s != null ? `$${ficha.max_52s.toFixed(2)}` : "—" },
+                        { label: "Mín 52s", value: ficha.min_52s != null ? `$${ficha.min_52s.toFixed(2)}` : "—" },
+                        { label: "Objetivo", value: ficha.precio_objetivo != null ? `$${ficha.precio_objetivo.toFixed(2)}` : "—" },
+                        { label: "P/E Fwd", value: ficha.forward_pe != null ? ficha.forward_pe.toFixed(2) : "—" },
+                      ].map((s) => (
+                        <div key={s.label} className="rounded-none border border-fg/10 bg-canvas px-2.5 py-2">
+                          <p className="font-mono text-[9px] uppercase tracking-widest text-fg/40">{s.label}</p>
+                          <p className="font-mono text-sm font-semibold tabular-nums text-fg">{s.value}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Analyst rating bar */}
+                    {ficha.analistas && (() => {
+                      const a = ficha.analistas;
+                      const total = a.strong_buy + a.buy + a.hold + a.sell + a.strong_sell;
+                      if (total === 0) return null;
+                      const pct = (n: number) => `${((n / total) * 100).toFixed(0)}%`;
+                      const recMap: Record<string, string> = {
+                        "strong_buy": "Compra fuerte", "buy": "Comprar",
+                        "hold": "Mantener", "sell": "Vender", "strong_sell": "Venta fuerte",
+                      };
+                      const rec = ficha.recomendacion ? (recMap[ficha.recomendacion] ?? ficha.recomendacion) : null;
+                      return (
+                        <div className="mt-2 rounded-none border border-fg/10 bg-canvas px-3 py-2.5">
+                          <div className="mb-1.5 flex items-center justify-between">
+                            <p className="font-mono text-[10px] uppercase tracking-widest text-fg/40">
+                              Consenso analistas · {total} analistas
+                            </p>
+                            {rec && (
+                              <span className={`font-mono text-[11px] font-bold uppercase ${
+                                ficha.recomendacion?.includes("buy") ? "text-ganancia" :
+                                ficha.recomendacion?.includes("sell") ? "text-perdida" : "text-fg/60"
+                              }`}>{rec}</span>
+                            )}
+                          </div>
+                          <div className="flex h-2 w-full overflow-hidden rounded-full">
+                            {a.strong_buy > 0 && <div style={{ width: pct(a.strong_buy) }} className="bg-ganancia" />}
+                            {a.buy > 0 && <div style={{ width: pct(a.buy) }} className="bg-ganancia/60" />}
+                            {a.hold > 0 && <div style={{ width: pct(a.hold) }} className="bg-fg/20" />}
+                            {a.sell > 0 && <div style={{ width: pct(a.sell) }} className="bg-perdida/60" />}
+                            {a.strong_sell > 0 && <div style={{ width: pct(a.strong_sell) }} className="bg-perdida" />}
+                          </div>
+                          <div className="mt-1.5 flex justify-between font-mono text-[10px] text-fg/50">
+                            <span className="text-ganancia">▲ {a.strong_buy + a.buy} comprar</span>
+                            <span>{a.hold} mantener</span>
+                            <span className="text-perdida">▼ {a.sell + a.strong_sell} vender</span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
 
                 <div className="mb-4 grid grid-cols-3 gap-3">
                   <div className="rounded-none border border-fg/10 bg-canvas px-3 py-2">
