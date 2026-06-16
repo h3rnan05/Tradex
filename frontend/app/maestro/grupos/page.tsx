@@ -110,7 +110,7 @@ export default function GruposPage() {
           <h1 className="text-2xl font-bold text-fg">Mis grupos</h1>
           <button
             onClick={() => setMostrarForm(!mostrarForm)}
-            className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-ink/80"
+            className="rounded-none bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-ink/80"
           >
             {mostrarForm ? "Cancelar" : "Crear grupo"}
           </button>
@@ -119,7 +119,7 @@ export default function GruposPage() {
         {mostrarForm && (
           <form
             onSubmit={crearGrupo}
-            className="mb-6 flex flex-col gap-4 rounded-lg border border-fg/10 bg-panel p-6"
+            className="mb-6 flex flex-col gap-4 rounded-none border border-fg/10 bg-panel p-6"
           >
             <div>
               <label className="mb-1 block text-sm font-medium text-fg/70">Nombre del grupo</label>
@@ -127,7 +127,7 @@ export default function GruposPage() {
                 required
                 value={nombre}
                 onChange={(e) => setNombre(e.target.value)}
-                className="w-full rounded-md border border-fg/20 px-3 py-2 text-sm"
+                className="w-full rounded-none border border-fg/20 px-3 py-2 text-sm"
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -138,7 +138,7 @@ export default function GruposPage() {
                   required
                   value={fechaInicio}
                   onChange={(e) => setFechaInicio(e.target.value)}
-                  className="w-full rounded-md border border-fg/20 px-3 py-2 text-sm"
+                  className="w-full rounded-none border border-fg/20 px-3 py-2 text-sm"
                 />
               </div>
               <div>
@@ -148,7 +148,7 @@ export default function GruposPage() {
                   required
                   value={fechaFin}
                   onChange={(e) => setFechaFin(e.target.value)}
-                  className="w-full rounded-md border border-fg/20 px-3 py-2 text-sm"
+                  className="w-full rounded-none border border-fg/20 px-3 py-2 text-sm"
                 />
               </div>
             </div>
@@ -162,7 +162,7 @@ export default function GruposPage() {
                   required
                   value={capitalInicial}
                   onChange={(e) => setCapitalInicial(e.target.value)}
-                  className="w-full rounded-md border border-fg/20 px-3 py-2 text-sm"
+                  className="w-full rounded-none border border-fg/20 px-3 py-2 text-sm"
                 />
               </div>
               <div>
@@ -176,7 +176,7 @@ export default function GruposPage() {
                   value={maxAlumnos}
                   onChange={(e) => setMaxAlumnos(e.target.value)}
                   placeholder="Sin límite"
-                  className="w-full rounded-md border border-fg/20 px-3 py-2 text-sm"
+                  className="w-full rounded-none border border-fg/20 px-3 py-2 text-sm"
                 />
               </div>
             </div>
@@ -191,7 +191,7 @@ export default function GruposPage() {
                 value={limiteOrden}
                 onChange={(e) => setLimiteOrden(e.target.value)}
                 placeholder="Sin límite"
-                className="w-full rounded-md border border-fg/20 px-3 py-2 text-sm"
+                className="w-full rounded-none border border-fg/20 px-3 py-2 text-sm"
               />
             </div>
             <div>
@@ -205,7 +205,7 @@ export default function GruposPage() {
                 value={comisionPorcentaje}
                 onChange={(e) => setComisionPorcentaje(e.target.value)}
                 placeholder="0"
-                className="w-full rounded-md border border-fg/20 px-3 py-2 text-sm"
+                className="w-full rounded-none border border-fg/20 px-3 py-2 text-sm"
               />
             </div>
             <div>
@@ -231,7 +231,7 @@ export default function GruposPage() {
                             setFechasActivacion((prev) => ({ ...prev, [activo.value]: e.target.value }))
                           }
                           placeholder="Desde el inicio"
-                          className="rounded-md border border-fg/20 px-2 py-1 text-xs"
+                          className="rounded-none border border-fg/20 px-2 py-1 text-xs"
                         />
                       </div>
                     )}
@@ -242,7 +242,7 @@ export default function GruposPage() {
             <button
               type="submit"
               disabled={guardando}
-              className="self-start rounded-md bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-ink/80 disabled:opacity-50"
+              className="self-start rounded-none bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-ink/80 disabled:opacity-50"
             >
               {guardando ? "Creando..." : "Guardar grupo"}
             </button>
@@ -256,7 +256,7 @@ export default function GruposPage() {
         ) : grupos.length === 0 ? (
           <p className="text-fg/40">Todavía no has creado ningún grupo.</p>
         ) : (
-          <div className="overflow-hidden rounded-lg border border-fg/10 bg-panel">
+          <div className="overflow-hidden rounded-none border border-fg/10 bg-panel">
             <table className="w-full text-sm">
               <thead className="bg-fg/5 text-left text-fg/60">
                 <tr>

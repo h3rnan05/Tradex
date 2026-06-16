@@ -167,7 +167,7 @@ export default function OperarPage() {
           </Card>
         )}
 
-        <form onSubmit={buscarPrecio} className="mb-6 flex items-end gap-3 rounded-xl border border-fg/10 bg-panel p-4 shadow-sm">
+        <form onSubmit={buscarPrecio} className="mb-6 flex items-end gap-3 rounded-none border border-fg/10 bg-panel p-4 shadow-sm">
           <div className="flex-1">
             <label className="mb-1 block text-sm font-medium text-fg/70">Ticker</label>
             <input
@@ -175,13 +175,13 @@ export default function OperarPage() {
               value={ticker}
               onChange={(e) => setTicker(e.target.value)}
               placeholder="AAPL"
-              className="w-full rounded-md border border-fg/20 px-3 py-2 text-sm uppercase"
+              className="w-full rounded-none border border-fg/20 px-3 py-2 text-sm uppercase"
             />
           </div>
           <button
             type="submit"
             disabled={buscando}
-            className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-ink/80 disabled:opacity-50"
+            className="rounded-none bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-ink/80 disabled:opacity-50"
           >
             {buscando ? "Buscando..." : "Buscar"}
           </button>
@@ -197,7 +197,7 @@ export default function OperarPage() {
                 <button
                   key={d.ticker}
                   onClick={() => buscar(d.ticker)}
-                  className="rounded-xl border border-fg/10 bg-panel p-3 text-left hover:border-accent hover:bg-accent/5"
+                  className="rounded-none border border-fg/10 bg-panel p-3 text-left hover:border-accent hover:bg-accent/5"
                 >
                   <p className="font-mono text-sm font-bold text-fg">{d.ticker}</p>
                   <p className="font-mono text-xs text-fg/50">${Number(d.precio).toFixed(2)}</p>
@@ -226,7 +226,7 @@ export default function OperarPage() {
                 step="0.0001"
                 value={cantidad}
                 onChange={(e) => setCantidad(e.target.value)}
-                className="mb-4 w-full rounded-md border border-fg/20 px-3 py-2 text-sm"
+                className="mb-4 w-full rounded-none border border-fg/20 px-3 py-2 text-sm"
               />
 
               <p className="mb-4 text-sm text-fg/40">
@@ -237,14 +237,14 @@ export default function OperarPage() {
                 <button
                   onClick={() => ejecutarOrden("compra")}
                   disabled={operando}
-                  className="flex-1 rounded-md bg-ganancia px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+                  className="flex-1 rounded-none bg-ganancia px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
                 >
                   Comprar
                 </button>
                 <button
                   onClick={() => ejecutarOrden("venta")}
                   disabled={operando}
-                  className="flex-1 rounded-md bg-perdida px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+                  className="flex-1 rounded-none bg-perdida px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
                 >
                   Vender
                 </button>

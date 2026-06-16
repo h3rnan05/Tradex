@@ -32,9 +32,8 @@ export default function PrecioChart({ historial }: { historial: PuntoPrecio[] })
         <polyline
           points={puntos}
           fill="none"
-          stroke={subiendo ? "#00ff8c" : "#ff3b3b"}
+          stroke={subiendo ? "#007a2e" : "#cc1a1a"}
           strokeWidth={2}
-          style={{ filter: `drop-shadow(0 0 4px ${subiendo ? "#00ff8c" : "#ff3b3b"})` }}
         />
       </svg>
       <div className="mt-1 flex justify-between text-xs text-fg/30">

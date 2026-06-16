@@ -150,7 +150,7 @@ export default function RetoTradingPage() {
                 <button
                   key={t}
                   onClick={() => setTicker(t)}
-                  className={`rounded-full px-3 py-1 font-mono text-xs uppercase tracking-wide ${
+                  className={`rounded-none px-3 py-1 font-mono text-xs uppercase tracking-wide ${
                     ticker === t ? "bg-accent text-white" : "bg-fg/5 text-fg/70 hover:bg-fg/10"
                   }`}
                 >
@@ -168,20 +168,20 @@ export default function RetoTradingPage() {
                     step="0.0001"
                     value={cantidad}
                     onChange={(e) => setCantidad(e.target.value)}
-                    className="w-32 rounded-md border border-fg/20 px-3 py-2 text-sm"
+                    className="w-32 rounded-none border border-fg/20 px-3 py-2 text-sm"
                   />
                 </div>
                 <button
                   onClick={() => operar("comprar")}
                   disabled={operando}
-                  className="rounded-md bg-ganancia px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+                  className="rounded-none bg-ganancia px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
                 >
                   Comprar
                 </button>
                 <button
                   onClick={() => operar("vender")}
                   disabled={operando}
-                  className="rounded-md bg-perdida px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+                  className="rounded-none bg-perdida px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
                 >
                   Vender
                 </button>

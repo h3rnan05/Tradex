@@ -48,9 +48,9 @@ export default function LoginPage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-canvas p-6">
-      <div className="w-full max-w-sm rounded-xl border border-term-green/20 bg-panel p-8 shadow-[0_0_30px_rgba(0,255,140,0.06)]">
-        <h1 className="mb-1 font-mono text-2xl font-bold uppercase tracking-widest text-fg drop-shadow-[0_0_8px_rgba(0,255,140,0.5)]">
-          <span className="text-term-green">■</span> Tradex
+      <div className="w-full max-w-sm rounded-none border-2 border-accent bg-panel p-8 shadow-[0_0_0_1px_rgba(0,0,0,0.06),0_8px_24px_-8px_rgba(0,0,0,0.15)]">
+        <h1 className="mb-1 font-mono text-2xl font-bold uppercase tracking-widest text-fg">
+          <span className="text-accent">■</span> Tradex
         </h1>
         <p className="mb-6 text-sm text-fg/40">
           {modo === "login" ? "Inicia sesión en tu cuenta" : "Crea una nueva cuenta"}
@@ -65,7 +65,7 @@ export default function LoginPage() {
                 required
                 value={nombre}
                 onChange={(e) => setNombre(e.target.value)}
-                className="w-full rounded-md border border-fg/20 px-3 py-2 text-sm"
+                className="w-full rounded-none border border-fg/20 px-3 py-2 text-sm"
               />
             </div>
           )}
@@ -77,7 +77,7 @@ export default function LoginPage() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-md border border-fg/20 px-3 py-2 text-sm"
+              className="w-full rounded-none border border-fg/20 px-3 py-2 text-sm"
             />
           </div>
 
@@ -89,7 +89,7 @@ export default function LoginPage() {
               minLength={6}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-md border border-fg/20 px-3 py-2 text-sm"
+              className="w-full rounded-none border border-fg/20 px-3 py-2 text-sm"
             />
           </div>
 
@@ -99,7 +99,7 @@ export default function LoginPage() {
               <select
                 value={rol}
                 onChange={(e) => setRol(e.target.value as "maestro" | "alumno")}
-                className="w-full rounded-md border border-fg/20 px-3 py-2 text-sm"
+                className="w-full rounded-none border border-fg/20 px-3 py-2 text-sm"
               >
                 <option value="alumno">Alumno</option>
                 <option value="maestro">Maestro</option>
@@ -112,7 +112,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={cargando}
-            className="rounded-md bg-term-green px-4 py-2 font-mono text-sm font-bold uppercase tracking-wide text-term hover:opacity-90 disabled:opacity-50"
+            className="rounded-none bg-accent px-4 py-2 font-mono text-sm font-bold uppercase tracking-wide text-black hover:opacity-90 disabled:opacity-50"
           >
             {cargando ? "Cargando..." : modo === "login" ? "Iniciar sesión" : "Registrarme"}
           </button>

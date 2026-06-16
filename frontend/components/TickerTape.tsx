@@ -47,33 +47,36 @@ export default function TickerTape() {
   const fila = [...datos, ...datos];
 
   return (
-    <div
-      className={`sticky top-0 z-50 overflow-hidden border-b border-term-green/20 bg-term ${
-        crisis ? "animate-crisis-flash" : ""
-      }`}
-    >
+    <div className={crisis ? "animate-crisis-flash" : ""}>
       {crisis && (
-        <div className="border-b border-term-red/40 bg-term-red/10 px-3 py-0.5 text-center font-mono text-[10px] font-bold uppercase tracking-widest text-term-red">
+        <div className="bg-perdida px-3 py-0.5 text-center font-mono text-[10px] font-bold uppercase tracking-widest text-white">
           ⚠ Venta masiva en el mercado — sentimiento de pánico
         </div>
       )}
-      <div className="flex whitespace-nowrap py-1.5">
-        <div className="flex animate-ticker gap-8 pr-8">
-          {fila.map((d, i) => {
-            const sube = d.cambio_porcentaje >= 0;
-            return (
-              <span key={`${d.ticker}-${i}`} className="flex items-center gap-2 font-mono text-xs tracking-wide">
-                <span className="font-bold text-white/90">{d.ticker}</span>
-                <span className={sube ? "text-term-green" : "text-term-red"}>
-                  {d.precio === "—" ? "—" : `$${Number(d.precio).toFixed(2)}`}
+      <div className="hidden items-center overflow-hidden bg-accent px-4 py-2 md:flex">
+        <span className="mr-4 shrink-0 font-mono text-[10px] font-bold uppercase tracking-widest text-black">
+          TRADEX TERMINAL ·
+        </span>
+        <div className="flex-1 overflow-hidden">
+          <div className="flex animate-ticker gap-8 whitespace-nowrap pr-8">
+            {fila.map((d, i) => {
+              const sube = d.cambio_porcentaje >= 0;
+              return (
+                <span key={`${d.ticker}-${i}`} className="flex items-center gap-2 font-mono text-[11px] font-semibold tracking-wide">
+                  <span className="font-bold text-black">{d.ticker}</span>
+                  <span className="text-black/75">${Number(d.precio).toFixed(2)}</span>
+                  <span
+                    className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-bold text-white ${
+                      sube ? "bg-ganancia" : "bg-perdida"
+                    }`}
+                  >
+                    {sube ? "▲" : "▼"} {sube ? "+" : ""}
+                    {d.cambio_porcentaje.toFixed(2)}%
+                  </span>
                 </span>
-                <span className={sube ? "text-term-green" : "text-term-red"}>
-                  {sube ? "▲" : "▼"} {sube ? "+" : ""}
-                  {d.cambio_porcentaje.toFixed(2)}%
-                </span>
-              </span>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>

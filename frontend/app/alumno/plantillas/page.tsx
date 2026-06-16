@@ -97,7 +97,7 @@ export default function PlantillasPage() {
                 <button
                   onClick={() => aplicarPlantilla(p.perfil_riesgo)}
                   disabled={aplicando !== null}
-                  className="mt-auto rounded-md bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-ink/80 disabled:opacity-50"
+                  className="mt-auto rounded-none bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-ink/80 disabled:opacity-50"
                 >
                   {aplicando === p.perfil_riesgo ? "Aplicando..." : "Aplicar plantilla"}
                 </button>

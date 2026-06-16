@@ -216,7 +216,7 @@ export default function DetalleGrupoPage() {
             Este grupo alcanzó el límite de {grupo.max_alumnos} alumnos.
           </p>
         ) : (
-          <form onSubmit={invitarAlumno} className="mb-8 flex items-end gap-3 rounded-lg border border-fg/10 bg-panel p-4">
+          <form onSubmit={invitarAlumno} className="mb-8 flex items-end gap-3 rounded-none border border-fg/10 bg-panel p-4">
             <div className="flex-1">
               <label className="mb-1 block text-sm font-medium text-fg/70">
                 Correo del alumno a invitar
@@ -226,12 +226,12 @@ export default function DetalleGrupoPage() {
                 required
                 value={emailInvitar}
                 onChange={(e) => setEmailInvitar(e.target.value)}
-                className="w-full rounded-md border border-fg/20 px-3 py-2 text-sm"
+                className="w-full rounded-none border border-fg/20 px-3 py-2 text-sm"
               />
             </div>
             <button
               type="submit"
-              className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-ink/80"
+              className="rounded-none bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-ink/80"
             >
               Invitar
             </button>
@@ -240,7 +240,7 @@ export default function DetalleGrupoPage() {
         {mensajeInvitar && <p className="mb-6 text-sm text-fg/60">{mensajeInvitar}</p>}
 
         <h2 className="mb-3 text-lg font-semibold text-fg">Alumnos</h2>
-        <div className="mb-8 overflow-hidden rounded-lg border border-fg/10 bg-panel">
+        <div className="mb-8 overflow-hidden rounded-none border border-fg/10 bg-panel">
           <table className="w-full text-sm">
             <thead className="bg-fg/5 text-left text-fg/60">
               <tr>
@@ -269,7 +269,7 @@ export default function DetalleGrupoPage() {
         </div>
 
         <h2 className="mb-3 text-lg font-semibold text-fg">Últimas operaciones</h2>
-        <div className="overflow-hidden rounded-lg border border-fg/10 bg-panel">
+        <div className="overflow-hidden rounded-none border border-fg/10 bg-panel">
           <table className="w-full text-sm">
             <thead className="bg-fg/5 text-left text-fg/60">
               <tr>
@@ -307,7 +307,7 @@ export default function DetalleGrupoPage() {
           <h2 className="text-lg font-semibold text-fg">Retos cronometrados</h2>
           <button
             onClick={() => setMostrarFormReto(!mostrarFormReto)}
-            className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-ink/80"
+            className="rounded-none bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-ink/80"
           >
             {mostrarFormReto ? "Cancelar" : "Lanzar reto"}
           </button>
@@ -316,7 +316,7 @@ export default function DetalleGrupoPage() {
         {mostrarFormReto && (
           <form
             onSubmit={crearReto}
-            className="mb-6 flex flex-col gap-4 rounded-lg border border-fg/10 bg-panel p-6"
+            className="mb-6 flex flex-col gap-4 rounded-none border border-fg/10 bg-panel p-6"
           >
             <div>
               <label className="mb-1 block text-sm font-medium text-fg/70">Nombre del reto</label>
@@ -324,7 +324,7 @@ export default function DetalleGrupoPage() {
                 required
                 value={nombreReto}
                 onChange={(e) => setNombreReto(e.target.value)}
-                className="w-full rounded-md border border-fg/20 px-3 py-2 text-sm"
+                className="w-full rounded-none border border-fg/20 px-3 py-2 text-sm"
               />
             </div>
             <div>
@@ -333,7 +333,7 @@ export default function DetalleGrupoPage() {
                 required
                 value={escenarioId}
                 onChange={(e) => setEscenarioId(e.target.value)}
-                className="w-full rounded-md border border-fg/20 px-3 py-2 text-sm"
+                className="w-full rounded-none border border-fg/20 px-3 py-2 text-sm"
               >
                 <option value="" disabled>
                   Selecciona un escenario
@@ -354,7 +354,7 @@ export default function DetalleGrupoPage() {
                   required
                   value={duracionMinutos}
                   onChange={(e) => setDuracionMinutos(e.target.value)}
-                  className="w-full rounded-md border border-fg/20 px-3 py-2 text-sm"
+                  className="w-full rounded-none border border-fg/20 px-3 py-2 text-sm"
                 />
               </div>
               <div>
@@ -366,7 +366,7 @@ export default function DetalleGrupoPage() {
                   required
                   value={capitalReto}
                   onChange={(e) => setCapitalReto(e.target.value)}
-                  className="w-full rounded-md border border-fg/20 px-3 py-2 text-sm"
+                  className="w-full rounded-none border border-fg/20 px-3 py-2 text-sm"
                 />
               </div>
             </div>
@@ -374,14 +374,14 @@ export default function DetalleGrupoPage() {
             <button
               type="submit"
               disabled={guardandoReto}
-              className="self-start rounded-md bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-ink/80 disabled:opacity-50"
+              className="self-start rounded-none bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-ink/80 disabled:opacity-50"
             >
               {guardandoReto ? "Lanzando..." : "Lanzar reto"}
             </button>
           </form>
         )}
 
-        <div className="overflow-hidden rounded-lg border border-fg/10 bg-panel">
+        <div className="overflow-hidden rounded-none border border-fg/10 bg-panel">
           <table className="w-full text-sm">
             <thead className="bg-fg/5 text-left text-fg/60">
               <tr>

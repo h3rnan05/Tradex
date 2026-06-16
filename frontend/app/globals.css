@@ -2,22 +2,135 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  background-color: #05070a;
-  background-image:
-    linear-gradient(rgba(0, 255, 140, 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 255, 140, 0.025) 1px, transparent 1px);
-  background-size: 28px 28px;
-  color: #d7dee8;
+/* Design tokens — Bloomberg Terminal, cream light theme.
+   Warm parchment backgrounds, phosphor orange accent, deep ink text. */
+:root {
+  --color-bg: #faf6ed;
+  --color-bg2: #f2ece0;
+  --color-bg3: #e8e0d0;
+  --color-bg4: #ddd5c0;
+
+  --color-border: #d4c9b0;
+  --color-border2: #c0b090;
+  --color-border3: #ff6600;
+
+  --color-green: #007a2e;
+  --color-green-dim: #005a20;
+  --color-red: #cc1a1a;
+  --color-red-dim: #a01414;
+  --color-amber: #ff6600;
+  --color-amber-dim: #cc5200;
+  --color-blue: #0077b6;
+  --color-cyan: #0096a0;
+  --color-violet: #6d28d9;
+
+  --color-text: #1a0e00;
+  --color-text2: #5a3e18;
+  --color-text3: #8a6a3a;
+  --color-text4: #b89868;
 }
 
-::selection {
-  background-color: rgba(0, 255, 140, 0.3);
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+html,
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: "IBM Plex Mono", var(--font-mono), ui-monospace, monospace;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+p {
+  text-wrap: pretty;
+}
+h1,
+h2,
+h3,
+h4 {
+  text-wrap: balance;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+code,
+kbd {
+  font-family: "IBM Plex Mono", var(--font-mono), ui-monospace, monospace;
+  font-size: 0.9em;
+  font-feature-settings: "tnum" 1, "zero" 1;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border2);
+  border-radius: 6px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-border3);
+}
+
+.recharts-cartesian-axis-tick text {
+  fill: var(--color-text3) !important;
+  font-size: 11px;
+}
+.recharts-cartesian-grid line {
+  stroke: var(--color-border) !important;
+}
+.recharts-tooltip-wrapper {
+  outline: none !important;
+}
+
+:focus {
+  outline: none;
+}
+:focus-visible {
+  outline: 2px solid var(--color-cyan);
+  outline-offset: 2px;
 }
 
 input,
 select,
 textarea {
-  background-color: #0d1117;
-  color: #d7dee8;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+
+::selection {
+  background-color: rgba(255, 102, 0, 0.25);
+}
+
+@keyframes ticker-scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes crisis-flash {
+  0%,
+  100% {
+    background-color: rgba(204, 26, 26, 0.06);
+  }
+  50% {
+    background-color: rgba(204, 26, 26, 0.16);
+  }
 }

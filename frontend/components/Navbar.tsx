@@ -27,45 +27,49 @@ export default function Navbar() {
         ];
 
   return (
-    <nav className="border-b border-term-green/20 bg-ink shadow-[0_1px_12px_rgba(0,255,140,0.08)]">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <div className="flex items-center gap-10">
-          <span className="font-mono text-sm font-bold uppercase tracking-widest text-white drop-shadow-[0_0_6px_rgba(0,255,140,0.6)]">
-            <span className="text-term-green">■</span> Tradex
-          </span>
-          {sesion && (
-            <div className="flex items-center gap-6">
+    <header className="sticky top-0 z-40 border-b-2 border-accent bg-canvas">
+      <div className="mx-auto flex h-12 max-w-6xl items-center px-6">
+        <span className="flex shrink-0 items-center gap-2 font-mono text-[12px] font-bold uppercase tracking-widest text-accent">
+          <span className="inline-block size-2 bg-accent" aria-hidden />
+          Tradex
+        </span>
+
+        {sesion && (
+          <>
+            <span className="mx-3 hidden h-4 w-px bg-fg/20 md:block" aria-hidden />
+            <nav className="hidden flex-1 items-center md:flex">
               {enlaces.map((enlace) => {
                 const activo = pathname?.startsWith(enlace.href);
                 return (
                   <Link
                     key={enlace.href}
                     href={enlace.href}
-                    className={`font-mono text-xs font-medium uppercase tracking-wider transition-colors ${
-                      activo ? "text-accent" : "text-white/50 hover:text-white"
+                    className={`inline-flex h-12 items-center px-3 font-mono text-[11px] font-semibold uppercase tracking-wider transition-colors ${
+                      activo ? "bg-accent text-black" : "text-fg/60 hover:bg-fg/5 hover:text-fg"
                     }`}
                   >
                     {enlace.label}
                   </Link>
                 );
               })}
-            </div>
-          )}
-        </div>
+            </nav>
+          </>
+        )}
+
         {sesion && (
-          <div className="flex items-center gap-4">
-            <span className="font-mono text-xs text-white/50">
+          <div className="ml-auto flex items-center gap-3 border-l border-fg/15 pl-3">
+            <span className="font-mono text-[11px] text-fg/60">
               {sesion.nombre} · {sesion.rol === "maestro" ? "Maestro" : "Alumno"}
             </span>
             <button
               onClick={salir}
-              className="rounded-md border border-white/20 px-3 py-1.5 font-mono text-xs uppercase tracking-wider text-white/70 hover:bg-panel/10"
+              className="rounded-none border border-fg/20 px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider text-fg/70 hover:bg-fg/5"
             >
               Salir
             </button>
           </div>
         )}
       </div>
-    </nav>
+    </header>
   );
 }
