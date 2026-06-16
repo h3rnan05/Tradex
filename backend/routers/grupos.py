@@ -1,13 +1,18 @@
+from decimal import Decimal
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 
-from auth_utils import require_maestro
+from auth_utils import get_current_user, require_maestro
 from database import get_db
 from models.grupo import Grupo
+from models.holding import Holding
 from models.membership import Membership
 from models.user import RolEnum, User
+from precios_utils import obtener_precio_actual
 from schemas.grupo import GrupoCreate, GrupoDetalle, GrupoOut, InvitarRequest
 from schemas.membership import MembershipOut
+from schemas.ranking import RankingEntry
 
 router = APIRouter(prefix="/grupos", tags=["grupos"])
 
@@ -91,3 +96,58 @@ def invitar_alumno(
     db.commit()
     db.refresh(membership)
     return membership
+
+
+@router.get("/{grupo_id}/ranking", response_model=list[RankingEntry])
+def ranking_grupo(grupo_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    grupo = db.query(Grupo).filter(Grupo.id == grupo_id).first()
+    if not grupo:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Grupo no encontrado")
+
+    es_maestro_del_grupo = current_user.rol == RolEnum.maestro and grupo.maestro_id == current_user.id
+    membresia_propia = db.query(Membership).filter(
+        Membership.grupo_id == grupo_id, Membership.alumno_id == current_user.id
+    ).first()
+    if not es_maestro_del_grupo and not membresia_propia:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No autorizado")
+
+    memberships = (
+        db.query(Membership)
+        .options(joinedload(Membership.alumno))
+        .filter(Membership.grupo_id == grupo_id)
+        .all()
+    )
+
+    precios_cache: dict[str, Decimal] = {}
+    entradas = []
+    for membership in memberships:
+        holdings = db.query(Holding).filter(
+            Holding.alumno_id == membership.alumno_id, Holding.grupo_id == grupo_id
+        ).all()
+
+        valor_holdings = Decimal("0")
+        for h in holdings:
+            if h.cantidad == 0:
+                continue
+            if h.ticker not in precios_cache:
+                precios_cache[h.ticker] = obtener_precio_actual(h.ticker)
+            valor_holdings += precios_cache[h.ticker] * h.cantidad
+
+        valor_total = membership.capital_disponible + valor_holdings
+        rendimiento = valor_total - grupo.capital_inicial
+        rendimiento_porcentaje = (
+            (rendimiento / grupo.capital_inicial * 100) if grupo.capital_inicial else Decimal("0")
+        )
+
+        entradas.append(
+            RankingEntry(
+                alumno_id=membership.alumno_id,
+                nombre=membership.alumno.nombre,
+                valor_total=valor_total,
+                rendimiento=rendimiento,
+                rendimiento_porcentaje=rendimiento_porcentaje,
+            )
+        )
+
+    entradas.sort(key=lambda e: e.valor_total, reverse=True)
+    return entradas

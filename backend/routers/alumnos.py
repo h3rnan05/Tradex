@@ -7,9 +7,11 @@ from auth_utils import get_current_user
 from database import get_db
 from models.holding import Holding
 from models.membership import Membership
+from models.orden import Orden
 from models.user import RolEnum, User
 from precios_utils import obtener_precio_actual
 from schemas.holding import HoldingConPrecio, PortafolioOut
+from schemas.orden import OrdenOut
 
 router = APIRouter(prefix="/alumnos", tags=["alumnos"])
 
@@ -66,4 +68,17 @@ def portafolio(alumno_id: str, db: Session = Depends(get_db), current_user: User
         valor_total=valor_total,
         rendimiento=rendimiento,
         rendimiento_porcentaje=rendimiento_porcentaje,
+    )
+
+
+@router.get("/{alumno_id}/ordenes", response_model=list[OrdenOut])
+def historial_ordenes(alumno_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if str(current_user.id) != alumno_id and current_user.rol != RolEnum.maestro:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No autorizado")
+
+    return (
+        db.query(Orden)
+        .filter(Orden.alumno_id == alumno_id)
+        .order_by(Orden.timestamp.desc())
+        .all()
     )

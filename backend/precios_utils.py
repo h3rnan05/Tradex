@@ -21,10 +21,9 @@ def _to_unix_ts(d: date, end_of_day: bool = False) -> int:
     return int(t.timestamp())
 
 
-def obtener_precio_actual(ticker: str) -> Decimal:
-    ticker = ticker.upper().strip()
+def _consultar_chart(ticker: str, dias: int) -> dict:
     hoy = datetime.now(timezone.utc).date()
-    inicio = hoy - timedelta(days=7)
+    inicio = hoy - timedelta(days=dias)
 
     url = f"{YF_BASE_URL}{ticker}"
     params = {
@@ -76,8 +75,13 @@ def obtener_precio_actual(ticker: str) -> Decimal:
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"No se encontro el precio para el ticker {ticker}",
         )
+    return resultados[0]
 
-    resultado = resultados[0]
+
+def obtener_precio_actual(ticker: str) -> Decimal:
+    ticker = ticker.upper().strip()
+    resultado = _consultar_chart(ticker, dias=7)
+
     cierres = ((resultado.get("indicators") or {}).get("quote") or [{}])[0].get("close") or []
     precio_meta = (resultado.get("meta") or {}).get("regularMarketPrice")
 
@@ -95,3 +99,25 @@ def obtener_precio_actual(ticker: str) -> Decimal:
             detail=f"No se encontro el precio para el ticker {ticker}",
         )
     return Decimal(str(precio))
+
+
+def obtener_historial_precios(ticker: str, dias: int = 30) -> list[dict]:
+    ticker = ticker.upper().strip()
+    resultado = _consultar_chart(ticker, dias=dias)
+
+    timestamps = resultado.get("timestamp") or []
+    cierres = ((resultado.get("indicators") or {}).get("quote") or [{}])[0].get("close") or []
+
+    historial = []
+    for ts, cierre in zip(timestamps, cierres):
+        if cierre is None:
+            continue
+        fecha = datetime.fromtimestamp(int(ts), tz=timezone.utc).date()
+        historial.append({"fecha": fecha.isoformat(), "precio": Decimal(str(cierre))})
+
+    if not historial:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No se encontro historial de precios para el ticker {ticker}",
+        )
+    return historial

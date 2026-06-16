@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Navbar from "@/components/Navbar";
+import { Card, StatTile, formatoMoneda, formatoPorcentaje } from "@/components/primitives";
 import { api, ApiError } from "@/lib/api";
 import { obtenerSesion } from "@/lib/auth";
 
@@ -24,10 +25,6 @@ interface Portafolio {
   valor_total: string;
   rendimiento: string;
   rendimiento_porcentaje: string;
-}
-
-function formatoMoneda(valor: string | number) {
-  return `$${Number(valor).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 export default function PortafolioPage() {
@@ -64,28 +61,17 @@ export default function PortafolioPage() {
         ) : (
           <>
             <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <div className="rounded-lg border border-slate-200 bg-white p-4">
-                <p className="text-sm text-slate-500">Capital disponible</p>
-                <p className="text-xl font-bold text-slate-900">{formatoMoneda(portafolio.capital_disponible)}</p>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-white p-4">
-                <p className="text-sm text-slate-500">Valor total del portafolio</p>
-                <p className="text-xl font-bold text-slate-900">{formatoMoneda(portafolio.valor_total)}</p>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-white p-4">
-                <p className="text-sm text-slate-500">Rendimiento vs capital inicial</p>
-                <p
-                  className={`text-xl font-bold ${
-                    Number(portafolio.rendimiento) >= 0 ? "text-ganancia" : "text-perdida"
-                  }`}
-                >
-                  {formatoMoneda(portafolio.rendimiento)} ({Number(portafolio.rendimiento_porcentaje).toFixed(2)}%)
-                </p>
-              </div>
+              <StatTile label="Capital disponible" value={formatoMoneda(portafolio.capital_disponible)} />
+              <StatTile label="Valor total del portafolio" value={formatoMoneda(portafolio.valor_total)} />
+              <StatTile
+                label="Rendimiento vs capital inicial"
+                value={`${formatoMoneda(portafolio.rendimiento)} (${formatoPorcentaje(portafolio.rendimiento_porcentaje)})`}
+                tone={Number(portafolio.rendimiento) >= 0 ? "ganancia" : "perdida"}
+              />
             </div>
 
             <h2 className="mb-3 text-lg font-semibold text-slate-900">Posiciones</h2>
-            <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+            <Card className="overflow-hidden p-0">
               <table className="w-full text-sm">
                 <thead className="bg-slate-100 text-left text-slate-600">
                   <tr>
@@ -121,7 +107,7 @@ export default function PortafolioPage() {
                   )}
                 </tbody>
               </table>
-            </div>
+            </Card>
           </>
         )}
       </div>
