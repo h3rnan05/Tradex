@@ -3,6 +3,8 @@ from models.grupo import Grupo
 from models.membership import Membership
 from models.holding import Holding
 from models.orden import Orden
+from models.orden_pendiente import OrdenPendiente
+from models.alerta import Alerta
 from models.fase_activo import FaseActivo
 from models.reto import Reto, RetoParticipante, RetoHolding, RetoOrden
 
@@ -12,6 +14,8 @@ __all__ = [
     "Membership",
     "Holding",
     "Orden",
+    "OrdenPendiente",
+    "Alerta",
     "FaseActivo",
     "Reto",
     "RetoParticipante",

@@ -92,6 +92,26 @@ interface Analistas {
   strong_sell: number;
 }
 
+interface OrdenPendiente {
+  id: string;
+  ticker: string;
+  tipo: "compra" | "venta";
+  cantidad: string;
+  precio_limite: string;
+  estado: "pendiente" | "ejecutada" | "cancelada";
+  creada_en: string | null;
+  ejecutada_en: string | null;
+}
+
+interface Alerta {
+  id: string;
+  ticker: string;
+  precio_objetivo: string;
+  condicion: "gte" | "lte";
+  disparada: boolean;
+  disparada_en: string | null;
+}
+
 interface FichaEmpresa {
   pe_ratio: number | null;
   forward_pe: number | null;
@@ -151,6 +171,12 @@ function OperarPageInterna() {
   const [ficha, setFicha] = useState<FichaEmpresa | null>(null);
   const [capitalDisponible, setCapitalDisponible] = useState<string | null>(null);
   const [cantidad, setCantidad] = useState("1");
+  const [tipoOrden, setTipoOrden] = useState<"mercado" | "limite">("mercado");
+  const [precioLimite, setPrecioLimite] = useState("");
+  const [precioAlerta, setPrecioAlerta] = useState("");
+  const [condicionAlerta, setCondicionAlerta] = useState<"gte" | "lte">("lte");
+  const [ordenesPendientes, setOrdenesPendientes] = useState<OrdenPendiente[]>([]);
+  const [alertas, setAlertas] = useState<Alerta[]>([]);
   const [buscando, setBuscando] = useState(false);
   const [operando, setOperando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -167,6 +193,9 @@ function OperarPageInterna() {
       .get<NoticiasGeneralesResponse>("/precios/noticias-generales")
       .then((r) => setNoticiasGenerales(r.noticias))
       .catch(() => {});
+
+    api.get<OrdenPendiente[]>("/ordenes-limite").then(setOrdenesPendientes).catch(() => {});
+    api.get<Alerta[]>("/ordenes-limite/alertas").then(setAlertas).catch(() => {});
 
     const sesion = obtenerSesion();
     if (sesion) {
@@ -218,6 +247,65 @@ function OperarPageInterna() {
   async function buscarPrecio(e: React.FormEvent) {
     e.preventDefault();
     await buscar(ticker);
+  }
+
+  async function ejecutarOrdenLimite(tipo: "compra" | "venta") {
+    setError(null);
+    setMensaje(null);
+    const sesion = obtenerSesion();
+    if (!sesion) { setError("Tu sesión expiró"); return; }
+    if (!Number(cantidad) || Number(cantidad) <= 0) { setError("Ingresa una cantidad válida"); return; }
+    if (!Number(precioLimite) || Number(precioLimite) <= 0) { setError("Ingresa un precio límite válido"); return; }
+    setOperando(true);
+    try {
+      const portafolio = await api.get<Portafolio>(`/alumnos/${sesion.userId}/portafolio`);
+      await api.post("/ordenes-limite", {
+        grupo_id: portafolio.grupo_id,
+        ticker: ticker.trim().toUpperCase(),
+        tipo,
+        cantidad,
+        precio_limite: precioLimite,
+      });
+      setMensaje(`Orden límite de ${tipo} creada: ${cantidad} ${ticker} @ $${Number(precioLimite).toFixed(2)}`);
+      setPrecioLimite("");
+      const updated = await api.get<OrdenPendiente[]>("/ordenes-limite").catch(() => []);
+      setOrdenesPendientes(updated);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "No se pudo crear la orden límite");
+    } finally {
+      setOperando(false);
+    }
+  }
+
+  async function cancelarOrdenLimite(id: string) {
+    try {
+      await api.delete(`/ordenes-limite/${id}`);
+      setOrdenesPendientes((prev) => prev.filter((o) => o.id !== id));
+    } catch { /* silent */ }
+  }
+
+  async function crearAlerta() {
+    setError(null);
+    if (!Number(precioAlerta) || Number(precioAlerta) <= 0) { setError("Ingresa un precio de alerta válido"); return; }
+    try {
+      const nueva = await api.post<Alerta>("/ordenes-limite/alertas", {
+        ticker: ticker.trim().toUpperCase(),
+        precio_objetivo: precioAlerta,
+        condicion: condicionAlerta,
+      });
+      setAlertas((prev) => [nueva, ...prev]);
+      setPrecioAlerta("");
+      setMensaje(`Alerta creada: ${ticker} ${condicionAlerta === "lte" ? "≤" : "≥"} $${Number(precioAlerta).toFixed(2)}`);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "No se pudo crear la alerta");
+    }
+  }
+
+  async function eliminarAlerta(id: string) {
+    try {
+      await api.delete(`/ordenes-limite/alertas/${id}`);
+      setAlertas((prev) => prev.filter((a) => a.id !== id));
+    } catch { /* silent */ }
   }
 
   async function ejecutarOrden(tipo: "compra" | "venta") {
@@ -642,9 +730,35 @@ function OperarPageInterna() {
                 )}
 
                 <div className="rounded-none border border-fg/10 bg-canvas p-4">
-                  <p className="mb-3 font-mono text-[11px] uppercase tracking-widest text-fg/40">
-                    Enviar orden
-                  </p>
+                  {/* Order type toggle */}
+                  <div className="mb-3 flex items-center justify-between">
+                    <p className="font-mono text-[11px] uppercase tracking-widest text-fg/40">
+                      Enviar orden
+                    </p>
+                    <div className="flex overflow-hidden rounded-none border border-fg/20">
+                      {(["mercado", "limite"] as const).map((t) => (
+                        <button
+                          key={t}
+                          onClick={() => setTipoOrden(t)}
+                          className={`px-3 py-1 font-mono text-[11px] uppercase ${
+                            tipoOrden === t ? "bg-ink text-white" : "text-fg/50 hover:bg-fg/5"
+                          }`}
+                        >
+                          {t === "mercado" ? "Mercado" : "Límite"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {tipoOrden === "limite" && (
+                    <div className="mb-3 rounded-none border border-accent/20 bg-accent/5 px-3 py-2">
+                      <p className="font-mono text-[10px] text-fg/50">
+                        <Tooltip texto="Una orden límite se ejecuta automáticamente cuando el precio alcanza el nivel que defines. Compra límite: se ejecuta si el precio baja a tu precio. Venta límite: se ejecuta si el precio sube a tu precio." />
+                        {" "}Orden límite: se ejecuta cuando el precio toque tu nivel
+                      </p>
+                    </div>
+                  )}
+
                   <label className="mb-1 block text-sm font-medium text-fg/70">Cantidad</label>
                   <input
                     type="number"
@@ -654,31 +768,116 @@ function OperarPageInterna() {
                     onChange={(e) => setCantidad(e.target.value)}
                     className="mb-3 w-full rounded-none border border-fg/20 bg-panel px-3 py-2 font-mono text-sm"
                   />
-                  <p className="mb-3 text-sm text-fg/40">
-                    Total estimado:{" "}
-                    <span className="font-mono font-semibold text-fg">
-                      ${(Number(precio) * Number(cantidad || 0)).toFixed(2)}
-                    </span>
-                  </p>
+
+                  {tipoOrden === "limite" && (
+                    <>
+                      <label className="mb-1 block text-sm font-medium text-fg/70">Precio límite</label>
+                      <input
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        value={precioLimite}
+                        onChange={(e) => setPrecioLimite(e.target.value)}
+                        placeholder={precio ? `Actual: $${Number(precio).toFixed(2)}` : ""}
+                        className="mb-3 w-full rounded-none border border-fg/20 bg-panel px-3 py-2 font-mono text-sm"
+                      />
+                    </>
+                  )}
+
+                  {tipoOrden === "mercado" && (
+                    <p className="mb-3 text-sm text-fg/40">
+                      Total estimado:{" "}
+                      <span className="font-mono font-semibold text-fg">
+                        ${(Number(precio) * Number(cantidad || 0)).toFixed(2)}
+                      </span>
+                    </p>
+                  )}
+
                   <div className="flex gap-3">
                     <button
-                      onClick={() => ejecutarOrden("compra")}
+                      onClick={() => tipoOrden === "mercado" ? ejecutarOrden("compra") : ejecutarOrdenLimite("compra")}
                       disabled={operando}
                       className="flex-1 rounded-none bg-ganancia px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
                     >
-                      Comprar
+                      {tipoOrden === "limite" ? "Límite compra" : "Comprar"}
                     </button>
                     <button
-                      onClick={() => ejecutarOrden("venta")}
+                      onClick={() => tipoOrden === "mercado" ? ejecutarOrden("venta") : ejecutarOrdenLimite("venta")}
                       disabled={operando}
                       className="flex-1 rounded-none bg-perdida px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
                     >
-                      Vender
+                      {tipoOrden === "limite" ? "Límite venta" : "Vender"}
                     </button>
                   </div>
                   {error && <p className="mt-3 text-sm text-perdida">{error}</p>}
                   {mensaje && <p className="mt-3 text-sm text-ganancia">{mensaje}</p>}
                 </div>
+
+                {/* Price alert panel */}
+                <div className="mt-3 rounded-none border border-fg/10 bg-canvas p-4">
+                  <p className="mb-3 flex items-center font-mono text-[11px] uppercase tracking-widest text-fg/40">
+                    Alerta de precio
+                    <Tooltip texto="Te notifica (en esta página) cuando el precio de la acción suba o baje al nivel que defines. Útil para monitorear sin estar pendiente del precio todo el tiempo." />
+                  </p>
+                  <div className="flex gap-2">
+                    <select
+                      value={condicionAlerta}
+                      onChange={(e) => setCondicionAlerta(e.target.value as "gte" | "lte")}
+                      className="rounded-none border border-fg/20 bg-panel px-2 py-2 font-mono text-xs text-fg"
+                    >
+                      <option value="lte">Baja a</option>
+                      <option value="gte">Sube a</option>
+                    </select>
+                    <input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={precioAlerta}
+                      onChange={(e) => setPrecioAlerta(e.target.value)}
+                      placeholder="Precio"
+                      className="flex-1 rounded-none border border-fg/20 bg-panel px-3 py-2 font-mono text-sm"
+                    />
+                    <button
+                      onClick={crearAlerta}
+                      className="rounded-none border border-fg/20 px-3 py-2 font-mono text-xs hover:bg-fg/5"
+                    >
+                      + Alertar
+                    </button>
+                  </div>
+
+                  {alertas.filter((a) => a.ticker === ticker).length > 0 && (
+                    <ul className="mt-2 flex flex-col gap-1">
+                      {alertas.filter((a) => a.ticker === ticker).map((a) => (
+                        <li key={a.id} className={`flex items-center justify-between rounded-none border px-2 py-1 text-xs ${a.disparada ? "border-ganancia/30 bg-ganancia/5" : "border-fg/10"}`}>
+                          <span className="font-mono text-fg/70">
+                            {a.condicion === "lte" ? "≤" : "≥"} ${Number(a.precio_objetivo).toFixed(2)}
+                            {a.disparada && <span className="ml-2 text-ganancia">✓ Activada</span>}
+                          </span>
+                          <button onClick={() => eliminarAlerta(a.id)} className="text-fg/30 hover:text-perdida">✕</button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
+                {/* Pending limit orders */}
+                {ordenesPendientes.filter((o) => o.estado === "pendiente").length > 0 && (
+                  <div className="mt-3 rounded-none border border-fg/10 bg-canvas p-4">
+                    <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">Órdenes límite pendientes</p>
+                    <ul className="flex flex-col gap-1">
+                      {ordenesPendientes.filter((o) => o.estado === "pendiente").map((o) => (
+                        <li key={o.id} className="flex items-center justify-between rounded-none border border-fg/10 px-2 py-1.5 text-xs">
+                          <span className={`font-mono font-semibold ${o.tipo === "compra" ? "text-ganancia" : "text-perdida"}`}>
+                            {o.tipo.toUpperCase()}
+                          </span>
+                          <span className="font-mono text-fg">{o.ticker} · {Number(o.cantidad).toFixed(4)} acc</span>
+                          <span className="font-mono text-fg/60">@ ${Number(o.precio_limite).toFixed(2)}</span>
+                          <button onClick={() => cancelarOrdenLimite(o.id)} className="text-fg/30 hover:text-perdida">✕</button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </Card>
             )}
           </div>
