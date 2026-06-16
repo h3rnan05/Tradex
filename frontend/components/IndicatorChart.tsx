@@ -1,6 +1,8 @@
 "use client";
 
 import {
+  Area,
+  AreaChart,
   CartesianGrid,
   Line,
   LineChart,
@@ -10,7 +12,6 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import CandlestickChart from "@/components/CandlestickChart";
 import { calcularRSI, calcularSMA, INDICADORES_DISPONIBLES } from "@/lib/indicadores";
 
 interface PuntoPrecio {
@@ -19,6 +20,20 @@ interface PuntoPrecio {
   apertura?: string | null;
   maximo?: string | null;
   minimo?: string | null;
+}
+
+function TooltipPrecio({ active, payload, label }: any) {
+  if (!active || !payload || payload.length === 0) return null;
+  return (
+    <div className="border border-fg/20 bg-panel px-3 py-2 font-mono text-xs shadow-sm">
+      <p className="mb-1 text-fg/50">{label}</p>
+      {payload.map((p: any) => (
+        <p key={p.dataKey} style={{ color: p.color }}>
+          {p.name}: ${Number(p.value).toFixed(2)}
+        </p>
+      ))}
+    </div>
+  );
 }
 
 export default function IndicatorChart({
@@ -40,26 +55,98 @@ export default function IndicatorChart({
 
   const colorDe = (key: string) => INDICADORES_DISPONIBLES.find((i) => i.key === key)?.color ?? "#1a0e00";
 
-  const overlays = [
-    indicadoresActivos.includes("sma5") && { key: "sma5", color: colorDe("sma5"), valores: sma5 },
-    indicadoresActivos.includes("sma10") && { key: "sma10", color: colorDe("sma10"), valores: sma10 },
-    indicadoresActivos.includes("sma20") && { key: "sma20", color: colorDe("sma20"), valores: sma20 },
-  ].filter((s): s is { key: string; color: string; valores: (number | null)[] } => !!s);
+  const datos = historial.map((p, i) => ({
+    fecha: p.fecha,
+    precio: precios[i],
+    sma5: indicadoresActivos.includes("sma5") ? sma5[i] : null,
+    sma10: indicadoresActivos.includes("sma10") ? sma10[i] : null,
+    sma20: indicadoresActivos.includes("sma20") ? sma20[i] : null,
+  }));
+
+  const min = Math.min(...precios);
+  const max = Math.max(...precios);
+  const margen = (max - min) * 0.08 || max * 0.02;
+
+  const subiendo = precios[precios.length - 1] >= precios[0];
+  const colorLinea = subiendo ? "#007a2e" : "#cc1a1a";
 
   const datosRsi = rsi ? historial.map((p, i) => ({ fecha: p.fecha, rsi: rsi[i] })) : null;
 
   return (
     <div>
-      <CandlestickChart
-        historial={historial.map((p) => ({
-          fecha: p.fecha,
-          precio: p.precio,
-          apertura: p.apertura ?? null,
-          maximo: p.maximo ?? null,
-          minimo: p.minimo ?? null,
-        }))}
-        overlays={overlays}
-      />
+      <ResponsiveContainer width="100%" height={260}>
+        <AreaChart data={datos} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+          <defs>
+            <linearGradient id="precioGradiente" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={colorLinea} stopOpacity={0.25} />
+              <stop offset="100%" stopColor={colorLinea} stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(26,14,0,0.08)" vertical={false} />
+          <XAxis
+            dataKey="fecha"
+            tick={{ fontSize: 10, fill: "rgba(26,14,0,0.5)" }}
+            minTickGap={50}
+            axisLine={{ stroke: "rgba(26,14,0,0.15)" }}
+            tickLine={false}
+          />
+          <YAxis
+            domain={[min - margen, max + margen]}
+            tick={{ fontSize: 10, fill: "rgba(26,14,0,0.5)" }}
+            tickFormatter={(v) => `$${v.toFixed(0)}`}
+            width={48}
+            axisLine={false}
+            tickLine={false}
+          />
+          <Tooltip content={<TooltipPrecio />} />
+          <Area
+            type="monotone"
+            dataKey="precio"
+            name="Precio"
+            stroke={colorLinea}
+            strokeWidth={2}
+            fill="url(#precioGradiente)"
+            dot={false}
+            isAnimationActive={false}
+          />
+          {indicadoresActivos.includes("sma5") && (
+            <Area
+              type="monotone"
+              dataKey="sma5"
+              name="SMA 5"
+              stroke={colorDe("sma5")}
+              strokeWidth={1.5}
+              fill="none"
+              dot={false}
+              isAnimationActive={false}
+            />
+          )}
+          {indicadoresActivos.includes("sma10") && (
+            <Area
+              type="monotone"
+              dataKey="sma10"
+              name="SMA 10"
+              stroke={colorDe("sma10")}
+              strokeWidth={1.5}
+              fill="none"
+              dot={false}
+              isAnimationActive={false}
+            />
+          )}
+          {indicadoresActivos.includes("sma20") && (
+            <Area
+              type="monotone"
+              dataKey="sma20"
+              name="SMA 20"
+              stroke={colorDe("sma20")}
+              strokeWidth={1.5}
+              fill="none"
+              dot={false}
+              isAnimationActive={false}
+            />
+          )}
+        </AreaChart>
+      </ResponsiveContainer>
 
       {datosRsi && (
         <div className="mt-3 h-24 w-full border-t border-fg/10 pt-2">
