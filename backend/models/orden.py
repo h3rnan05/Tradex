@@ -23,4 +23,5 @@ class Orden(Base):
     tipo = Column(Enum(TipoOrdenEnum), nullable=False)
     cantidad = Column(Numeric(14, 4), nullable=False)
     precio_ejecucion = Column(Numeric(14, 4), nullable=False)
+    comision = Column(Numeric(14, 4), nullable=False, server_default="0")
     timestamp = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))

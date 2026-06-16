@@ -17,6 +17,7 @@ class GrupoCreate(BaseModel):
     max_alumnos: int | None = None
     activos_permitidos: list[str] = ["acciones"]
     limite_orden_valor: Decimal | None = None
+    comision_porcentaje: Decimal = Decimal("0")
 
 
 class GrupoOut(BaseModel):
@@ -29,6 +30,7 @@ class GrupoOut(BaseModel):
     max_alumnos: int | None
     activos_permitidos: list[str]
     limite_orden_valor: Decimal | None
+    comision_porcentaje: Decimal
     created_at: datetime
 
     class Config:

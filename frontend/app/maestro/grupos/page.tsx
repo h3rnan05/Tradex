@@ -14,6 +14,7 @@ interface Grupo {
   max_alumnos: number | null;
   activos_permitidos: string[];
   limite_orden_valor: string | null;
+  comision_porcentaje: string;
   created_at: string;
 }
 
@@ -36,6 +37,7 @@ export default function GruposPage() {
   const [maxAlumnos, setMaxAlumnos] = useState("");
   const [activosPermitidos, setActivosPermitidos] = useState<string[]>(["acciones"]);
   const [limiteOrden, setLimiteOrden] = useState("");
+  const [comisionPorcentaje, setComisionPorcentaje] = useState("");
   const [guardando, setGuardando] = useState(false);
 
   function alternarActivo(valor: string) {
@@ -73,6 +75,7 @@ export default function GruposPage() {
         max_alumnos: maxAlumnos ? Number(maxAlumnos) : null,
         activos_permitidos: activosPermitidos,
         limite_orden_valor: limiteOrden || null,
+        comision_porcentaje: comisionPorcentaje ? Number(comisionPorcentaje) / 100 : 0,
       });
       setNombre("");
       setFechaInicio("");
@@ -81,6 +84,7 @@ export default function GruposPage() {
       setMaxAlumnos("");
       setActivosPermitidos(["acciones"]);
       setLimiteOrden("");
+      setComisionPorcentaje("");
       setMostrarForm(false);
       await cargarGrupos();
     } catch (err) {
@@ -179,6 +183,20 @@ export default function GruposPage() {
                 value={limiteOrden}
                 onChange={(e) => setLimiteOrden(e.target.value)}
                 placeholder="Sin límite"
+                className="w-full rounded-md border border-ink/20 px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-ink/70">
+                Comisión por operación, en % (opcional)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={comisionPorcentaje}
+                onChange={(e) => setComisionPorcentaje(e.target.value)}
+                placeholder="0"
                 className="w-full rounded-md border border-ink/20 px-3 py-2 text-sm"
               />
             </div>

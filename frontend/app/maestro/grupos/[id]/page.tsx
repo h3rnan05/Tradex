@@ -26,6 +26,7 @@ interface Orden {
   tipo: "compra" | "venta";
   cantidad: string;
   precio_ejecucion: string;
+  comision: string;
   timestamp: string;
 }
 
@@ -36,6 +37,7 @@ interface GrupoDetalle {
   max_alumnos: number | null;
   activos_permitidos: string[];
   limite_orden_valor: string | null;
+  comision_porcentaje: string;
   memberships: Membership[];
   holdings: Holding[];
   ordenes: Orden[];
@@ -116,6 +118,12 @@ export default function DetalleGrupoPage() {
               Límite por orden: ${Number(grupo.limite_orden_valor).toLocaleString("es-MX")}
             </>
           )}
+          {Number(grupo.comision_porcentaje) > 0 && (
+            <>
+              {" · "}
+              Comisión: {(Number(grupo.comision_porcentaje) * 100).toFixed(2)}%
+            </>
+          )}
         </p>
 
         {grupo.max_alumnos !== null && grupo.memberships.length >= grupo.max_alumnos ? (
@@ -185,6 +193,7 @@ export default function DetalleGrupoPage() {
                 <th className="px-4 py-3">Tipo</th>
                 <th className="px-4 py-3">Cantidad</th>
                 <th className="px-4 py-3">Precio</th>
+                <th className="px-4 py-3">Comisión</th>
               </tr>
             </thead>
             <tbody>
@@ -195,11 +204,12 @@ export default function DetalleGrupoPage() {
                   <td className="px-4 py-3 capitalize">{o.tipo}</td>
                   <td className="px-4 py-3">{o.cantidad}</td>
                   <td className="px-4 py-3">${Number(o.precio_ejecucion).toLocaleString("es-MX")}</td>
+                  <td className="px-4 py-3">${Number(o.comision).toLocaleString("es-MX")}</td>
                 </tr>
               ))}
               {grupo.ordenes.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-3 text-ink/40">
+                  <td colSpan={6} className="px-4 py-3 text-ink/40">
                     Todavía no hay operaciones registradas.
                   </td>
                 </tr>

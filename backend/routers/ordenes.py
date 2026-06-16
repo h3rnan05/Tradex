@@ -44,6 +44,7 @@ def comprar(payload: OrdenCreate, db: Session = Depends(get_db), alumno: User = 
 
     precio = obtener_precio_actual(ticker)
     costo_total = precio * payload.cantidad
+    comision = costo_total * grupo.comision_porcentaje
 
     if grupo.limite_orden_valor is not None and costo_total > grupo.limite_orden_valor:
         raise HTTPException(
@@ -51,7 +52,7 @@ def comprar(payload: OrdenCreate, db: Session = Depends(get_db), alumno: User = 
             detail=f"El monto de la orden supera el limite permitido de ${grupo.limite_orden_valor}",
         )
 
-    if costo_total > membership.capital_disponible:
+    if costo_total + comision > membership.capital_disponible:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Capital disponible insuficiente")
 
     holding = db.query(Holding).filter(
@@ -73,7 +74,7 @@ def comprar(payload: OrdenCreate, db: Session = Depends(get_db), alumno: User = 
         )
         db.add(holding)
 
-    membership.capital_disponible -= costo_total
+    membership.capital_disponible -= costo_total + comision
 
     orden = Orden(
         alumno_id=alumno.id,
@@ -82,6 +83,7 @@ def comprar(payload: OrdenCreate, db: Session = Depends(get_db), alumno: User = 
         tipo=TipoOrdenEnum.compra,
         cantidad=payload.cantidad,
         precio_ejecucion=precio,
+        comision=comision,
     )
     db.add(orden)
     db.commit()
@@ -95,6 +97,7 @@ def vender(payload: OrdenCreate, db: Session = Depends(get_db), alumno: User = D
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La cantidad debe ser mayor a cero")
 
     membership = _get_membership(db, alumno, payload.grupo_id)
+    grupo = db.query(Grupo).filter(Grupo.id == payload.grupo_id).first()
     ticker = payload.ticker.upper().strip()
 
     holding = db.query(Holding).filter(
@@ -106,12 +109,13 @@ def vender(payload: OrdenCreate, db: Session = Depends(get_db), alumno: User = D
 
     precio = obtener_precio_actual(ticker)
     monto_total = precio * payload.cantidad
+    comision = monto_total * grupo.comision_porcentaje
 
     holding.cantidad -= payload.cantidad
     if holding.cantidad == 0:
         holding.precio_promedio = Decimal("0")
 
-    membership.capital_disponible += monto_total
+    membership.capital_disponible += monto_total - comision
 
     orden = Orden(
         alumno_id=alumno.id,
@@ -120,6 +124,7 @@ def vender(payload: OrdenCreate, db: Session = Depends(get_db), alumno: User = D
         tipo=TipoOrdenEnum.venta,
         cantidad=payload.cantidad,
         precio_ejecucion=precio,
+        comision=comision,
     )
     db.add(orden)
     db.commit()

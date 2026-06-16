@@ -12,6 +12,7 @@ interface Orden {
   tipo: "compra" | "venta";
   cantidad: string;
   precio_ejecucion: string;
+  comision: string;
   timestamp: string;
 }
 
@@ -52,6 +53,7 @@ export default function HistorialPage() {
                   <th className="px-4 py-3">Ticker</th>
                   <th className="px-4 py-3">Cantidad</th>
                   <th className="px-4 py-3">Precio de ejecución</th>
+                  <th className="px-4 py-3">Comisión</th>
                   <th className="px-4 py-3">Total</th>
                 </tr>
               </thead>
@@ -69,6 +71,7 @@ export default function HistorialPage() {
                     <td className="px-4 py-3 font-medium text-ink">{o.ticker}</td>
                     <td className="px-4 py-3">{o.cantidad}</td>
                     <td className="px-4 py-3">{formatoMoneda(o.precio_ejecucion)}</td>
+                    <td className="px-4 py-3">{formatoMoneda(o.comision)}</td>
                     <td className="px-4 py-3">{formatoMoneda(Number(o.cantidad) * Number(o.precio_ejecucion))}</td>
                   </tr>
                 ))}

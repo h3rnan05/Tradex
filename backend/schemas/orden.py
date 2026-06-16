@@ -21,6 +21,7 @@ class OrdenOut(BaseModel):
     tipo: TipoOrdenEnum
     cantidad: Decimal
     precio_ejecucion: Decimal
+    comision: Decimal
     timestamp: datetime
 
     class Config:

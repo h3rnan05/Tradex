@@ -28,6 +28,7 @@ def crear_grupo(payload: GrupoCreate, db: Session = Depends(get_db), maestro: Us
         max_alumnos=payload.max_alumnos,
         activos_permitidos=payload.activos_permitidos,
         limite_orden_valor=payload.limite_orden_valor,
+        comision_porcentaje=payload.comision_porcentaje,
     )
     db.add(grupo)
     db.commit()

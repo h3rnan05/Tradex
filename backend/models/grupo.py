@@ -20,6 +20,7 @@ class Grupo(Base):
     max_alumnos = Column(Integer, nullable=True)
     activos_permitidos = Column(ARRAY(String), nullable=False, server_default="{acciones}")
     limite_orden_valor = Column(Numeric(14, 2), nullable=True)
+    comision_porcentaje = Column(Numeric(5, 4), nullable=False, server_default="0")
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     maestro = relationship("User")
