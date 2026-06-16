@@ -1,4 +1,5 @@
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
@@ -311,53 +312,67 @@ def obtener_precios_indices() -> list[dict]:
     return resultado
 
 
+_EARNINGS_WATCHLIST = [
+    "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "JPM",
+    "V", "MA", "NFLX", "AMD", "INTC", "DIS", "BA", "KO", "PEP",
+    "JNJ", "UNH", "PG", "HD", "COST", "SBUX", "MCD", "ADBE",
+    "CRM", "ORCL", "IBM", "QCOM", "TXN", "AMAT", "MU", "WMT",
+    "BAC", "GS", "MS", "C", "WFC", "PYPL", "SQ", "SNAP", "UBER",
+]
+
+
+def _fetch_earnings_ticker(ticker: str, crumb: str, cookies: dict, hoy, fin) -> dict | None:
+    headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
+    params = {"modules": "calendarEvents,assetProfile", "crumb": crumb}
+    try:
+        resp = httpx.get(
+            f"{YF_SUMMARY_URL}{ticker}",
+            params=params, headers=headers, cookies=cookies, timeout=10.0,
+        )
+        if resp.status_code != 200:
+            return None
+        result = ((resp.json() or {}).get("quoteSummary") or {}).get("result") or []
+        if not result:
+            return None
+        data = result[0]
+        cal = (data.get("calendarEvents") or {}).get("earnings") or {}
+        dates = cal.get("earningsDate") or []
+        if not dates:
+            return None
+        ts = dates[0].get("raw") if isinstance(dates[0], dict) else dates[0]
+        fecha = datetime.fromtimestamp(ts, tz=timezone.utc).date()
+        if not (hoy <= fecha <= fin):
+            return None
+        nombre = (data.get("assetProfile") or {}).get("longName") or ticker
+        eps_est_raw = cal.get("epsEstimate") or {}
+        eps_est = eps_est_raw.get("raw") if isinstance(eps_est_raw, dict) else eps_est_raw
+        return {
+            "fecha": fecha.isoformat(),
+            "ticker": ticker,
+            "empresa": nombre,
+            "momento": "No definido",
+            "eps_estimado": eps_est,
+            "eps_actual": None,
+        }
+    except Exception:
+        return None
+
+
 def obtener_earnings_calendar() -> list[dict]:
     hoy = datetime.now(timezone.utc).date()
+    fin = hoy + timedelta(days=14)
     crumb, cookies = _obtener_crumb_yf()
-    headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
     resultados = []
-    for i in range(7):
-        fecha = hoy + timedelta(days=i)
-        params = {"date": fecha.isoformat(), "size": "10", "offset": "0"}
-        if crumb:
-            params["crumb"] = crumb
-        fetched = False
-        for host in ("query1", "query2"):
-            url = f"https://{host}.finance.yahoo.com/v1/finance/calendar/earnings"
-            try:
-                resp = httpx.get(url, params=params, headers=headers, cookies=cookies, timeout=15.0)
-            except httpx.HTTPError:
-                continue
-            if resp.status_code == 401:
-                global _yf_crumb, _yf_cookies
-                _yf_crumb = None
-                _yf_cookies = {}
-                break
-            if resp.status_code != 200:
-                continue
-            datos = (resp.json() or {}).get("earnings") or {}
-            items = datos.get("result") or []
-            for item in items:
-                momento_raw = item.get("startdatetimetype", "")
-                if momento_raw == "BMO":
-                    momento = "Antes apertura"
-                elif momento_raw == "AMC":
-                    momento = "Después cierre"
-                else:
-                    momento = "No definido"
-                resultados.append({
-                    "fecha": fecha.isoformat(),
-                    "ticker": item.get("ticker"),
-                    "empresa": item.get("companyshortName"),
-                    "momento": momento,
-                    "eps_estimado": item.get("epsestimate"),
-                    "eps_actual": item.get("epsactual"),
-                })
-            fetched = True
-            break
-        if not fetched:
-            logger.warning("earnings calendar: no se pudo obtener datos para %s", fecha)
-    return resultados
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        futures = {
+            executor.submit(_fetch_earnings_ticker, ticker, crumb, cookies, hoy, fin): ticker
+            for ticker in _EARNINGS_WATCHLIST
+        }
+        for future in as_completed(futures):
+            r = future.result()
+            if r:
+                resultados.append(r)
+    return sorted(resultados, key=lambda x: x["fecha"])
 
 
 _SECTORES = [
