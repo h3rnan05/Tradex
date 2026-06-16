@@ -10,6 +10,7 @@ from precios_utils import (
     obtener_noticias_generales,
     obtener_precio_actual,
     obtener_precios_destacados,
+    obtener_precios_indices,
 )
 
 router = APIRouter(prefix="/precios", tags=["precios"])
@@ -61,6 +62,11 @@ def precios_destacados(current_user: User = Depends(get_current_user)):
 @router.get("/noticias-generales")
 def noticias_generales_mercado(current_user: User = Depends(get_current_user)):
     return {"noticias": obtener_noticias_generales()}
+
+
+@router.get("/indices")
+def indices_mercado(current_user: User = Depends(get_current_user)):
+    return obtener_precios_indices()
 
 
 @router.get("/{ticker}")

@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import ProChart from "@/components/ProChart";
 import MercadosMundo from "@/components/MercadosMundo";
+import BarraIndices from "@/components/BarraIndices";
 import { Badge, Card } from "@/components/primitives";
 import { api, ApiError } from "@/lib/api";
 import { obtenerSesion } from "@/lib/auth";
@@ -88,18 +89,20 @@ function Sparkline({ data, subiendo }: { data: number[]; subiendo: boolean }) {
   const min = Math.min(...data);
   const max = Math.max(...data);
   const range = max - min || 1;
-  const w = 56;
-  const h = 26;
+  const w = 72;
+  const h = 32;
+  const pad = 2;
   const points = data
-    .map((v, i) => `${(i / (data.length - 1)) * w},${h - ((v - min) / range) * h}`)
+    .map((v, i) => `${(i / (data.length - 1)) * w},${h - pad - ((v - min) / range) * (h - pad * 2)}`)
     .join(" ");
+  const color = subiendo ? "#22c55e" : "#ef4444";
   return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="shrink-0">
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="shrink-0 opacity-85">
       <polyline
         points={points}
         fill="none"
-        stroke={subiendo ? "#16a34a" : "#dc2626"}
-        strokeWidth="1.5"
+        stroke={color}
+        strokeWidth="1"
         strokeLinejoin="round"
         strokeLinecap="round"
       />
@@ -285,6 +288,8 @@ function OperarPageInterna() {
             {buscando ? "Buscando..." : "Buscar"}
           </button>
         </form>
+
+        <BarraIndices />
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
 

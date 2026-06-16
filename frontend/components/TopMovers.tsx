@@ -12,19 +12,16 @@ function Sparkline({ data, subiendo }: { data: number[]; subiendo: boolean }) {
   const min = Math.min(...data);
   const max = Math.max(...data);
   const range = max - min || 1;
-  const w = 64;
-  const h = 28;
+  const w = 72;
+  const h = 32;
+  const pad = 2;
   const points = data
-    .map((v, i) => {
-      const x = (i / (data.length - 1)) * w;
-      const y = h - ((v - min) / range) * h;
-      return `${x},${y}`;
-    })
+    .map((v, i) => `${(i / (data.length - 1)) * w},${h - pad - ((v - min) / range) * (h - pad * 2)}`)
     .join(" ");
-  const color = subiendo ? "#16a34a" : "#dc2626";
+  const color = subiendo ? "#22c55e" : "#ef4444";
   return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="shrink-0">
-      <polyline points={points} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="shrink-0 opacity-85">
+      <polyline points={points} fill="none" stroke={color} strokeWidth="1" strokeLinejoin="round" strokeLinecap="round" />
     </svg>
   );
 }

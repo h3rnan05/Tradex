@@ -19,6 +19,15 @@ USER_AGENT = (
 
 TICKERS_DESTACADOS = ["AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "TSLA", "META", "NFLX"]
 
+INDICES_MERCADO = [
+    {"ticker": "^GSPC", "nombre": "S&P 500"},
+    {"ticker": "^DJI", "nombre": "Dow Jones"},
+    {"ticker": "^IXIC", "nombre": "Nasdaq"},
+    {"ticker": "^RUT", "nombre": "Russell 2000"},
+    {"ticker": "^VIX", "nombre": "Volatilidad"},
+    {"ticker": "GC=F", "nombre": "Oro"},
+]
+
 
 def _to_unix_ts(d: date, end_of_day: bool = False) -> int:
     t = datetime.combine(d, datetime.min.time(), tzinfo=timezone.utc)
@@ -264,7 +273,7 @@ def obtener_precios_destacados() -> list[dict]:
             continue
         sparkline = []
         try:
-            historial = obtener_historial_precios(ticker, dias=10)
+            historial = obtener_historial_precios(ticker, dias=30)
             sparkline = [item["precio"] for item in historial]
         except HTTPException:
             pass
@@ -275,3 +284,27 @@ def obtener_precios_destacados() -> list[dict]:
             "sparkline": sparkline,
         })
     return destacados
+
+
+def obtener_precios_indices() -> list[dict]:
+    resultado = []
+    for indice in INDICES_MERCADO:
+        ticker = indice["ticker"]
+        try:
+            precio, cambio_porcentaje = _obtener_precio_y_cambio(ticker)
+        except HTTPException:
+            continue
+        sparkline = []
+        try:
+            historial = obtener_historial_precios(ticker, dias=30)
+            sparkline = [item["precio"] for item in historial]
+        except HTTPException:
+            pass
+        resultado.append({
+            "ticker": ticker,
+            "nombre": indice["nombre"],
+            "precio": precio,
+            "cambio_porcentaje": cambio_porcentaje,
+            "sparkline": sparkline,
+        })
+    return resultado
