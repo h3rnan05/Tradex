@@ -24,6 +24,7 @@ interface EarningsItem {
   fecha: string;
   ticker: string | null;
   empresa: string | null;
+  momento: string | null;
   eps_estimado: number | null;
 }
 
@@ -260,8 +261,11 @@ export default function MercadosPage() {
                       >
                         <span className="w-14 font-mono text-sm font-bold text-fg shrink-0">{e.ticker ?? "—"}</span>
                         <span className="flex-1 truncate font-mono text-xs text-fg/60">{e.empresa ?? e.ticker ?? "—"}</span>
-                        <span className="w-32 text-right font-mono text-xs tabular-nums text-fg/50 shrink-0">
-                          {e.eps_estimado != null ? `EPS Est. $${e.eps_estimado.toFixed(2)}` : "EPS Est. —"}
+                        {e.momento && (
+                          <span className="w-28 text-right font-mono text-[10px] text-fg/40 shrink-0">{e.momento}</span>
+                        )}
+                        <span className="w-28 text-right font-mono text-xs tabular-nums text-fg/50 shrink-0">
+                          {e.eps_estimado != null ? `EPS Est. $${e.eps_estimado.toFixed(2)}` : ""}
                         </span>
                       </div>
                     ))}

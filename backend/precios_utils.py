@@ -363,12 +363,20 @@ def _fetch_earnings_ticker(ticker: str, crumb: str, cookies: dict, hoy, fin) -> 
             return None
         price_info = data.get("price") or {}
         nombre = price_info.get("longName") or price_info.get("shortName") or ticker
-        eps_est_raw = cal.get("epsEstimate") or {}
+        eps_est_raw = cal.get("earningsAverage") or {}
         eps_est = eps_est_raw.get("raw") if isinstance(eps_est_raw, dict) else eps_est_raw
+        momento_raw = cal.get("earningsCallTime") or ""
+        if momento_raw == "BMO":
+            momento = "Antes apertura"
+        elif momento_raw == "AMC":
+            momento = "Después cierre"
+        else:
+            momento = None
         return {
             "fecha": fecha.isoformat(),
             "ticker": ticker,
             "empresa": nombre,
+            "momento": momento,
             "eps_estimado": eps_est,
         }
     except Exception:
