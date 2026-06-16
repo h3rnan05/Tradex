@@ -24,6 +24,25 @@ const ACTIVOS_DISPONIBLES = [
   { value: "commodities", label: "Commodities" },
 ];
 
+const ACTIVOS_LABEL: Record<string, string> = Object.fromEntries(
+  ACTIVOS_DISPONIBLES.map((a) => [a.value, a.label])
+);
+
+const ESTADO_ESTILOS: Record<string, string> = {
+  proximo: "bg-fg/10 text-fg/60",
+  activo: "bg-ganancia/15 text-ganancia",
+  finalizado: "bg-fg/5 text-fg/40",
+};
+
+function estadoGrupo(fechaInicio: string, fechaFin: string) {
+  const ahora = Date.now();
+  const inicio = new Date(fechaInicio).getTime();
+  const fin = new Date(fechaFin).getTime();
+  if (ahora < inicio) return { key: "proximo", label: "Próximo" };
+  if (ahora > fin) return { key: "finalizado", label: "Finalizado" };
+  return { key: "activo", label: "Activo" };
+}
+
 export default function GruposPage() {
   const [grupos, setGrupos] = useState<Grupo[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -254,35 +273,76 @@ export default function GruposPage() {
         {cargando ? (
           <p className="text-fg/40">Cargando grupos...</p>
         ) : grupos.length === 0 ? (
-          <p className="text-fg/40">Todavía no has creado ningún grupo.</p>
+          <div className="rounded-none border border-dashed border-fg/20 bg-panel/50 px-6 py-12 text-center">
+            <p className="text-fg/50">Todavía no has creado ningún grupo.</p>
+            <button
+              onClick={() => setMostrarForm(true)}
+              className="mt-4 rounded-none bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-ink/80"
+            >
+              Crear tu primer grupo
+            </button>
+          </div>
         ) : (
-          <div className="overflow-hidden rounded-none border border-fg/10 bg-panel">
-            <table className="w-full text-sm">
-              <thead className="bg-fg/5 text-left text-fg/60">
-                <tr>
-                  <th className="px-4 py-3">Nombre</th>
-                  <th className="px-4 py-3">Inicio</th>
-                  <th className="px-4 py-3">Fin</th>
-                  <th className="px-4 py-3">Capital inicial</th>
-                  <th className="px-4 py-3"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {grupos.map((g) => (
-                  <tr key={g.id} className="border-t border-fg/5">
-                    <td className="px-4 py-3 font-medium text-fg">{g.nombre}</td>
-                    <td className="px-4 py-3">{new Date(g.fecha_inicio).toLocaleDateString("es-MX")}</td>
-                    <td className="px-4 py-3">{new Date(g.fecha_fin).toLocaleDateString("es-MX")}</td>
-                    <td className="px-4 py-3">${Number(g.capital_inicial).toLocaleString("es-MX")}</td>
-                    <td className="px-4 py-3 text-right">
-                      <Link href={`/maestro/grupos/${g.id}`} className="text-fg/70 underline hover:text-fg">
-                        Ver detalle
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {grupos.map((g) => {
+              const estado = estadoGrupo(g.fecha_inicio, g.fecha_fin);
+              return (
+                <div
+                  key={g.id}
+                  className="flex flex-col gap-4 rounded-none border border-fg/10 bg-panel p-5 transition hover:border-fg/30 hover:shadow-sm"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <h2 className="text-lg font-bold leading-tight text-fg">{g.nombre}</h2>
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${ESTADO_ESTILOS[estado.key]}`}
+                    >
+                      {estado.label}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-y-2 text-sm">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-fg/40">Inicio</p>
+                      <p className="text-fg/80">{new Date(g.fecha_inicio).toLocaleDateString("es-MX")}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-fg/40">Fin</p>
+                      <p className="text-fg/80">{new Date(g.fecha_fin).toLocaleDateString("es-MX")}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-fg/40">Capital inicial</p>
+                      <p className="font-medium text-ganancia">
+                        ${Number(g.capital_inicial).toLocaleString("es-MX")}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-fg/40">Alumnos</p>
+                      <p className="text-fg/80">{g.max_alumnos ? `Máx. ${g.max_alumnos}` : "Sin límite"}</p>
+                    </div>
+                  </div>
+
+                  {g.activos_permitidos.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {g.activos_permitidos.map((tipo) => (
+                        <span
+                          key={tipo}
+                          className="rounded-full bg-fg/5 px-2 py-0.5 text-xs text-fg/60"
+                        >
+                          {ACTIVOS_LABEL[tipo] ?? tipo}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  <Link
+                    href={`/maestro/grupos/${g.id}`}
+                    className="mt-auto self-start text-sm font-medium text-fg underline hover:text-fg/70"
+                  >
+                    Ver detalle →
+                  </Link>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
