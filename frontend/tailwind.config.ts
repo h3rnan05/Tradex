@@ -21,7 +21,7 @@ const config: Config = {
         "term-red": "#cc1a1a",
       },
       fontFamily: {
-        mono: ["IBM Plex Mono", "var(--font-mono)", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
+        mono: ["IBM Plex Mono", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
       },
       keyframes: {
         ticker: {

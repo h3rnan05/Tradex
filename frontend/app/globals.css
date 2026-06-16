@@ -40,7 +40,7 @@ html,
 body {
   background: var(--color-bg);
   color: var(--color-text);
-  font-family: "IBM Plex Mono", var(--font-mono), ui-monospace, monospace;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
   font-size: 14px;
   line-height: 1.55;
 }
@@ -65,7 +65,7 @@ h4 {
 
 code,
 kbd {
-  font-family: "IBM Plex Mono", var(--font-mono), ui-monospace, monospace;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
   font-size: 0.9em;
   font-feature-settings: "tnum" 1, "zero" 1;
 }
