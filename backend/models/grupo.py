@@ -1,8 +1,8 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, DateTime, ForeignKey, Numeric, String
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, Numeric, String
+from sqlalchemy.dialects.postgresql import ARRAY, UUID
 from sqlalchemy.orm import relationship
 
 from database import Base
@@ -17,6 +17,9 @@ class Grupo(Base):
     fecha_inicio = Column(DateTime(timezone=True), nullable=False)
     fecha_fin = Column(DateTime(timezone=True), nullable=False)
     capital_inicial = Column(Numeric(14, 2), nullable=False)
+    max_alumnos = Column(Integer, nullable=True)
+    activos_permitidos = Column(ARRAY(String), nullable=False, server_default="{acciones}")
+    limite_orden_valor = Column(Numeric(14, 2), nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     maestro = relationship("User")

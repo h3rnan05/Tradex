@@ -25,6 +25,9 @@ def crear_grupo(payload: GrupoCreate, db: Session = Depends(get_db), maestro: Us
         fecha_inicio=payload.fecha_inicio,
         fecha_fin=payload.fecha_fin,
         capital_inicial=payload.capital_inicial,
+        max_alumnos=payload.max_alumnos,
+        activos_permitidos=payload.activos_permitidos,
+        limite_orden_valor=payload.limite_orden_valor,
     )
     db.add(grupo)
     db.commit()
@@ -86,6 +89,14 @@ def invitar_alumno(
     ).first()
     if existente:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El alumno ya pertenece al grupo")
+
+    if grupo.max_alumnos is not None:
+        total_actual = db.query(Membership).filter(Membership.grupo_id == grupo.id).count()
+        if total_actual >= grupo.max_alumnos:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"El grupo ya alcanzo el limite de {grupo.max_alumnos} alumnos",
+            )
 
     membership = Membership(
         grupo_id=grupo.id,

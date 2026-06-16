@@ -33,6 +33,9 @@ interface GrupoDetalle {
   id: string;
   nombre: string;
   capital_inicial: string;
+  max_alumnos: number | null;
+  activos_permitidos: string[];
+  limite_orden_valor: string | null;
   memberships: Membership[];
   holdings: Holding[];
   ordenes: Orden[];
@@ -99,30 +102,48 @@ export default function DetalleGrupoPage() {
       <Navbar />
       <div className="mx-auto max-w-5xl p-6">
         <h1 className="mb-1 text-2xl font-bold text-ink">{grupo.nombre}</h1>
-        <p className="mb-6 text-sm text-ink/40">
+        <p className="mb-1 text-sm text-ink/40">
           Capital inicial: ${Number(grupo.capital_inicial).toLocaleString("es-MX")}
+          {" · "}
+          Alumnos: {grupo.memberships.length}
+          {grupo.max_alumnos !== null && ` / ${grupo.max_alumnos}`}
+        </p>
+        <p className="mb-6 text-sm text-ink/40">
+          Activos permitidos: {grupo.activos_permitidos.join(", ")}
+          {grupo.limite_orden_valor && (
+            <>
+              {" · "}
+              Límite por orden: ${Number(grupo.limite_orden_valor).toLocaleString("es-MX")}
+            </>
+          )}
         </p>
 
-        <form onSubmit={invitarAlumno} className="mb-8 flex items-end gap-3 rounded-lg border border-ink/10 bg-white p-4">
-          <div className="flex-1">
-            <label className="mb-1 block text-sm font-medium text-ink/70">
-              Correo del alumno a invitar
-            </label>
-            <input
-              type="email"
-              required
-              value={emailInvitar}
-              onChange={(e) => setEmailInvitar(e.target.value)}
-              className="w-full rounded-md border border-ink/20 px-3 py-2 text-sm"
-            />
-          </div>
-          <button
-            type="submit"
-            className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-ink/80"
-          >
-            Invitar
-          </button>
-        </form>
+        {grupo.max_alumnos !== null && grupo.memberships.length >= grupo.max_alumnos ? (
+          <p className="mb-8 text-sm text-perdida">
+            Este grupo alcanzó el límite de {grupo.max_alumnos} alumnos.
+          </p>
+        ) : (
+          <form onSubmit={invitarAlumno} className="mb-8 flex items-end gap-3 rounded-lg border border-ink/10 bg-white p-4">
+            <div className="flex-1">
+              <label className="mb-1 block text-sm font-medium text-ink/70">
+                Correo del alumno a invitar
+              </label>
+              <input
+                type="email"
+                required
+                value={emailInvitar}
+                onChange={(e) => setEmailInvitar(e.target.value)}
+                className="w-full rounded-md border border-ink/20 px-3 py-2 text-sm"
+              />
+            </div>
+            <button
+              type="submit"
+              className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-ink/80"
+            >
+              Invitar
+            </button>
+          </form>
+        )}
         {mensajeInvitar && <p className="mb-6 text-sm text-ink/60">{mensajeInvitar}</p>}
 
         <h2 className="mb-3 text-lg font-semibold text-ink">Alumnos</h2>

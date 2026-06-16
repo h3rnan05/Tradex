@@ -3,8 +3,10 @@ from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from activos_utils import clasificar_ticker
 from auth_utils import require_alumno
 from database import get_db
+from models.grupo import Grupo
 from models.holding import Holding
 from models.membership import Membership
 from models.orden import Orden, TipoOrdenEnum
@@ -30,9 +32,24 @@ def comprar(payload: OrdenCreate, db: Session = Depends(get_db), alumno: User = 
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La cantidad debe ser mayor a cero")
 
     membership = _get_membership(db, alumno, payload.grupo_id)
+    grupo = db.query(Grupo).filter(Grupo.id == payload.grupo_id).first()
     ticker = payload.ticker.upper().strip()
+
+    tipo_activo = clasificar_ticker(ticker)
+    if tipo_activo not in (grupo.activos_permitidos or []):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Tu grupo no permite operar activos de tipo '{tipo_activo}'",
+        )
+
     precio = obtener_precio_actual(ticker)
     costo_total = precio * payload.cantidad
+
+    if grupo.limite_orden_valor is not None and costo_total > grupo.limite_orden_valor:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"El monto de la orden supera el limite permitido de ${grupo.limite_orden_valor}",
+        )
 
     if costo_total > membership.capital_disponible:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Capital disponible insuficiente")

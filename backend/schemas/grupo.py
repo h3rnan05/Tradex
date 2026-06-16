@@ -14,6 +14,9 @@ class GrupoCreate(BaseModel):
     fecha_inicio: datetime
     fecha_fin: datetime
     capital_inicial: Decimal
+    max_alumnos: int | None = None
+    activos_permitidos: list[str] = ["acciones"]
+    limite_orden_valor: Decimal | None = None
 
 
 class GrupoOut(BaseModel):
@@ -23,6 +26,9 @@ class GrupoOut(BaseModel):
     fecha_inicio: datetime
     fecha_fin: datetime
     capital_inicial: Decimal
+    max_alumnos: int | None
+    activos_permitidos: list[str]
+    limite_orden_valor: Decimal | None
     created_at: datetime
 
     class Config:

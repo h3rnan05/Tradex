@@ -11,8 +11,17 @@ interface Grupo {
   fecha_inicio: string;
   fecha_fin: string;
   capital_inicial: string;
+  max_alumnos: number | null;
+  activos_permitidos: string[];
+  limite_orden_valor: string | null;
   created_at: string;
 }
+
+const ACTIVOS_DISPONIBLES = [
+  { value: "acciones", label: "Acciones" },
+  { value: "indices", label: "Índices" },
+  { value: "commodities", label: "Commodities" },
+];
 
 export default function GruposPage() {
   const [grupos, setGrupos] = useState<Grupo[]>([]);
@@ -24,7 +33,16 @@ export default function GruposPage() {
   const [fechaInicio, setFechaInicio] = useState("");
   const [fechaFin, setFechaFin] = useState("");
   const [capitalInicial, setCapitalInicial] = useState("10000");
+  const [maxAlumnos, setMaxAlumnos] = useState("");
+  const [activosPermitidos, setActivosPermitidos] = useState<string[]>(["acciones"]);
+  const [limiteOrden, setLimiteOrden] = useState("");
   const [guardando, setGuardando] = useState(false);
+
+  function alternarActivo(valor: string) {
+    setActivosPermitidos((prev) =>
+      prev.includes(valor) ? prev.filter((a) => a !== valor) : [...prev, valor]
+    );
+  }
 
   async function cargarGrupos() {
     setCargando(true);
@@ -52,11 +70,17 @@ export default function GruposPage() {
         fecha_inicio: new Date(fechaInicio).toISOString(),
         fecha_fin: new Date(fechaFin).toISOString(),
         capital_inicial: capitalInicial,
+        max_alumnos: maxAlumnos ? Number(maxAlumnos) : null,
+        activos_permitidos: activosPermitidos,
+        limite_orden_valor: limiteOrden || null,
       });
       setNombre("");
       setFechaInicio("");
       setFechaFin("");
       setCapitalInicial("10000");
+      setMaxAlumnos("");
+      setActivosPermitidos(["acciones"]);
+      setLimiteOrden("");
       setMostrarForm(false);
       await cargarGrupos();
     } catch (err) {
@@ -116,17 +140,62 @@ export default function GruposPage() {
                 />
               </div>
             </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-ink/70">Capital inicial</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  required
+                  value={capitalInicial}
+                  onChange={(e) => setCapitalInicial(e.target.value)}
+                  className="w-full rounded-md border border-ink/20 px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-ink/70">
+                  Máximo de alumnos (opcional)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={maxAlumnos}
+                  onChange={(e) => setMaxAlumnos(e.target.value)}
+                  placeholder="Sin límite"
+                  className="w-full rounded-md border border-ink/20 px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-ink/70">Capital inicial</label>
+              <label className="mb-1 block text-sm font-medium text-ink/70">
+                Límite por orden, en monto (opcional)
+              </label>
               <input
                 type="number"
                 min="0"
                 step="0.01"
-                required
-                value={capitalInicial}
-                onChange={(e) => setCapitalInicial(e.target.value)}
+                value={limiteOrden}
+                onChange={(e) => setLimiteOrden(e.target.value)}
+                placeholder="Sin límite"
                 className="w-full rounded-md border border-ink/20 px-3 py-2 text-sm"
               />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-ink/70">Tipos de activos permitidos</label>
+              <div className="flex gap-4">
+                {ACTIVOS_DISPONIBLES.map((activo) => (
+                  <label key={activo.value} className="flex items-center gap-2 text-sm text-ink/70">
+                    <input
+                      type="checkbox"
+                      checked={activosPermitidos.includes(activo.value)}
+                      onChange={() => alternarActivo(activo.value)}
+                    />
+                    {activo.label}
+                  </label>
+                ))}
+              </div>
             </div>
             <button
               type="submit"
