@@ -85,11 +85,17 @@ def _consultar_chart(ticker: str, dias: int) -> dict:
 
 
 def obtener_precio_actual(ticker: str) -> Decimal:
+    return _obtener_precio_y_cambio(ticker)[0]
+
+
+def _obtener_precio_y_cambio(ticker: str) -> tuple[Decimal, float]:
     ticker = ticker.upper().strip()
     resultado = _consultar_chart(ticker, dias=7)
 
     cierres = ((resultado.get("indicators") or {}).get("quote") or [{}])[0].get("close") or []
-    precio_meta = (resultado.get("meta") or {}).get("regularMarketPrice")
+    meta = resultado.get("meta") or {}
+    precio_meta = meta.get("regularMarketPrice")
+    precio_previo = meta.get("chartPreviousClose") or meta.get("previousClose")
 
     precio = None
     for cierre in reversed(cierres):
@@ -104,7 +110,12 @@ def obtener_precio_actual(ticker: str) -> Decimal:
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"No se encontro el precio para el ticker {ticker}",
         )
-    return Decimal(str(precio))
+
+    cambio_porcentaje = 0.0
+    if precio_previo:
+        cambio_porcentaje = (float(precio) - float(precio_previo)) / float(precio_previo) * 100
+
+    return Decimal(str(precio)), cambio_porcentaje
 
 
 def obtener_historial_precios(ticker: str, dias: int = 30) -> list[dict]:
@@ -189,8 +200,8 @@ def obtener_precios_destacados() -> list[dict]:
     destacados = []
     for ticker in TICKERS_DESTACADOS:
         try:
-            precio = obtener_precio_actual(ticker)
+            precio, cambio_porcentaje = _obtener_precio_y_cambio(ticker)
         except HTTPException:
             continue
-        destacados.append({"ticker": ticker, "precio": precio})
+        destacados.append({"ticker": ticker, "precio": precio, "cambio_porcentaje": cambio_porcentaje})
     return destacados
