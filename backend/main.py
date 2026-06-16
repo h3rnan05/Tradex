@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from routers import alumnos, auth, grupos, ordenes, portafolios_modelo, precios
+from routers import alumnos, auth, grupos, ordenes, portafolios_modelo, precios, retos
 
 app = FastAPI(title="Tradex API", description="Simulador educativo de inversion")
 
@@ -20,6 +20,7 @@ app.include_router(ordenes.router)
 app.include_router(precios.router)
 app.include_router(alumnos.router)
 app.include_router(portafolios_modelo.router)
+app.include_router(retos.router)
 
 
 @app.get("/")

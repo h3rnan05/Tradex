@@ -1,4 +1,9 @@
-from datetime import date
+from datetime import date, datetime, timezone
+from decimal import Decimal
+
+from fastapi import HTTPException, status
+
+from precios_utils import obtener_historial_precios_rango
 
 ESCENARIOS_HISTORICOS = {
     "covid_2020": {
@@ -23,3 +28,23 @@ ESCENARIOS_HISTORICOS = {
         "tickers_sugeridos": ["NVDA", "MSFT", "GOOGL", "AMD"],
     },
 }
+
+
+def obtener_escenario(escenario_id: str) -> dict:
+    escenario = ESCENARIOS_HISTORICOS.get(escenario_id)
+    if not escenario:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Escenario no encontrado")
+    return escenario
+
+
+def precio_simulado(ticker: str, escenario_id: str, fecha_inicio_reto: datetime, fecha_fin_reto: datetime) -> Decimal:
+    escenario = obtener_escenario(escenario_id)
+    historial = obtener_historial_precios_rango(ticker, escenario["fecha_inicio"], escenario["fecha_fin"])
+
+    ahora = datetime.now(timezone.utc)
+    duracion = (fecha_fin_reto - fecha_inicio_reto).total_seconds()
+    progreso = (ahora - fecha_inicio_reto).total_seconds() / duracion if duracion > 0 else 1
+    progreso = max(0.0, min(1.0, progreso))
+
+    indice = int(progreso * (len(historial) - 1))
+    return Decimal(str(historial[indice]["precio"]))
