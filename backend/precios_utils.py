@@ -1,8 +1,11 @@
 import logging
 import re
+import threading
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
+from functools import wraps
 
 import httpx
 from fastapi import HTTPException, status
@@ -10,6 +13,32 @@ from fastapi import HTTPException, status
 from config import settings
 
 _TICKER_RE = re.compile(r'^[A-Z0-9\.\^\=\-\+]{1,15}$')
+
+# ── Simple in-memory TTL cache ────────────────────────────────────────────
+# Market data changes slowly relative to how often the UI requests it. Caching
+# responses for a few seconds/minutes turns repeated page loads from dozens of
+# slow external API calls into instant memory hits. Thread-safe so it works with
+# uvicorn's threadpool. Only successful results are cached (errors are not).
+_cache_lock = threading.Lock()
+_cache_store: dict = {}
+
+
+def ttl_cache(seconds: int):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            key = (func.__name__, args, tuple(sorted(kwargs.items())))
+            now = time.monotonic()
+            with _cache_lock:
+                hit = _cache_store.get(key)
+                if hit is not None and hit[0] > now:
+                    return hit[1]
+            result = func(*args, **kwargs)
+            with _cache_lock:
+                _cache_store[key] = (now + seconds, result)
+            return result
+        return wrapper
+    return decorator
 
 
 def validar_ticker(ticker: str) -> str:
@@ -112,6 +141,7 @@ def obtener_precio_actual(ticker: str) -> Decimal:
     return _obtener_precio_y_cambio(ticker)[0]
 
 
+@ttl_cache(seconds=60)
 def _obtener_precio_y_cambio(ticker: str) -> tuple[Decimal, float]:
     ticker = ticker.upper().strip()
     resultado = _consultar_chart(ticker, dias=7)
@@ -169,6 +199,7 @@ def _consultar_volumenes_eodhd(ticker: str, inicio: date, fin: date) -> dict[str
     return {d["date"]: d.get("volume") for d in datos if d.get("date") and d.get("volume") is not None}
 
 
+@ttl_cache(seconds=300)
 def obtener_historial_precios(ticker: str, dias: int = 30) -> list[dict]:
     ticker = ticker.upper().strip()
     resultado = _consultar_chart(ticker, dias=dias)
@@ -268,58 +299,58 @@ def _buscar_noticias_yahoo(query: str, cantidad: int) -> list[dict]:
     return resultado
 
 
+@ttl_cache(seconds=300)
 def obtener_noticias(ticker: str, cantidad: int = 6) -> list[dict]:
     return _buscar_noticias_yahoo(ticker.upper().strip(), cantidad)
 
 
+@ttl_cache(seconds=300)
 def obtener_noticias_generales(cantidad: int = 8) -> list[dict]:
     return _buscar_noticias_yahoo("stock market", cantidad)
 
 
+def _destacado_de_ticker(ticker: str, nombre: str | None = None) -> dict | None:
+    try:
+        precio, cambio_porcentaje = _obtener_precio_y_cambio(ticker)
+    except HTTPException:
+        return None
+    sparkline = []
+    try:
+        historial = obtener_historial_precios(ticker, dias=30)
+        sparkline = [item["precio"] for item in historial]
+    except HTTPException:
+        pass
+    item = {
+        "ticker": ticker,
+        "precio": precio,
+        "cambio_porcentaje": cambio_porcentaje,
+        "sparkline": sparkline,
+    }
+    if nombre is not None:
+        item["nombre"] = nombre
+    return item
+
+
+@ttl_cache(seconds=60)
 def obtener_precios_destacados() -> list[dict]:
-    destacados = []
-    for ticker in TICKERS_DESTACADOS:
-        try:
-            precio, cambio_porcentaje = _obtener_precio_y_cambio(ticker)
-        except HTTPException:
-            continue
-        sparkline = []
-        try:
-            historial = obtener_historial_precios(ticker, dias=30)
-            sparkline = [item["precio"] for item in historial]
-        except HTTPException:
-            pass
-        destacados.append({
-            "ticker": ticker,
-            "precio": precio,
-            "cambio_porcentaje": cambio_porcentaje,
-            "sparkline": sparkline,
-        })
-    return destacados
+    # Fetch all tickers in parallel instead of one-by-one — this turns ~16
+    # sequential external calls into a handful of concurrent ones.
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        futuros = {executor.submit(_destacado_de_ticker, t): t for t in TICKERS_DESTACADOS}
+        resultados = {futuros[f]: f.result() for f in as_completed(futuros)}
+    # Preserve the original ticker order
+    return [resultados[t] for t in TICKERS_DESTACADOS if resultados.get(t)]
 
 
+@ttl_cache(seconds=60)
 def obtener_precios_indices() -> list[dict]:
-    resultado = []
-    for indice in INDICES_MERCADO:
-        ticker = indice["ticker"]
-        try:
-            precio, cambio_porcentaje = _obtener_precio_y_cambio(ticker)
-        except HTTPException:
-            continue
-        sparkline = []
-        try:
-            historial = obtener_historial_precios(ticker, dias=30)
-            sparkline = [item["precio"] for item in historial]
-        except HTTPException:
-            pass
-        resultado.append({
-            "ticker": ticker,
-            "nombre": indice["nombre"],
-            "precio": precio,
-            "cambio_porcentaje": cambio_porcentaje,
-            "sparkline": sparkline,
-        })
-    return resultado
+    with ThreadPoolExecutor(max_workers=6) as executor:
+        futuros = {
+            executor.submit(_destacado_de_ticker, ind["ticker"], ind["nombre"]): ind["ticker"]
+            for ind in INDICES_MERCADO
+        }
+        resultados = {futuros[f]: f.result() for f in as_completed(futuros)}
+    return [resultados[ind["ticker"]] for ind in INDICES_MERCADO if resultados.get(ind["ticker"])]
 
 
 _EARNINGS_WATCHLIST = [
@@ -393,6 +424,7 @@ def _fetch_earnings_ticker(ticker: str, crumb: str, cookies: dict, hoy, fin) -> 
         return None
 
 
+@ttl_cache(seconds=900)
 def obtener_earnings_calendar() -> list[dict]:
     hoy = datetime.now(timezone.utc).date()
     fin = hoy + timedelta(days=45)
@@ -425,6 +457,7 @@ _SECTORES = [
 ]
 
 
+@ttl_cache(seconds=300)
 def obtener_sectores() -> list[dict]:
     resultado = []
     for s in _SECTORES:
@@ -436,6 +469,7 @@ def obtener_sectores() -> list[dict]:
     return resultado
 
 
+@ttl_cache(seconds=120)
 def obtener_screener(tipo: str) -> list[dict]:
     tipos_validos = {"most_actives", "day_gainers", "day_losers"}
     if tipo not in tipos_validos:
@@ -524,6 +558,7 @@ def _obtener_crumb_yf() -> tuple[str, dict]:
     return "", {}
 
 
+@ttl_cache(seconds=600)
 def obtener_ficha_empresa(ticker: str) -> dict:
     ticker = ticker.upper().strip()
     crumb, cookies = _obtener_crumb_yf()
