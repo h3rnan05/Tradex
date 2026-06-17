@@ -3,12 +3,11 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-from config import settings
-from database import Base
+from database import Base, database_url  # database_url is already normalized to sync psycopg2
 import models  # noqa: F401 - asegura que todos los modelos se registren
 
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.database_url)
+config.set_main_option("sqlalchemy.url", database_url)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)

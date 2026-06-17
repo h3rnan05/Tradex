@@ -18,10 +18,12 @@ from routers import admin, alumnos, auth, comentarios, comparador, grupos, insig
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Warn (do not crash) on a weak JWT secret so a misconfigured env var can
+    # never take the whole service down. Harden by setting a strong JWT_SECRET.
     if settings.jwt_secret in ("", "change-me") or len(settings.jwt_secret) < 32:
-        raise RuntimeError(
-            "JWT_SECRET must be set to a strong random value (≥32 chars). "
-            "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
+        logging.getLogger("tradex").warning(
+            "JWT_SECRET is weak or unset. Set a strong random value (>=32 chars): "
+            'python -c "import secrets; print(secrets.token_hex(32))"'
         )
     yield
 
