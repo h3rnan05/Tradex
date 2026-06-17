@@ -1,0 +1,92 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Navbar from "@/components/Navbar";
+import { api } from "@/lib/api";
+
+interface Stats {
+  total_usuarios: number;
+  total_maestros: number;
+  total_alumnos: number;
+  total_grupos: number;
+  total_operaciones: number;
+  total_participaciones: number;
+}
+
+interface Grupo {
+  id: string;
+  nombre: string;
+  maestro_nombre: string | null;
+  maestro_email: string | null;
+  capital_inicial: string;
+  fecha_inicio: string;
+  fecha_fin: string;
+  num_alumnos: number;
+}
+
+export default function AdminDashboard() {
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [grupos, setGrupos] = useState<Grupo[]>([]);
+
+  useEffect(() => {
+    api.get<Stats>("/admin/stats").then(setStats).catch(() => {});
+    api.get<Grupo[]>("/admin/grupos").then(setGrupos).catch(() => {});
+  }, []);
+
+  return (
+    <main className="min-h-screen bg-canvas">
+      <Navbar />
+      <div className="mx-auto max-w-7xl p-4 md:p-6">
+        <h1 className="mb-6 text-2xl font-bold text-fg">Panel de Administración</h1>
+
+        {/* Stats */}
+        {stats && (
+          <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            {[
+              { label: "Usuarios", value: stats.total_usuarios },
+              { label: "Maestros", value: stats.total_maestros },
+              { label: "Alumnos", value: stats.total_alumnos },
+              { label: "Grupos", value: stats.total_grupos },
+              { label: "Operaciones", value: stats.total_operaciones },
+              { label: "Participaciones", value: stats.total_participaciones },
+            ].map((s) => (
+              <div key={s.label} className="border border-fg/10 bg-panel p-4 text-center">
+                <div className="font-mono text-2xl font-bold text-accent">{s.value.toLocaleString()}</div>
+                <div className="mt-1 font-mono text-[10px] uppercase tracking-widest text-fg/40">{s.label}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Groups table */}
+        <h2 className="mb-3 font-mono text-[11px] uppercase tracking-widest text-fg/40">Todos los grupos</h2>
+        <div className="overflow-x-auto">
+          <table className="w-full border border-fg/10 bg-panel text-sm">
+            <thead className="bg-fg/5">
+              <tr>
+                {["Grupo", "Maestro", "Capital", "Alumnos", "Inicio", "Cierre"].map((h) => (
+                  <th key={h} className="px-4 py-3 text-left font-mono text-[10px] uppercase tracking-wider text-fg/40">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {grupos.map((g) => (
+                <tr key={g.id} className="border-t border-fg/5 hover:bg-fg/5">
+                  <td className="px-4 py-3 font-mono font-semibold text-fg">{g.nombre}</td>
+                  <td className="px-4 py-3 font-mono text-xs text-fg/70">{g.maestro_nombre ?? "—"}</td>
+                  <td className="px-4 py-3 font-mono text-xs">${Number(g.capital_inicial).toLocaleString()}</td>
+                  <td className="px-4 py-3 font-mono text-xs text-fg/70">{g.num_alumnos}</td>
+                  <td className="px-4 py-3 font-mono text-xs text-fg/50">{new Date(g.fecha_inicio).toLocaleDateString("es-MX")}</td>
+                  <td className="px-4 py-3 font-mono text-xs text-fg/50">{new Date(g.fecha_fin).toLocaleDateString("es-MX")}</td>
+                </tr>
+              ))}
+              {grupos.length === 0 && (
+                <tr><td colSpan={6} className="px-4 py-6 text-center font-mono text-sm text-fg/30">Sin grupos registrados</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  );
+}

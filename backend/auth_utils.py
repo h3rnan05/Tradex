@@ -46,6 +46,8 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     user = db.query(User).filter(User.id == uuid.UUID(user_id)).first()
     if user is None:
         raise credentials_exception
+    if user.suspendido:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cuenta suspendida")
     return user
 
 
@@ -59,3 +61,9 @@ def require_alumno(user: User = Depends(get_current_user)) -> User:
     if user.rol != RolEnum.alumno:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Solo un alumno puede realizar esta accion")
     return user
+
+
+def require_admin(current_user: User = Depends(get_current_user)) -> User:
+    if current_user.rol != RolEnum.admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Se requiere rol de administrador")
+    return current_user

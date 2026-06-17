@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, DateTime, Enum, String
+from sqlalchemy import Boolean, Column, DateTime, Enum, String
 from sqlalchemy.dialects.postgresql import UUID
 
 from database import Base
@@ -11,6 +11,7 @@ from database import Base
 class RolEnum(str, enum.Enum):
     maestro = "maestro"
     alumno = "alumno"
+    admin = "admin"
 
 
 class User(Base):
@@ -21,7 +22,8 @@ class User(Base):
     nombre = Column(String, nullable=False)
     hashed_password = Column(String, nullable=False)
     rol = Column(Enum(RolEnum), nullable=False)
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     escuela = Column(String, nullable=True)
     ciudad = Column(String, nullable=True)
     estado = Column(String, nullable=True)
+    suspendido = Column(Boolean, nullable=False, server_default="false", default=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))

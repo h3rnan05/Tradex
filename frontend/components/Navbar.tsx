@@ -27,7 +27,13 @@ export default function Navbar() {
   }
 
   const enlaces =
-    sesion?.rol === "maestro"
+    sesion?.rol === "admin"
+      ? [
+          { href: "/admin/dashboard", label: "Dashboard" },
+          { href: "/admin/maestros", label: "Maestros" },
+          { href: "/admin/ranking", label: "Ranking Global" },
+        ]
+      : sesion?.rol === "maestro"
       ? [{ href: "/maestro/grupos", label: "Grupos" }]
       : [
           { href: "/alumno/portafolio", label: "Portafolio" },
@@ -97,7 +103,7 @@ export default function Navbar() {
         {sesion && (
           <div className="ml-auto hidden items-center gap-3 border-l border-fg/15 pl-3 md:flex">
             <span className="font-mono text-[11px] text-fg/60">
-              {sesion.nombre} · {sesion.rol === "maestro" ? "Maestro" : "Alumno"}
+              {sesion.nombre} · {sesion.rol === "maestro" ? "Maestro" : sesion.rol === "admin" ? "Admin" : "Alumno"}
             </span>
             <button
               onClick={salir}
@@ -164,7 +170,7 @@ export default function Navbar() {
             {/* Mobile user + salir */}
             <div className="flex items-center justify-between px-5 py-4">
               <span className="font-mono text-[12px] text-fg/50">
-                {sesion.nombre} · {sesion.rol === "maestro" ? "Maestro" : "Alumno"}
+                {sesion.nombre} · {sesion.rol === "maestro" ? "Maestro" : sesion.rol === "admin" ? "Admin" : "Alumno"}
               </span>
               <button
                 onClick={salir}
