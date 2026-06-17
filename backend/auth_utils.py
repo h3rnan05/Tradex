@@ -74,3 +74,15 @@ def require_sponsor(current_user: User = Depends(get_current_user)) -> User:
     if current_user.rol not in (RolEnum.sponsor, RolEnum.admin):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Se requiere rol de patrocinador")
     return current_user
+
+
+def maestro_owns_alumno(db: Session, maestro_id: uuid.UUID, alumno_id: str) -> bool:
+    """Return True if the maestro owns at least one group containing the alumno."""
+    from models.membership import Membership
+    from models.grupo import Grupo
+    return (
+        db.query(Membership)
+        .join(Grupo, Membership.grupo_id == Grupo.id)
+        .filter(Membership.alumno_id == alumno_id, Grupo.maestro_id == maestro_id)
+        .first()
+    ) is not None

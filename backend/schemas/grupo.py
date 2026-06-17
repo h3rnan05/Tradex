@@ -52,9 +52,7 @@ class InvitarRequest(BaseModel):
 
 class GrupoUpdate(BaseModel):
     nombre: str | None = None
-    fecha_inicio: datetime | None = None
     fecha_fin: datetime | None = None
-    capital_inicial: Decimal | None = None
     activos_permitidos: list[str] | None = None
     comision_porcentaje: Decimal | None = None
     limite_orden_valor: Decimal | None = None

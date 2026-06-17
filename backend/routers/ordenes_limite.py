@@ -67,6 +67,8 @@ def _procesar_ordenes_pendientes(db: Session, alumno: User) -> list[OrdenPendien
             grupo = db.query(Grupo).filter(Grupo.id == op_pendiente.grupo_id).first()
             if not membership or not grupo:
                 continue
+            if membership.pausado:
+                continue
 
             if op_pendiente.tipo == "compra":
                 ejecutar_compra(db, alumno, membership, grupo, op_pendiente.ticker, op_pendiente.cantidad)

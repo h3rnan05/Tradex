@@ -11,6 +11,10 @@ class UserOut(BaseModel):
     email: EmailStr
     nombre: str
     rol: RolEnum
+    escuela: str | None = None
+    ciudad: str | None = None
+    estado: str | None = None
+    suspendido: bool = False
     created_at: datetime
 
     class Config:

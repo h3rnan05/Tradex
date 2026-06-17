@@ -1,6 +1,8 @@
+from collections import defaultdict
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from auth_utils import get_current_user, require_maestro
@@ -170,13 +172,31 @@ def evaluacion_grupo(
         db.query(Membership).options(joinedload(Membership.alumno)).filter(Membership.grupo_id == grupo_id).all()
     )
 
+    alumno_ids = [m.alumno_id for m in memberships]
+
+    # Batch fetch holdings to avoid N+1
+    all_holdings = db.query(Holding).filter(
+        Holding.grupo_id == grupo_id, Holding.alumno_id.in_(alumno_ids)
+    ).all()
+    holdings_map: dict = defaultdict(list)
+    for h in all_holdings:
+        holdings_map[str(h.alumno_id)].append(h)
+
+    # Batch fetch orders (comisiones + count)
+    all_ordenes = db.query(Orden).filter(
+        Orden.grupo_id == grupo_id, Orden.alumno_id.in_(alumno_ids)
+    ).all()
+    ordenes_map: dict = defaultdict(list)
+    for o in all_ordenes:
+        ordenes_map[str(o.alumno_id)].append(o)
+
     precios_cache: dict[str, Decimal] = {}
     entradas = []
     hoy = datetime.now(timezone.utc)
 
     for m in memberships:
-        holdings = db.query(Holding).filter(Holding.alumno_id == m.alumno_id, Holding.grupo_id == grupo_id).all()
-        ordenes = db.query(Orden).filter(Orden.alumno_id == m.alumno_id, Orden.grupo_id == grupo_id).all()
+        holdings = holdings_map[str(m.alumno_id)]
+        ordenes = ordenes_map[str(m.alumno_id)]
 
         valor_holdings = Decimal("0")
         for h in holdings:

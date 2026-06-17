@@ -1,18 +1,18 @@
 import uuid
-from datetime import date, timedelta
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from auth_utils import get_current_user
+from auth_utils import get_current_user, maestro_owns_alumno
 from database import get_db
-from models.user import User
+from models.grupo import Grupo
+from models.membership import Membership
+from models.user import RolEnum, User
 from precios_utils import obtener_historial_precios
-from riesgo_utils import calcular_metricas, calcular_retornos_diarios
+from riesgo_utils import calcular_metricas
 
 router = APIRouter(prefix="/comparador", tags=["comparador"])
 
-# Portfolio model compositions (conservative/moderate/aggressive)
 _MODELOS = {
     "conservador": [("BND", 0.50), ("SPY", 0.30), ("GLD", 0.20)],
     "moderado": [("SPY", 0.60), ("BND", 0.30), ("QQQ", 0.10)],
@@ -42,7 +42,6 @@ def _modelo_serie(nombre: str, dias: int, monto_base: float) -> list[dict]:
     if not series:
         return []
 
-    # Align dates to the shortest series
     fecha_set = set(p["fecha"] for p in series[0])
     for s in series[1:]:
         fecha_set &= set(p["fecha"] for p in s)
@@ -53,10 +52,10 @@ def _modelo_serie(nombre: str, dias: int, monto_base: float) -> list[dict]:
         valor = 0.0
         for i, serie in enumerate(series):
             pts = {p["fecha"]: p["precio"] for p in serie}
-            base = {p["fecha"]: p["precio"] for p in serie}
-            precio_base = list(base.values())[0] if base else 1
+            precios_lista = list(pts.values())
+            precio_base = precios_lista[0] if precios_lista else 1
             precio_actual = pts.get(fecha, 0)
-            valor += monto_base * pesos[i] * (precio_actual / precio_base if precio_base else 1)
+            valor += monto_base * pesos[i] * (float(precio_actual) / float(precio_base) if precio_base else 1)
         resultado.append({"fecha": fecha, "valor": round(valor, 2)})
     return resultado
 
@@ -69,23 +68,35 @@ def comparar(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    from routers.alumnos import historial_valor_portafolio
+    if modelo not in _MODELOS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Modelo inválido")
 
-    serie_alumno = historial_valor_portafolio(alumno_id, grupo_id, db, current_user)
+    # Auth check: only the alumno themselves or their maestro can compare
+    if str(current_user.id) != str(alumno_id):
+        if current_user.rol == RolEnum.maestro:
+            if not maestro_owns_alumno(db, current_user.id, str(alumno_id)):
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No autorizado")
+        else:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No autorizado")
+
+    from routers.alumnos import _historial_valor_impl
+    serie_alumno = _historial_valor_impl(str(alumno_id), str(grupo_id), db)
     if not serie_alumno:
         return {"alumno": [], "sp500": [], "modelo": [], "metricas": {}}
 
     dias = len(serie_alumno) + 30
     monto_base = serie_alumno[0]["valor"] if serie_alumno else 10000
 
-    # S&P 500 normalised to same starting value
     sp500_raw = _get_sp500_serie(dias)
     if sp500_raw:
         fecha_inicio = serie_alumno[0]["fecha"]
         sp500_filt = [p for p in sp500_raw if p["fecha"] >= fecha_inicio]
         if sp500_filt:
             base_sp = sp500_filt[0]["precio"]
-            sp500_serie = [{"fecha": p["fecha"], "valor": round(monto_base * p["precio"] / base_sp, 2)} for p in sp500_filt]
+            sp500_serie = [
+                {"fecha": p["fecha"], "valor": round(monto_base * float(p["precio"]) / float(base_sp), 2)}
+                for p in sp500_filt
+            ]
         else:
             sp500_serie = []
     else:

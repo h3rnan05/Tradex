@@ -13,7 +13,11 @@ export default function DashboardPage() {
       router.replace("/login");
       return;
     }
-    if (sesion.rol === "maestro") {
+    if (sesion.rol === "admin") {
+      router.replace("/admin/dashboard");
+    } else if (sesion.rol === "sponsor") {
+      router.replace("/sponsor/dashboard");
+    } else if (sesion.rol === "maestro") {
       router.replace("/maestro/grupos");
     } else {
       router.replace("/alumno/portafolio");

@@ -5,6 +5,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } f
 import Navbar from "@/components/Navbar";
 import TooltipInfo from "@/components/Tooltip";
 import { api, ApiError } from "@/lib/api";
+import { obtenerSesion } from "@/lib/auth";
 
 interface PuntoValor { fecha: string; valor: number }
 interface Metricas { volatilidad_anualizada: number | null; sharpe_ratio: number | null; rendimiento_total_pct: number | null }
@@ -43,10 +44,9 @@ export default function ComparadorPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const sesion = localStorage.getItem("tradex_sesion");
+    const sesion = obtenerSesion();
     if (sesion) {
-      const s = JSON.parse(sesion);
-      setAlumnoId(s.alumno_id || s.id);
+      setAlumnoId(sesion.userId);
     }
     const gid = localStorage.getItem("tradex_grupo_id");
     if (gid) setGrupoId(gid);
