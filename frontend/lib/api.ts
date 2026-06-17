@@ -24,7 +24,18 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     let detail = "Ocurrio un error inesperado";
     try {
       const body = await res.json();
-      detail = body.detail || detail;
+      const raw = body.detail;
+      if (typeof raw === "string") {
+        detail = raw;
+      } else if (Array.isArray(raw)) {
+        // FastAPI validation errors come as [{ loc, msg, type }, ...]
+        detail = raw
+          .map((e) => (typeof e === "string" ? e : e?.msg))
+          .filter(Boolean)
+          .join(". ") || detail;
+      } else if (raw && typeof raw === "object" && typeof raw.msg === "string") {
+        detail = raw.msg;
+      }
     } catch {
       // respuesta sin cuerpo JSON
     }
