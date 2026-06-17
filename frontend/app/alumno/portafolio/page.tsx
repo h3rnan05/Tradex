@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid } from "recharts";
 import Navbar from "@/components/Navbar";
 import MercadosMundo from "@/components/MercadosMundo";
+import PanelInsignias from "@/components/PanelInsignias";
 import { Card, StatTile, formatoMoneda, formatoPorcentaje } from "@/components/primitives";
 import { api, ApiError } from "@/lib/api";
 import { obtenerSesion } from "@/lib/auth";
@@ -52,6 +53,8 @@ export default function PortafolioPage() {
   const [historialValor, setHistorialValor] = useState<PuntoValor[]>([]);
   const [cargandoGrafica, setCargandoGrafica] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [insignias, setInsignias] = useState<{ codigo: string; otorgada_at: string }[]>([]);
+
   async function cargar() {
     const sesion = obtenerSesion();
     if (!sesion) return;
@@ -62,7 +65,10 @@ export default function PortafolioPage() {
       ]);
       setPortafolio(data);
       setOrdenes(ordenesData);
-      if (data.grupo_id) localStorage.setItem("tradex_grupo_id", data.grupo_id);
+      if (data.grupo_id) {
+        localStorage.setItem("tradex_grupo_id", data.grupo_id);
+        api.get<typeof insignias>(`/insignias/mis-insignias?grupo_id=${data.grupo_id}`).then(setInsignias).catch(() => {});
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Error al cargar el portafolio");
     }
@@ -446,6 +452,11 @@ export default function PortafolioPage() {
           </div>
         </div>
 
+        {/* Insignias */}
+        <div className="mt-8">
+          <p className="mb-3 font-mono text-[11px] uppercase tracking-widest text-fg/40">Mis Logros</p>
+          <PanelInsignias insignias={insignias} />
+        </div>
       </div>
     </main>
   );

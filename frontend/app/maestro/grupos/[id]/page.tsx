@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import { api, ApiError } from "@/lib/api";
+import ComentariosMaestro from "@/components/ComentariosMaestro";
 
 interface Membership {
   id: string;
@@ -100,6 +101,7 @@ export default function DetalleGrupoPage() {
   const [cfgLimiteOrden, setCfgLimiteOrden] = useState("");
   const [guardando, setGuardando] = useState(false);
   const [msgConfig, setMsgConfig] = useState<string | null>(null);
+  const [ordenExpandida, setOrdenExpandida] = useState<string | null>(null);
 
   async function cargar() {
     try {
@@ -465,7 +467,7 @@ export default function DetalleGrupoPage() {
                   <table className="w-full border border-fg/10 bg-panel text-sm">
                     <thead className="bg-fg/5">
                       <tr>
-                        {["Alumno", "Tipo", "Ticker", "Cantidad", "Precio", "Comisión", "Fecha"].map((h) => (
+                        {["Alumno", "Tipo", "Ticker", "Cantidad", "Precio", "Comisión", "Fecha", ""].map((h) => (
                           <th key={h} className="px-4 py-2.5 text-left font-mono text-[10px] uppercase tracking-wider text-fg/40">{h}</th>
                         ))}
                       </tr>
@@ -473,22 +475,37 @@ export default function DetalleGrupoPage() {
                     <tbody>
                       {grupo.ordenes.slice(0, 30).map((o) => {
                         const alumno = evaluacion.find((e) => e.alumno_id === o.alumno_id);
+                        const abierta = ordenExpandida === o.id;
                         return (
-                          <tr key={o.id} className="border-t border-fg/5 hover:bg-fg/5">
-                            <td className="px-4 py-2.5 font-mono text-xs text-fg/70">{alumno?.nombre ?? "—"}</td>
-                            <td className="px-4 py-2.5">
-                              <span className={`px-2 py-0.5 font-mono text-[10px] font-bold uppercase ${o.tipo === "compra" ? "bg-ganancia/10 text-ganancia" : "bg-perdida/10 text-perdida"}`}>
-                                {o.tipo}
-                              </span>
-                            </td>
-                            <td className="px-4 py-2.5 font-mono font-bold text-fg">{o.ticker}</td>
-                            <td className="px-4 py-2.5 font-mono text-xs text-fg/70">{Number(o.cantidad).toFixed(4)}</td>
-                            <td className="px-4 py-2.5 font-mono text-xs">{fmt(o.precio_ejecucion)}</td>
-                            <td className="px-4 py-2.5 font-mono text-xs text-fg/60">{fmt(o.comision)}</td>
-                            <td className="px-4 py-2.5 font-mono text-[10px] text-fg/40">
-                              {new Date(o.timestamp).toLocaleDateString("es-MX", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
-                            </td>
-                          </tr>
+                          <>
+                            <tr
+                              key={o.id}
+                              className="cursor-pointer border-t border-fg/5 hover:bg-fg/5"
+                              onClick={() => setOrdenExpandida(abierta ? null : o.id)}
+                            >
+                              <td className="px-4 py-2.5 font-mono text-xs text-fg/70">{alumno?.nombre ?? "—"}</td>
+                              <td className="px-4 py-2.5">
+                                <span className={`px-2 py-0.5 font-mono text-[10px] font-bold uppercase ${o.tipo === "compra" ? "bg-ganancia/10 text-ganancia" : "bg-perdida/10 text-perdida"}`}>
+                                  {o.tipo}
+                                </span>
+                              </td>
+                              <td className="px-4 py-2.5 font-mono font-bold text-fg">{o.ticker}</td>
+                              <td className="px-4 py-2.5 font-mono text-xs text-fg/70">{Number(o.cantidad).toFixed(4)}</td>
+                              <td className="px-4 py-2.5 font-mono text-xs">{fmt(o.precio_ejecucion)}</td>
+                              <td className="px-4 py-2.5 font-mono text-xs text-fg/60">{fmt(o.comision)}</td>
+                              <td className="px-4 py-2.5 font-mono text-[10px] text-fg/40">
+                                {new Date(o.timestamp).toLocaleDateString("es-MX", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                              </td>
+                              <td className="px-2 py-2.5 font-mono text-[10px] text-fg/30">{abierta ? "▲" : "▼"}</td>
+                            </tr>
+                            {abierta && (
+                              <tr key={`${o.id}-fb`} className="border-t border-fg/5 bg-fg/2">
+                                <td colSpan={8} className="px-4 pb-3">
+                                  <ComentariosMaestro ordenId={o.id} esMaestro={true} />
+                                </td>
+                              </tr>
+                            )}
+                          </>
                         );
                       })}
                     </tbody>

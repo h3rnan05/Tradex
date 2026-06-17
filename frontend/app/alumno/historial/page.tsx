@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Navbar from "@/components/Navbar";
+import ComentariosMaestro from "@/components/ComentariosMaestro";
 import { Badge, Card, formatoMoneda } from "@/components/primitives";
 import { api, ApiError } from "@/lib/api";
 import { obtenerSesion } from "@/lib/auth";
@@ -66,11 +67,12 @@ export default function HistorialPage() {
                   <span className="font-mono text-[10px] text-fg/30">{expandido === o.id ? "▲" : "▼"}</span>
                 </div>
                 {expandido === o.id && (
-                  <div className="border-t border-fg/5 px-4 py-3">
-                    <div className="flex gap-4 font-mono text-[11px] text-fg/50">
+                  <div className="border-t border-fg/5 px-4 pb-3">
+                    <div className="mt-2 flex gap-4 font-mono text-[11px] text-fg/50 mb-2">
                       <span>Comisión: {formatoMoneda(o.comision)}</span>
                       <span>Total neto: {formatoMoneda(Number(o.cantidad) * Number(o.precio_ejecucion))}</span>
                     </div>
+                    <ComentariosMaestro ordenId={o.id} esMaestro={false} />
                   </div>
                 )}
               </div>

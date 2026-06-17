@@ -99,6 +99,11 @@ def comprar(payload: OrdenCreate, db: Session = Depends(get_db), alumno: User = 
     orden = ejecutar_compra(db, alumno, membership, grupo, payload.ticker, payload.cantidad)
     db.commit()
     db.refresh(orden)
+    try:
+        from insignias_engine import evaluar_y_otorgar_insignias
+        evaluar_y_otorgar_insignias(db, alumno.id, payload.grupo_id)
+    except Exception:
+        pass
     return orden
 
 
@@ -143,6 +148,7 @@ def vender(payload: OrdenCreate, db: Session = Depends(get_db), alumno: User = D
     db.commit()
     db.refresh(orden)
     try:
+        from insignias_engine import evaluar_y_otorgar_insignias
         evaluar_y_otorgar_insignias(db, alumno.id, payload.grupo_id)
     except Exception:
         pass
