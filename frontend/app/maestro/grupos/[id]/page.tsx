@@ -76,7 +76,12 @@ const COMISIONES = [
   { label: "5%", value: "0.05" },
   { label: "10%", value: "0.10" },
 ];
-const MERCADOS = ["acciones", "etfs", "cripto", "bonos", "commodities"];
+const MERCADOS: { value: string; label: string }[] = [
+  { value: "acciones", label: "Acciones" },
+  { value: "indices", label: "Índices" },
+  { value: "commodities", label: "Commodities" },
+  { value: "crypto", label: "Cripto" },
+];
 const fmt = (v: string | number) =>
   Number(v).toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 });
 
@@ -265,17 +270,17 @@ export default function DetalleGrupoPage() {
                 <label className="block font-mono text-[11px] uppercase tracking-wider text-fg/50 mb-2">Mercados permitidos</label>
                 <div className="flex flex-wrap gap-2">
                   {MERCADOS.map((m) => (
-                    <label key={m} className="flex items-center gap-1.5 cursor-pointer">
+                    <label key={m.value} className="flex items-center gap-1.5 cursor-pointer">
                       <input
                         type="checkbox"
-                        checked={cfgMercados.includes(m)}
+                        checked={cfgMercados.includes(m.value)}
                         onChange={(e) => {
-                          if (e.target.checked) setCfgMercados([...cfgMercados, m]);
-                          else setCfgMercados(cfgMercados.filter((x) => x !== m));
+                          if (e.target.checked) setCfgMercados([...cfgMercados, m.value]);
+                          else setCfgMercados(cfgMercados.filter((x) => x !== m.value));
                         }}
                         className="accent-accent"
                       />
-                      <span className="font-mono text-xs capitalize text-fg/70">{m}</span>
+                      <span className="font-mono text-xs text-fg/70">{m.label}</span>
                     </label>
                   ))}
                 </div>
