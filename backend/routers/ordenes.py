@@ -3,7 +3,6 @@ from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from insignias_engine import evaluar_y_otorgar_insignias
 
 from activos_utils import activo_desbloqueado, clasificar_ticker
 from models.fase_activo import FaseActivo
@@ -98,10 +97,6 @@ def comprar(payload: OrdenCreate, db: Session = Depends(get_db), alumno: User = 
     orden = ejecutar_compra(db, alumno, membership, grupo, payload.ticker, payload.cantidad)
     db.commit()
     db.refresh(orden)
-    try:
-        evaluar_y_otorgar_insignias(db, alumno.id, payload.grupo_id)
-    except Exception:
-        pass
     return orden
 
 
