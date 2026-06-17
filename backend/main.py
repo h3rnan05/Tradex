@@ -60,5 +60,6 @@ app.include_router(comparador.router)
 
 
 @app.get("/")
+@app.get("/health")
 def health_check():
     return {"status": "ok", "service": "tradex-api"}
