@@ -16,3 +16,4 @@ frontend/out/
 *.pyc
 frontend/tsconfig.tsbuildinfo
 frontend/next-env.d.ts
+.claude/worktrees/
