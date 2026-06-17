@@ -69,20 +69,20 @@ export default function Navbar() {
         )}
 
         {sesion && sesion.rol === "alumno" && (
-          <form onSubmit={ejecutarComando} className="ml-4 hidden flex-1 items-center justify-center md:flex">
-            <div className="flex w-full max-w-xs items-center border border-fg/20 bg-panel">
-              <span className="px-2 font-mono text-[11px] text-fg/40">$</span>
+          <form onSubmit={ejecutarComando} className="ml-3 hidden items-center md:flex">
+            <div className="flex w-36 items-center border border-fg/20 bg-panel">
+              <span className="px-1.5 font-mono text-[11px] text-fg/40">$</span>
               <input
                 value={comando}
                 onChange={(e) => setComando(e.target.value)}
-                placeholder="AAPL <GO>"
-                className="w-full bg-transparent py-1.5 font-mono text-[12px] uppercase tracking-wide text-fg outline-none placeholder:text-fg/30"
+                placeholder="AAPL"
+                className="w-full bg-transparent py-1.5 font-mono text-[11px] uppercase tracking-wide text-fg outline-none placeholder:text-fg/30"
               />
               <button
                 type="submit"
                 className="shrink-0 bg-accent px-2 py-1.5 font-mono text-[10px] font-bold uppercase text-black"
               >
-                Go
+                GO
               </button>
             </div>
           </form>

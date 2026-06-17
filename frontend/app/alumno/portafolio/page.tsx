@@ -66,6 +66,7 @@ export default function PortafolioPage() {
       ]);
       setPortafolio(data);
       setOrdenes(ordenesData);
+      if (data.grupo_id) localStorage.setItem("tradex_grupo_id", data.grupo_id);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Error al cargar el portafolio");
     }
