@@ -189,3 +189,23 @@ def ranking_global(
     for i, e in enumerate(entradas):
         e.posicion = i + 1
     return entradas
+
+
+@router.get("/sponsors")
+def listar_sponsors(db: Session = Depends(get_db), _admin=Depends(require_admin)):
+    return db.query(User).filter(User.rol == RolEnum.sponsor).order_by(User.nombre).all()
+
+
+@router.post("/grupos/{grupo_id}/asignar-sponsor")
+def asignar_sponsor(
+    grupo_id: str,
+    sponsor_id: str | None = Query(None),
+    db: Session = Depends(get_db),
+    _admin=Depends(require_admin),
+):
+    grupo = db.query(Grupo).filter(Grupo.id == grupo_id).first()
+    if not grupo:
+        raise HTTPException(status_code=404, detail="Grupo no encontrado")
+    grupo.sponsor_id = sponsor_id if sponsor_id else None
+    db.commit()
+    return {"ok": True}

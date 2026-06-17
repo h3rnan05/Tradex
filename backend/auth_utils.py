@@ -67,3 +67,10 @@ def require_admin(current_user: User = Depends(get_current_user)) -> User:
     if current_user.rol != RolEnum.admin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Se requiere rol de administrador")
     return current_user
+
+
+def require_sponsor(current_user: User = Depends(get_current_user)) -> User:
+    from models.user import RolEnum
+    if current_user.rol not in (RolEnum.sponsor, RolEnum.admin):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Se requiere rol de patrocinador")
+    return current_user

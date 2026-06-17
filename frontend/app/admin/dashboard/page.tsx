@@ -27,11 +27,18 @@ interface Grupo {
 export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [grupos, setGrupos] = useState<Grupo[]>([]);
+  const [sponsors, setSponsors] = useState<{id: string, nombre: string}[]>([]);
 
   useEffect(() => {
     api.get<Stats>("/admin/stats").then(setStats).catch(() => {});
     api.get<Grupo[]>("/admin/grupos").then(setGrupos).catch(() => {});
+    api.get<{id: string, nombre: string}[]>("/admin/sponsors").then(setSponsors).catch(() => {});
   }, []);
+
+  async function asignarSponsor(grupoId: string, sponsorId: string) {
+    const qs = sponsorId ? "?sponsor_id=" + sponsorId : "";
+    await api.post("/admin/grupos/" + grupoId + "/asignar-sponsor" + qs, {});
+  }
 
   return (
     <main className="min-h-screen bg-canvas">

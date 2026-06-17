@@ -12,6 +12,7 @@ class RolEnum(str, enum.Enum):
     maestro = "maestro"
     alumno = "alumno"
     admin = "admin"
+    sponsor = "sponsor"
 
 
 class User(Base):
