@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import ComentariosMaestro from "@/components/ComentariosMaestro";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import Navbar from "@/components/Navbar";
@@ -314,11 +313,6 @@ export default function DetalleGrupoPage() {
                     <td className="px-4 py-3">{o.cantidad}</td>
                     <td className="px-4 py-3">${Number(o.precio_ejecucion).toLocaleString("es-MX")}</td>
                     <td className="px-4 py-3">${Number(o.comision).toLocaleString("es-MX")}</td>
-                  </tr>
-                  <tr key={`${o.id}-comentario`} className="border-t border-fg/5 bg-fg/2">
-                    <td colSpan={6} className="px-4 pb-2">
-                      <ComentariosMaestro ordenId={o.id} esMaestro={true} />
-                    </td>
                   </tr>
                 </>
               ))}
