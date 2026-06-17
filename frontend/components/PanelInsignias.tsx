@@ -1,3 +1,5 @@
+"use client";
+
 interface Insignia {
   codigo: string;
   otorgada_at: string;

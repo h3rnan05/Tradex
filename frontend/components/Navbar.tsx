@@ -41,7 +41,7 @@ export default function Navbar() {
     <header className="sticky top-0 z-40 border-b-2 border-accent bg-canvas">
       <div className="mx-auto flex h-12 max-w-6xl items-center px-6">
         <span className="flex shrink-0 items-center gap-2 font-mono text-[12px] font-bold uppercase tracking-widest text-accent">
-          <img src="/logo-mano.png" alt="Tradex" className="size-6 object-contain" aria-hidden />
+          <span className="inline-block size-2 bg-accent" aria-hidden />
           Tradex
         </span>
 
