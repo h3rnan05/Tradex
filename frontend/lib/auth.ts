@@ -12,8 +12,12 @@ const SESSION_KEY = "tradex_session";
 
 export function guardarSesion(sesion: Sesion) {
   localStorage.setItem(STORAGE_KEY, sesion.token);
-  localStorage.setItem(SESSION_KEY, JSON.stringify(sesion));
+  const serialized = JSON.stringify(sesion);
+  localStorage.setItem(SESSION_KEY, serialized);
+  // Also write a cookie so Next.js middleware can do coarse role checks
+  document.cookie = `tradex_session=${encodeURIComponent(serialized)}; path=/; SameSite=Strict`;
 }
+
 
 export function obtenerSesion(): Sesion | null {
   if (typeof window === "undefined") return null;
@@ -31,4 +35,7 @@ export function obtenerSesion(): Sesion | null {
 export function cerrarSesion() {
   localStorage.removeItem(STORAGE_KEY);
   localStorage.removeItem(SESSION_KEY);
+  if (typeof document !== "undefined") {
+    document.cookie = "tradex_session=; path=/; max-age=0; SameSite=Strict";
+  }
 }

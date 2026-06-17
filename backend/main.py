@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -6,6 +7,11 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from config import settings
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s — %(message)s",
+)
 from limiter import limiter
 from routers import admin, alumnos, auth, comentarios, comparador, grupos, insignias, ordenes, ordenes_limite, portafolios_modelo, precios, retos, sponsor
 

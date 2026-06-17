@@ -28,6 +28,12 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     } catch {
       // respuesta sin cuerpo JSON
     }
+    if (res.status === 401 && typeof window !== "undefined") {
+      localStorage.removeItem("tradex_token");
+      localStorage.removeItem("tradex_session");
+      document.cookie = "tradex_session=; path=/; max-age=0; SameSite=Strict";
+      window.location.href = "/login";
+    }
     throw new ApiError(detail, res.status);
   }
 

@@ -1,11 +1,20 @@
+import hashlib
+import secrets
+from datetime import datetime, timedelta, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
 
-from auth_utils import create_access_token, hash_password, verify_password
+from auth_utils import create_access_token, get_current_user, hash_password, verify_password
 from database import get_db
+from email_utils import send_password_reset_email, send_welcome_email
 from limiter import limiter
+from models.password_reset_token import PasswordResetToken
 from models.user import RolEnum, User
 from schemas.auth import LoginRequest, RegisterRequest, TokenResponse
+from schemas.user import UserOut
+from config import settings
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -27,6 +36,8 @@ def register(request: Request, payload: RegisterRequest, db: Session = Depends(g
     db.commit()
     db.refresh(user)
 
+    send_welcome_email(user.email, user.nombre)
+
     token = create_access_token(user.id, user.rol)
     return TokenResponse(access_token=token, user_id=user.id, nombre=user.nombre, rol=user.rol)
 
@@ -42,3 +53,93 @@ def login(request: Request, payload: LoginRequest, db: Session = Depends(get_db)
 
     token = create_access_token(user.id, user.rol)
     return TokenResponse(access_token=token, user_id=user.id, nombre=user.nombre, rol=user.rol)
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+@router.post("/forgot-password", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit("3/minute")
+def forgot_password(request: Request, payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == payload.email).first()
+    # Always return 204 to prevent email enumeration
+    if not user:
+        return
+
+    raw_token = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=settings.reset_token_expire_minutes)
+
+    # Invalidate any existing tokens for this user
+    db.query(PasswordResetToken).filter(
+        PasswordResetToken.user_id == user.id,
+        PasswordResetToken.used == False,
+    ).update({"used": True})
+
+    reset_token = PasswordResetToken(
+        user_id=user.id,
+        token_hash=token_hash,
+        expires_at=expires_at,
+    )
+    db.add(reset_token)
+    db.commit()
+
+    send_password_reset_email(user.email, user.nombre, raw_token)
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str = Field(..., min_length=8, max_length=128)
+
+
+@router.post("/reset-password", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit("5/minute")
+def reset_password(request: Request, payload: ResetPasswordRequest, db: Session = Depends(get_db)):
+    token_hash = hashlib.sha256(payload.token.encode()).hexdigest()
+    record = db.query(PasswordResetToken).filter(
+        PasswordResetToken.token_hash == token_hash,
+        PasswordResetToken.used == False,
+    ).first()
+
+    if not record or record.expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Token inválido o expirado")
+
+    user = db.query(User).filter(User.id == record.user_id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Token inválido o expirado")
+
+    user.hashed_password = hash_password(payload.new_password)
+    record.used = True
+    db.commit()
+
+
+class UpdateMeRequest(BaseModel):
+    nombre: str | None = Field(None, min_length=1, max_length=100)
+    escuela: str | None = Field(None, max_length=200)
+    ciudad: str | None = Field(None, max_length=100)
+    estado: str | None = Field(None, max_length=100)
+
+
+@router.get("/me", response_model=UserOut)
+def get_me(current_user: User = Depends(get_current_user)):
+    return current_user
+
+
+@router.patch("/me", response_model=UserOut)
+def update_me(
+    payload: UpdateMeRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if payload.nombre is not None:
+        current_user.nombre = payload.nombre
+    if payload.escuela is not None:
+        current_user.escuela = payload.escuela
+    if payload.ciudad is not None:
+        current_user.ciudad = payload.ciudad
+    if payload.estado is not None:
+        current_user.estado = payload.estado
+    db.commit()
+    db.refresh(current_user)
+    return current_user

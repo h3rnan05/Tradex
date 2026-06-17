@@ -76,6 +76,32 @@ def listar_alumnos(
     return q.order_by(User.nombre).all()
 
 
+class CambiarRolPayload(BaseModel):
+    rol: str
+
+
+@router.post("/users/{user_id}/cambiar-rol", response_model=UserOut)
+def cambiar_rol(
+    user_id: uuid.UUID,
+    payload: CambiarRolPayload,
+    db: Session = Depends(get_db),
+    _admin=Depends(require_admin),
+):
+    try:
+        nuevo_rol = RolEnum(payload.rol)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Rol inválido: {payload.rol}")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    if user.rol == RolEnum.admin:
+        raise HTTPException(status_code=400, detail="No se puede cambiar el rol de otro administrador")
+    user.rol = nuevo_rol
+    db.commit()
+    db.refresh(user)
+    return user
+
+
 @router.post("/users/{user_id}/suspender", response_model=UserOut)
 def suspender_usuario(
     user_id: uuid.UUID,
