@@ -31,6 +31,7 @@ export default function Navbar() {
           { href: "/alumno/portafolio", label: "Portafolio" },
           { href: "/alumno/operar", label: "Operar" },
           { href: "/alumno/mercados", label: "Mercados" },
+          { href: "/alumno/comparador", label: "Comparador" },
           { href: "/alumno/plantillas", label: "Plantillas" },
           { href: "/alumno/retos", label: "Retos" },
           { href: "/alumno/historial", label: "Historial" },

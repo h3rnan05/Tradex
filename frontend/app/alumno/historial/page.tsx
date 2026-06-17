@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Navbar from "@/components/Navbar";
+import ComentariosMaestro from "@/components/ComentariosMaestro";
 import { Badge, Card, formatoMoneda } from "@/components/primitives";
 import { api, ApiError } from "@/lib/api";
 import { obtenerSesion } from "@/lib/auth";
@@ -19,6 +20,7 @@ interface Orden {
 export default function HistorialPage() {
   const [ordenes, setOrdenes] = useState<Orden[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [expandido, setExpandido] = useState<string | null>(null);
 
   useEffect(() => {
     const sesion = obtenerSesion();
@@ -44,40 +46,38 @@ export default function HistorialPage() {
             <p className="text-fg/40">Aún no has realizado ninguna operación.</p>
           </Card>
         ) : (
-          <Card className="overflow-hidden p-0">
-            <table className="w-full text-sm">
-              <thead className="bg-fg/5 text-left text-fg/60">
-                <tr>
-                  <th className="px-4 py-3">Fecha</th>
-                  <th className="px-4 py-3">Tipo</th>
-                  <th className="px-4 py-3">Ticker</th>
-                  <th className="px-4 py-3">Cantidad</th>
-                  <th className="px-4 py-3">Precio de ejecución</th>
-                  <th className="px-4 py-3">Comisión</th>
-                  <th className="px-4 py-3">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ordenes.map((o) => (
-                  <tr key={o.id} className="border-t border-fg/5">
-                    <td className="px-4 py-3 text-fg/60">
-                      {new Date(o.timestamp).toLocaleString("es-MX")}
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge tone={o.tipo === "compra" ? "ganancia" : "perdida"}>
-                        {o.tipo === "compra" ? "Compra" : "Venta"}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3 font-medium text-fg">{o.ticker}</td>
-                    <td className="px-4 py-3">{o.cantidad}</td>
-                    <td className="px-4 py-3">{formatoMoneda(o.precio_ejecucion)}</td>
-                    <td className="px-4 py-3">{formatoMoneda(o.comision)}</td>
-                    <td className="px-4 py-3">{formatoMoneda(Number(o.cantidad) * Number(o.precio_ejecucion))}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Card>
+          <div className="space-y-px border border-fg/10">
+            {ordenes.map((o) => (
+              <div key={o.id} className="border-b border-fg/5 bg-panel last:border-0">
+                <div
+                  className="flex cursor-pointer items-center gap-3 px-4 py-3 hover:bg-fg/5"
+                  onClick={() => setExpandido(expandido === o.id ? null : o.id)}
+                >
+                  <span className="w-32 shrink-0 font-mono text-[10px] text-fg/40">
+                    {new Date(o.timestamp).toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" })}
+                  </span>
+                  <Badge tone={o.tipo === "compra" ? "ganancia" : "perdida"}>
+                    {o.tipo === "compra" ? "Compra" : "Venta"}
+                  </Badge>
+                  <span className="w-16 font-mono text-sm font-bold text-fg">{o.ticker}</span>
+                  <span className="font-mono text-xs text-fg/60">{o.cantidad} acc. × {formatoMoneda(o.precio_ejecucion)}</span>
+                  <span className="ml-auto font-mono text-sm font-bold text-fg">
+                    {formatoMoneda(Number(o.cantidad) * Number(o.precio_ejecucion))}
+                  </span>
+                  <span className="font-mono text-[10px] text-fg/30">{expandido === o.id ? "▲" : "▼"}</span>
+                </div>
+                {expandido === o.id && (
+                  <div className="border-t border-fg/5 px-4 pb-3">
+                    <div className="mt-2 flex gap-4 font-mono text-[11px] text-fg/50 mb-2">
+                      <span>Comisión: {formatoMoneda(o.comision)}</span>
+                      <span>Total neto: {formatoMoneda(Number(o.cantidad) * Number(o.precio_ejecucion))}</span>
+                    </div>
+                    <ComentariosMaestro ordenId={o.id} esMaestro={false} />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </main>

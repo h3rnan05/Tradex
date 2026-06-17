@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid } from "recharts";
 import Navbar from "@/components/Navbar";
 import MercadosMundo from "@/components/MercadosMundo";
+import PanelInsignias from "@/components/PanelInsignias";
 import { Card, StatTile, formatoMoneda, formatoPorcentaje } from "@/components/primitives";
 import { api, ApiError } from "@/lib/api";
 import { obtenerSesion } from "@/lib/auth";
@@ -52,6 +53,8 @@ export default function PortafolioPage() {
   const [historialValor, setHistorialValor] = useState<PuntoValor[]>([]);
   const [cargandoGrafica, setCargandoGrafica] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [insignias, setInsignias] = useState<{ codigo: string; otorgada_at: string }[]>([]);
+  const [metricas, setMetricas] = useState<{ volatilidad_anualizada: number | null; sharpe_ratio: number | null; rendimiento_total_pct: number | null; rendimiento_sp500_pct?: number | null; alpha?: number | null } | null>(null);
 
   async function cargar() {
     const sesion = obtenerSesion();
@@ -86,6 +89,16 @@ export default function PortafolioPage() {
     cargar();
     cargarHistorial();
     const interval = setInterval(cargar, 10000);
+    const sesion = obtenerSesion();
+    if (sesion) {
+      const grupoId = localStorage.getItem("tradex_grupo_id");
+      if (grupoId) {
+        api.get<typeof insignias>(`/insignias/mis-insignias?grupo_id=${grupoId}`).then(setInsignias).catch(() => {});
+        api.get<typeof metricas>(`/alumnos/${sesion.userId}/metricas-riesgo?grupo_id=${grupoId}`).then(setMetricas).catch(() => {});
+      } else {
+        api.get<typeof insignias>(`/insignias/mis-insignias`).then(setInsignias).catch(() => {});
+      }
+    }
     return () => clearInterval(interval);
   }, []);
 
@@ -439,10 +452,55 @@ export default function PortafolioPage() {
               )}
             </Card>
 
+            {/* Métricas de riesgo */}
+            {metricas && (
+              <Card className="mt-4">
+                <p className="mb-3 font-mono text-[11px] uppercase tracking-widest text-fg/40">Métricas de Riesgo</p>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="font-mono text-xs text-fg/50">Rendimiento total</span>
+                    <span className={`font-mono text-xs font-bold ${(metricas.rendimiento_total_pct ?? 0) >= 0 ? "text-ganancia" : "text-perdida"}`}>
+                      {metricas.rendimiento_total_pct != null ? `${metricas.rendimiento_total_pct > 0 ? "+" : ""}${metricas.rendimiento_total_pct.toFixed(2)}%` : "—"}
+                    </span>
+                  </div>
+                  {metricas.rendimiento_sp500_pct != null && (
+                    <div className="flex justify-between">
+                      <span className="font-mono text-xs text-fg/50">S&P 500 mismo período</span>
+                      <span className="font-mono text-xs text-fg/70">{metricas.rendimiento_sp500_pct > 0 ? "+" : ""}{metricas.rendimiento_sp500_pct.toFixed(2)}%</span>
+                    </div>
+                  )}
+                  {metricas.alpha != null && (
+                    <div className="flex justify-between">
+                      <span className="font-mono text-xs text-fg/50">Alpha vs S&P 500</span>
+                      <span className={`font-mono text-xs font-bold ${metricas.alpha >= 0 ? "text-ganancia" : "text-perdida"}`}>
+                        {metricas.alpha > 0 ? "+" : ""}{metricas.alpha.toFixed(2)}%
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="font-mono text-xs text-fg/50">Volatilidad anual</span>
+                    <span className="font-mono text-xs text-fg/70">{metricas.volatilidad_anualizada != null ? `${metricas.volatilidad_anualizada.toFixed(2)}%` : "—"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-mono text-xs text-fg/50">Sharpe Ratio</span>
+                    <span className={`font-mono text-xs font-bold ${(metricas.sharpe_ratio ?? 0) >= 1 ? "text-ganancia" : (metricas.sharpe_ratio ?? 0) >= 0 ? "text-fg" : "text-perdida"}`}>
+                      {metricas.sharpe_ratio != null ? metricas.sharpe_ratio.toFixed(2) : "—"}
+                    </span>
+                  </div>
+                </div>
+              </Card>
+            )}
+
             <div className="mt-4">
               <MercadosMundo compacto />
             </div>
           </div>
+        </div>
+
+        {/* Insignias */}
+        <div className="mt-6">
+          <p className="mb-3 font-mono text-[11px] uppercase tracking-widest text-fg/40">Mis Logros</p>
+          <PanelInsignias insignias={insignias} />
         </div>
       </div>
     </main>

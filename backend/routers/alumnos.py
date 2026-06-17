@@ -177,3 +177,36 @@ def historial_valor_portafolio(
         dia += timedelta(days=1)
 
     return resultado
+
+
+
+@router.get("/{alumno_id}/metricas-riesgo")
+def metricas_riesgo(
+    alumno_id: uuid.UUID,
+    grupo_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    from riesgo_utils import calcular_metricas
+    from precios_utils import obtener_historial_precios
+
+    serie = historial_valor_portafolio(alumno_id, grupo_id, db, current_user)
+    metricas = calcular_metricas(serie)
+
+    # S&P 500 comparison
+    try:
+        sp_hist = obtener_historial_precios("^GSPC", dias=len(serie) + 10)
+        if serie and sp_hist:
+            fecha_inicio = serie[0]["fecha"]
+            sp_filt = [p for p in sp_hist if p["fecha"] >= fecha_inicio]
+            if sp_filt:
+                from riesgo_utils import calcular_retornos_diarios, calcular_volatilidad_anualizada
+                sp_valores = [p["precio"] for p in sp_filt]
+                sp_retornos = calcular_retornos_diarios(sp_valores)
+                sp_rendimiento = (sp_valores[-1] - sp_valores[0]) / sp_valores[0] * 100 if len(sp_valores) >= 2 else 0
+                metricas["rendimiento_sp500_pct"] = round(sp_rendimiento, 2)
+                metricas["alpha"] = round(metricas.get("rendimiento_total_pct", 0) - sp_rendimiento, 2)
+    except Exception:
+        pass
+
+    return metricas
