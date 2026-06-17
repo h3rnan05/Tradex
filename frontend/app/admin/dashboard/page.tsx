@@ -71,7 +71,7 @@ export default function AdminDashboard() {
           <table className="w-full border border-fg/10 bg-panel text-sm">
             <thead className="bg-fg/5">
               <tr>
-                {["Grupo", "Maestro", "Capital", "Alumnos", "Inicio", "Cierre"].map((h) => (
+                {["Grupo", "Maestro", "Capital", "Alumnos", "Inicio", "Cierre", "Patrocinador"].map((h) => (
                   <th key={h} className="px-4 py-3 text-left font-mono text-[10px] uppercase tracking-wider text-fg/40">{h}</th>
                 ))}
               </tr>
@@ -85,10 +85,22 @@ export default function AdminDashboard() {
                   <td className="px-4 py-3 font-mono text-xs text-fg/70">{g.num_alumnos}</td>
                   <td className="px-4 py-3 font-mono text-xs text-fg/50">{new Date(g.fecha_inicio).toLocaleDateString("es-MX")}</td>
                   <td className="px-4 py-3 font-mono text-xs text-fg/50">{new Date(g.fecha_fin).toLocaleDateString("es-MX")}</td>
+                  <td className="px-4 py-3">
+                    <select
+                      defaultValue=""
+                      onChange={(e) => asignarSponsor(g.id, e.target.value)}
+                      className="bg-panel font-mono text-xs text-fg/70 border border-fg/20 px-2 py-1"
+                    >
+                      <option value="">— Sin patrocinador —</option>
+                      {sponsors.map((s) => (
+                        <option key={s.id} value={s.id}>{s.nombre}</option>
+                      ))}
+                    </select>
+                  </td>
                 </tr>
               ))}
               {grupos.length === 0 && (
-                <tr><td colSpan={6} className="px-4 py-6 text-center font-mono text-sm text-fg/30">Sin grupos registrados</td></tr>
+                <tr><td colSpan={7} className="px-4 py-6 text-center font-mono text-sm text-fg/30">Sin grupos registrados</td></tr>
               )}
             </tbody>
           </table>
