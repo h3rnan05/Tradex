@@ -48,3 +48,32 @@ class GrupoDetalle(GrupoOut):
 
 class InvitarRequest(BaseModel):
     alumno_email: str
+
+
+class GrupoUpdate(BaseModel):
+    nombre: str | None = None
+    fecha_inicio: datetime | None = None
+    fecha_fin: datetime | None = None
+    capital_inicial: Decimal | None = None
+    activos_permitidos: list[str] | None = None
+    comision_porcentaje: Decimal | None = None
+    limite_orden_valor: Decimal | None = None
+    max_alumnos: int | None = None
+
+
+class EvaluacionEntry(BaseModel):
+    alumno_id: uuid.UUID
+    nombre: str
+    escuela: str | None
+    ciudad: str | None
+    estado: str | None
+    posicion: int
+    valor_total: Decimal
+    capital_inicial: Decimal
+    rendimiento: Decimal
+    rendimiento_porcentaje: Decimal
+    comisiones_pagadas: Decimal
+    num_operaciones: int
+    tickers: list[str]
+    dias_activo: int
+    pausado: bool

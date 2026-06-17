@@ -11,7 +11,7 @@ from models.holding import Holding
 from models.membership import Membership
 from models.user import RolEnum, User
 from precios_utils import obtener_precio_actual
-from schemas.grupo import GrupoCreate, GrupoDetalle, GrupoOut, InvitarRequest
+from schemas.grupo import EvaluacionEntry, GrupoCreate, GrupoDetalle, GrupoOut, GrupoUpdate, InvitarRequest
 from schemas.membership import MembershipOut
 from schemas.ranking import RankingEntry
 
@@ -114,6 +114,112 @@ def invitar_alumno(
     db.commit()
     db.refresh(membership)
     return membership
+
+
+@router.patch("/{grupo_id}", response_model=GrupoOut)
+def actualizar_grupo(
+    grupo_id: str,
+    payload: GrupoUpdate,
+    db: Session = Depends(get_db),
+    maestro: User = Depends(require_maestro),
+):
+    grupo = db.query(Grupo).filter(Grupo.id == grupo_id, Grupo.maestro_id == maestro.id).first()
+    if not grupo:
+        raise HTTPException(status_code=404, detail="Grupo no encontrado")
+    for field, value in payload.model_dump(exclude_none=True).items():
+        setattr(grupo, field, value)
+    db.commit()
+    db.refresh(grupo)
+    return grupo
+
+
+@router.post("/{grupo_id}/memberships/{membership_id}/pausar", response_model=MembershipOut)
+def pausar_participante(
+    grupo_id: str,
+    membership_id: str,
+    db: Session = Depends(get_db),
+    maestro: User = Depends(require_maestro),
+):
+    grupo = db.query(Grupo).filter(Grupo.id == grupo_id, Grupo.maestro_id == maestro.id).first()
+    if not grupo:
+        raise HTTPException(status_code=404, detail="Grupo no encontrado")
+    membership = db.query(Membership).filter(Membership.id == membership_id, Membership.grupo_id == grupo_id).first()
+    if not membership:
+        raise HTTPException(status_code=404, detail="Participante no encontrado")
+    membership.pausado = not membership.pausado
+    db.commit()
+    db.refresh(membership)
+    return membership
+
+
+@router.get("/{grupo_id}/evaluacion", response_model=list[EvaluacionEntry])
+def evaluacion_grupo(
+    grupo_id: str,
+    db: Session = Depends(get_db),
+    maestro: User = Depends(require_maestro),
+):
+    from datetime import datetime, timezone
+    from models.orden import Orden
+    from schemas.grupo import EvaluacionEntry
+
+    grupo = db.query(Grupo).filter(Grupo.id == grupo_id, Grupo.maestro_id == maestro.id).first()
+    if not grupo:
+        raise HTTPException(status_code=404, detail="Grupo no encontrado")
+
+    memberships = (
+        db.query(Membership).options(joinedload(Membership.alumno)).filter(Membership.grupo_id == grupo_id).all()
+    )
+
+    precios_cache: dict[str, Decimal] = {}
+    entradas = []
+    hoy = datetime.now(timezone.utc)
+
+    for m in memberships:
+        holdings = db.query(Holding).filter(Holding.alumno_id == m.alumno_id, Holding.grupo_id == grupo_id).all()
+        ordenes = db.query(Orden).filter(Orden.alumno_id == m.alumno_id, Orden.grupo_id == grupo_id).all()
+
+        valor_holdings = Decimal("0")
+        for h in holdings:
+            if h.cantidad == 0:
+                continue
+            if h.ticker not in precios_cache:
+                try:
+                    precios_cache[h.ticker] = obtener_precio_actual(h.ticker)
+                except Exception:
+                    precios_cache[h.ticker] = h.precio_promedio
+            valor_holdings += precios_cache[h.ticker] * h.cantidad
+
+        valor_total = m.capital_disponible + valor_holdings
+        rendimiento = valor_total - grupo.capital_inicial
+        rendimiento_porcentaje = (rendimiento / grupo.capital_inicial * 100) if grupo.capital_inicial else Decimal("0")
+        comisiones_pagadas = sum(Decimal(str(o.comision)) for o in ordenes)
+        tickers = list({h.ticker for h in holdings if h.cantidad > 0})
+        dias_activo = (hoy - m.created_at).days if m.created_at else 0
+
+        entradas.append(
+            EvaluacionEntry(
+                alumno_id=m.alumno_id,
+                nombre=m.alumno.nombre,
+                escuela=getattr(m.alumno, "escuela", None),
+                ciudad=getattr(m.alumno, "ciudad", None),
+                estado=getattr(m.alumno, "estado", None),
+                posicion=0,
+                valor_total=valor_total,
+                capital_inicial=grupo.capital_inicial,
+                rendimiento=rendimiento,
+                rendimiento_porcentaje=rendimiento_porcentaje,
+                comisiones_pagadas=comisiones_pagadas,
+                num_operaciones=len(ordenes),
+                tickers=tickers,
+                dias_activo=dias_activo,
+                pausado=m.pausado,
+            )
+        )
+
+    entradas.sort(key=lambda e: e.valor_total, reverse=True)
+    for i, e in enumerate(entradas):
+        e.posicion = i + 1
+    return entradas
 
 
 @router.get("/{grupo_id}/ranking", response_model=list[RankingEntry])

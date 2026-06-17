@@ -92,6 +92,8 @@ def ejecutar_compra(db: Session, alumno: User, membership: Membership, grupo: Gr
 @router.post("/compra", response_model=OrdenOut, status_code=status.HTTP_201_CREATED)
 def comprar(payload: OrdenCreate, db: Session = Depends(get_db), alumno: User = Depends(require_alumno)):
     membership = _get_membership(db, alumno, payload.grupo_id)
+    if membership.pausado:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tu participación está pausada")
     grupo = db.query(Grupo).filter(Grupo.id == payload.grupo_id).first()
 
     orden = ejecutar_compra(db, alumno, membership, grupo, payload.ticker, payload.cantidad)
@@ -106,6 +108,8 @@ def vender(payload: OrdenCreate, db: Session = Depends(get_db), alumno: User = D
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La cantidad debe ser mayor a cero")
 
     membership = _get_membership(db, alumno, payload.grupo_id)
+    if membership.pausado:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tu participación está pausada")
     grupo = db.query(Grupo).filter(Grupo.id == payload.grupo_id).first()
     ticker = payload.ticker.upper().strip()
 

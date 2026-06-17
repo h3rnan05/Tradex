@@ -22,3 +22,6 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     rol = Column(Enum(RolEnum), nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    escuela = Column(String, nullable=True)
+    ciudad = Column(String, nullable=True)
+    estado = Column(String, nullable=True)
