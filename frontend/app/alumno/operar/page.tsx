@@ -182,6 +182,7 @@ function OperarPageInterna() {
   const [error, setError] = useState<string | null>(null);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [activosProximos, setActivosProximos] = useState<ActivoProximo[]>([]);
+  const [activosDisponibles, setActivosDisponibles] = useState<string[]>([]);
 
   useEffect(() => {
     api
@@ -203,6 +204,7 @@ function OperarPageInterna() {
         .get<Portafolio>(`/alumnos/${sesion.userId}/portafolio`)
         .then((p) => {
           setActivosProximos(p.activos_proximos || []);
+          setActivosDisponibles(p.activos_disponibles || []);
           setHoldings(p.holdings || []);
           setCapitalDisponible(p.capital_disponible);
         })
@@ -401,6 +403,21 @@ function OperarPageInterna() {
             {buscando ? "Buscando..." : "Buscar"}
           </button>
         </form>
+
+        {activosDisponibles.includes("crypto") && (
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <span className="font-mono text-[11px] uppercase tracking-wider text-fg/40">Cripto:</span>
+            {["BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD", "DOGE-USD", "ADA-USD"].map((c) => (
+              <button
+                key={c}
+                onClick={() => buscar(c)}
+                className="border border-fg/20 bg-panel px-2.5 py-1 font-mono text-xs text-fg/70 hover:border-accent hover:text-accent"
+              >
+                {c.replace("-USD", "")}
+              </button>
+            ))}
+          </div>
+        )}
 
         <BarraIndices onSeleccionar={buscar} />
 

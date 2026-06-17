@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
+from activos_utils import validar_activos_permitidos
 from auth_utils import get_current_user, require_maestro
 from database import get_db
 from models.fase_activo import FaseActivo
@@ -22,6 +23,7 @@ router = APIRouter(prefix="/grupos", tags=["grupos"])
 
 @router.post("", response_model=GrupoOut, status_code=status.HTTP_201_CREATED)
 def crear_grupo(payload: GrupoCreate, db: Session = Depends(get_db), maestro: User = Depends(require_maestro)):
+    validar_activos_permitidos(payload.activos_permitidos)
     grupo = Grupo(
         nombre=payload.nombre,
         maestro_id=maestro.id,
@@ -128,6 +130,8 @@ def actualizar_grupo(
     grupo = db.query(Grupo).filter(Grupo.id == grupo_id, Grupo.maestro_id == maestro.id).first()
     if not grupo:
         raise HTTPException(status_code=404, detail="Grupo no encontrado")
+    if payload.activos_permitidos is not None:
+        validar_activos_permitidos(payload.activos_permitidos)
     for field, value in payload.model_dump(exclude_none=True).items():
         setattr(grupo, field, value)
     db.commit()
