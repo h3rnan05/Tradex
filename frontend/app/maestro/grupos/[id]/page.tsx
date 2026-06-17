@@ -6,27 +6,12 @@ import { useParams } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import { api, ApiError } from "@/lib/api";
 
-interface Escenario {
-  id: string;
-  nombre: string;
-  fecha_inicio: string;
-  fecha_fin: string;
-  tickers_sugeridos: string[];
-}
-
-interface Reto {
-  id: string;
-  nombre: string;
-  escenario_id: string;
-  fecha_inicio: string;
-  fecha_fin: string;
-  capital_inicial: string;
-}
-
 interface Membership {
   id: string;
   alumno_id: string;
   capital_disponible: string;
+  pausado: boolean;
+  created_at: string | null;
 }
 
 interface Holding {
@@ -52,6 +37,8 @@ interface GrupoDetalle {
   id: string;
   nombre: string;
   capital_inicial: string;
+  fecha_inicio: string;
+  fecha_fin: string;
   max_alumnos: number | null;
   activos_permitidos: string[];
   limite_orden_valor: string | null;
@@ -62,384 +49,455 @@ interface GrupoDetalle {
   ordenes: Orden[];
 }
 
+interface EvaluacionEntry {
+  alumno_id: string;
+  nombre: string;
+  escuela: string | null;
+  ciudad: string | null;
+  estado: string | null;
+  posicion: number;
+  valor_total: string;
+  capital_inicial: string;
+  rendimiento: string;
+  rendimiento_porcentaje: string;
+  comisiones_pagadas: string;
+  num_operaciones: number;
+  tickers: string[];
+  dias_activo: number;
+  pausado: boolean;
+}
+
+const CAPITALES = [5000, 10000, 25000, 100000];
+const COMISIONES = [
+  { label: "Gratis (0%)", value: "0" },
+  { label: "1%", value: "0.01" },
+  { label: "2%", value: "0.02" },
+  { label: "5%", value: "0.05" },
+  { label: "10%", value: "0.10" },
+];
+const MERCADOS = ["acciones", "etfs", "cripto", "bonos", "commodities"];
+const fmt = (v: string | number) =>
+  Number(v).toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 });
+
 export default function DetalleGrupoPage() {
   const params = useParams<{ id: string }>();
   const [grupo, setGrupo] = useState<GrupoDetalle | null>(null);
+  const [evaluacion, setEvaluacion] = useState<EvaluacionEntry[]>([]);
+  const [tab, setTab] = useState<"config" | "participantes">("participantes");
   const [error, setError] = useState<string | null>(null);
+
+  // Invitar
   const [emailInvitar, setEmailInvitar] = useState("");
   const [mensajeInvitar, setMensajeInvitar] = useState<string | null>(null);
 
-  const [escenarios, setEscenarios] = useState<Escenario[]>([]);
-  const [retos, setRetos] = useState<Reto[]>([]);
-  const [mostrarFormReto, setMostrarFormReto] = useState(false);
-  const [escenarioId, setEscenarioId] = useState("");
-  const [nombreReto, setNombreReto] = useState("");
-  const [duracionMinutos, setDuracionMinutos] = useState("60");
-  const [capitalReto, setCapitalReto] = useState("10000");
-  const [guardandoReto, setGuardandoReto] = useState(false);
-  const [errorReto, setErrorReto] = useState<string | null>(null);
+  // Config form state (initialized from grupo)
+  const [cfgNombre, setCfgNombre] = useState("");
+  const [cfgCapital, setCfgCapital] = useState(10000);
+  const [cfgMercados, setCfgMercados] = useState<string[]>(["acciones"]);
+  const [cfgFechaInicio, setCfgFechaInicio] = useState("");
+  const [cfgFechaFin, setCfgFechaFin] = useState("");
+  const [cfgComision, setCfgComision] = useState("0");
+  const [cfgLimiteOrden, setCfgLimiteOrden] = useState("");
+  const [guardando, setGuardando] = useState(false);
+  const [msgConfig, setMsgConfig] = useState<string | null>(null);
 
   async function cargar() {
     try {
       const data = await api.get<GrupoDetalle>(`/grupos/${params.id}`);
       setGrupo(data);
+      // Sync config form
+      setCfgNombre(data.nombre);
+      const cap = Number(data.capital_inicial);
+      setCfgCapital(CAPITALES.includes(cap) ? cap : 10000);
+      setCfgMercados(data.activos_permitidos);
+      setCfgFechaInicio(data.fecha_inicio.slice(0, 10));
+      setCfgFechaFin(data.fecha_fin.slice(0, 10));
+      const comVal = Number(data.comision_porcentaje).toFixed(2);
+      setCfgComision(comVal === "0.00" ? "0" : comVal);
+      setCfgLimiteOrden(data.limite_orden_valor ?? "");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Error al cargar el grupo");
     }
   }
 
-  async function cargarRetos() {
+  async function cargarEvaluacion() {
     try {
-      const data = await api.get<Reto[]>(`/grupos/${params.id}/retos`);
-      setRetos(data);
+      const data = await api.get<EvaluacionEntry[]>(`/grupos/${params.id}/evaluacion`);
+      setEvaluacion(data);
     } catch {
-      // silencioso, no es critico para el detalle del grupo
+      // silent
     }
   }
 
   useEffect(() => {
     cargar();
-    cargarRetos();
-    const interval = setInterval(cargar, 5000);
-    return () => clearInterval(interval);
+    cargarEvaluacion();
   }, [params.id]);
 
-  useEffect(() => {
-    api
-      .get<Escenario[]>("/precios/escenarios")
-      .then(setEscenarios)
-      .catch(() => {});
-  }, []);
-
-  async function crearReto(e: React.FormEvent) {
-    e.preventDefault();
-    setGuardandoReto(true);
-    setErrorReto(null);
-    try {
-      const ahora = new Date();
-      const fin = new Date(ahora.getTime() + Number(duracionMinutos) * 60 * 1000);
-      await api.post(`/grupos/${params.id}/retos`, {
-        escenario_id: escenarioId,
-        nombre: nombreReto,
-        fecha_inicio: ahora.toISOString(),
-        fecha_fin: fin.toISOString(),
-        capital_inicial: capitalReto,
-      });
-      setNombreReto("");
-      setEscenarioId("");
-      setDuracionMinutos("60");
-      setCapitalReto("10000");
-      setMostrarFormReto(false);
-      await cargarRetos();
-    } catch (err) {
-      setErrorReto(err instanceof ApiError ? err.message : "No se pudo crear el reto");
-    } finally {
-      setGuardandoReto(false);
-    }
-  }
-
-  async function invitarAlumno(e: React.FormEvent) {
+  async function invitar(e: React.FormEvent) {
     e.preventDefault();
     setMensajeInvitar(null);
     try {
       await api.post(`/grupos/${params.id}/invitar`, { alumno_email: emailInvitar });
-      setMensajeInvitar("Alumno agregado correctamente");
+      setMensajeInvitar("Alumno agregado exitosamente");
       setEmailInvitar("");
-      await cargar();
+      cargar();
+      cargarEvaluacion();
     } catch (err) {
-      setMensajeInvitar(err instanceof ApiError ? err.message : "No se pudo invitar al alumno");
+      setMensajeInvitar(err instanceof ApiError ? err.message : "Error al invitar");
     }
   }
 
-  if (error) {
-    return (
-      <main className="min-h-screen bg-canvas">
-        <Navbar />
-        <p className="p-6 text-perdida">{error}</p>
-      </main>
-    );
+  async function guardarConfig(e: React.FormEvent) {
+    e.preventDefault();
+    setGuardando(true);
+    setMsgConfig(null);
+    try {
+      await api.patch(`/grupos/${params.id}`, {
+        nombre: cfgNombre,
+        capital_inicial: cfgCapital,
+        activos_permitidos: cfgMercados,
+        fecha_inicio: cfgFechaInicio,
+        fecha_fin: cfgFechaFin,
+        comision_porcentaje: parseFloat(cfgComision),
+        limite_orden_valor: cfgLimiteOrden ? parseFloat(cfgLimiteOrden) : null,
+      });
+      setMsgConfig("Cambios guardados");
+      cargar();
+    } catch (err) {
+      setMsgConfig(err instanceof ApiError ? err.message : "Error al guardar");
+    } finally {
+      setGuardando(false);
+    }
   }
 
-  if (!grupo) {
-    return (
-      <main className="min-h-screen bg-canvas">
-        <Navbar />
-        <p className="p-6 text-fg/40">Cargando...</p>
-      </main>
-    );
+  async function togglePausar(membershipId: string) {
+    try {
+      await api.post(`/grupos/${params.id}/memberships/${membershipId}/pausar`, {});
+      cargar();
+      cargarEvaluacion();
+    } catch {
+      // silent
+    }
   }
 
-  const holdingsPorAlumno = (alumnoId: string) =>
-    grupo.holdings.filter((h) => h.alumno_id === alumnoId && Number(h.cantidad) > 0);
+  if (error) return (
+    <main className="min-h-screen bg-canvas">
+      <Navbar />
+      <p className="p-6 text-sm text-perdida">{error}</p>
+    </main>
+  );
+  if (!grupo) return (
+    <main className="min-h-screen bg-canvas">
+      <Navbar />
+      <p className="p-6 text-fg/40">Cargando...</p>
+    </main>
+  );
+
+  // Map membership id by alumno_id for pause button
+  const membershipByAlumno: Record<string, Membership> = {};
+  grupo.memberships.forEach((m) => { membershipByAlumno[m.alumno_id] = m; });
 
   return (
     <main className="min-h-screen bg-canvas">
       <Navbar />
-      <div className="mx-auto max-w-5xl p-6">
-        <Link href="/maestro/grupos" className="mb-2 inline-block text-sm text-fg/50 hover:text-fg/80">
-          ← Volver a mis grupos
-        </Link>
-        <h1 className="mb-4 text-2xl font-bold text-fg">{grupo.nombre}</h1>
-
-        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <div className="rounded-none border border-fg/10 bg-panel p-4">
-            <p className="text-xs uppercase tracking-wide text-fg/40">Capital inicial</p>
-            <p className="text-lg font-semibold text-ganancia">
-              ${Number(grupo.capital_inicial).toLocaleString("es-MX")}
+      <div className="mx-auto max-w-7xl p-6">
+        {/* Header */}
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <Link href="/maestro/grupos" className="font-mono text-[11px] uppercase tracking-widest text-fg/40 hover:text-fg">
+              ← Grupos
+            </Link>
+            <h1 className="mt-1 text-2xl font-bold text-fg">{grupo.nombre}</h1>
+            <p className="font-mono text-xs text-fg/50">
+              {new Date(grupo.fecha_inicio).toLocaleDateString("es-MX")} →{" "}
+              {new Date(grupo.fecha_fin).toLocaleDateString("es-MX")} · Capital inicial:{" "}
+              {fmt(grupo.capital_inicial)}
             </p>
           </div>
-          <div className="rounded-none border border-fg/10 bg-panel p-4">
-            <p className="text-xs uppercase tracking-wide text-fg/40">Alumnos</p>
-            <p className="text-lg font-semibold text-fg">
-              {grupo.memberships.length}
-              {grupo.max_alumnos !== null && (
-                <span className="text-sm font-normal text-fg/40"> / {grupo.max_alumnos}</span>
-              )}
-            </p>
-          </div>
-          <div className="rounded-none border border-fg/10 bg-panel p-4">
-            <p className="text-xs uppercase tracking-wide text-fg/40">Límite por orden</p>
-            <p className="text-lg font-semibold text-fg">
-              {grupo.limite_orden_valor
-                ? `$${Number(grupo.limite_orden_valor).toLocaleString("es-MX")}`
-                : "Sin límite"}
-            </p>
-          </div>
-          <div className="rounded-none border border-fg/10 bg-panel p-4">
-            <p className="text-xs uppercase tracking-wide text-fg/40">Comisión</p>
-            <p className="text-lg font-semibold text-fg">
-              {(Number(grupo.comision_porcentaje) * 100).toFixed(2)}%
-            </p>
-          </div>
-        </div>
-
-        <div className="mb-6 flex flex-wrap gap-1.5">
-          {grupo.activos_permitidos.map((tipo) => (
-            <span key={tipo} className="rounded-full bg-fg/5 px-2.5 py-1 text-xs text-fg/60">
-              {tipo}
-            </span>
-          ))}
-        </div>
-
-        {grupo.fases_activo.length > 0 && (
-          <p className="mb-6 text-sm text-fg/40">
-            Activación progresiva:{" "}
-            {grupo.fases_activo
-              .map(
-                (f) =>
-                  `${f.tipo_activo} desde el ${new Date(f.fecha_activacion).toLocaleDateString("es-MX")}`
-              )
-              .join(" · ")}
-          </p>
-        )}
-
-        {grupo.max_alumnos !== null && grupo.memberships.length >= grupo.max_alumnos ? (
-          <p className="mb-8 text-sm text-perdida">
-            Este grupo alcanzó el límite de {grupo.max_alumnos} alumnos.
-          </p>
-        ) : (
-          <form onSubmit={invitarAlumno} className="mb-8 flex items-end gap-3 rounded-none border border-fg/10 bg-panel p-4">
-            <div className="flex-1">
-              <label className="mb-1 block text-sm font-medium text-fg/70">
-                Correo del alumno a invitar
-              </label>
-              <input
-                type="email"
-                required
-                value={emailInvitar}
-                onChange={(e) => setEmailInvitar(e.target.value)}
-                className="w-full rounded-none border border-fg/20 px-3 py-2 text-sm"
-              />
-            </div>
-            <button
-              type="submit"
-              className="rounded-none bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-ink/80"
-            >
-              Invitar
-            </button>
-          </form>
-        )}
-        {mensajeInvitar && <p className="mb-6 text-sm text-fg/60">{mensajeInvitar}</p>}
-
-        <h2 className="mb-3 text-lg font-semibold text-fg">Alumnos</h2>
-        <div className="mb-8 overflow-hidden rounded-none border border-fg/10 bg-panel">
-          <table className="w-full text-sm">
-            <thead className="bg-fg/5 text-left text-fg/60">
-              <tr>
-                <th className="px-4 py-3">Alumno</th>
-                <th className="px-4 py-3">Capital disponible</th>
-                <th className="px-4 py-3">Posiciones abiertas</th>
-              </tr>
-            </thead>
-            <tbody>
-              {grupo.memberships.map((m) => (
-                <tr key={m.id} className="border-t border-fg/5">
-                  <td className="px-4 py-3 font-medium text-fg">{m.alumno_id}</td>
-                  <td className="px-4 py-3">${Number(m.capital_disponible).toLocaleString("es-MX")}</td>
-                  <td className="px-4 py-3">{holdingsPorAlumno(m.alumno_id).length}</td>
-                </tr>
-              ))}
-              {grupo.memberships.length === 0 && (
-                <tr>
-                  <td colSpan={3} className="px-4 py-3 text-fg/40">
-                    Aún no hay alumnos en este grupo.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        <h2 className="mb-3 text-lg font-semibold text-fg">Últimas operaciones</h2>
-        <div className="overflow-hidden rounded-none border border-fg/10 bg-panel">
-          <table className="w-full text-sm">
-            <thead className="bg-fg/5 text-left text-fg/60">
-              <tr>
-                <th className="px-4 py-3">Fecha</th>
-                <th className="px-4 py-3">Ticker</th>
-                <th className="px-4 py-3">Tipo</th>
-                <th className="px-4 py-3">Cantidad</th>
-                <th className="px-4 py-3">Precio</th>
-                <th className="px-4 py-3">Comisión</th>
-              </tr>
-            </thead>
-            <tbody>
-              {grupo.ordenes.map((o) => (
-                <>
-                  <tr key={o.id} className="border-t border-fg/5">
-                    <td className="px-4 py-3">{new Date(o.timestamp).toLocaleString("es-MX")}</td>
-                    <td className="px-4 py-3 font-medium">{o.ticker}</td>
-                    <td className="px-4 py-3 capitalize">{o.tipo}</td>
-                    <td className="px-4 py-3">{o.cantidad}</td>
-                    <td className="px-4 py-3">${Number(o.precio_ejecucion).toLocaleString("es-MX")}</td>
-                    <td className="px-4 py-3">${Number(o.comision).toLocaleString("es-MX")}</td>
-                  </tr>
-                </>
-              ))}
-              {grupo.ordenes.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="px-4 py-3 text-fg/40">
-                    Todavía no hay operaciones registradas.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="mt-8 mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-fg">Retos cronometrados</h2>
-          <button
-            onClick={() => setMostrarFormReto(!mostrarFormReto)}
-            className="rounded-none bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-ink/80"
-          >
-            {mostrarFormReto ? "Cancelar" : "Lanzar reto"}
-          </button>
-        </div>
-
-        {mostrarFormReto && (
-          <form
-            onSubmit={crearReto}
-            className="mb-6 flex flex-col gap-4 rounded-none border border-fg/10 bg-panel p-6"
-          >
-            <div>
-              <label className="mb-1 block text-sm font-medium text-fg/70">Nombre del reto</label>
-              <input
-                required
-                value={nombreReto}
-                onChange={(e) => setNombreReto(e.target.value)}
-                className="w-full rounded-none border border-fg/20 px-3 py-2 text-sm"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-fg/70">Escenario histórico</label>
-              <select
-                required
-                value={escenarioId}
-                onChange={(e) => setEscenarioId(e.target.value)}
-                className="w-full rounded-none border border-fg/20 px-3 py-2 text-sm"
+          <div className="flex gap-1">
+            {(["participantes", "config"] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={`px-4 py-2 font-mono text-[11px] uppercase tracking-wider transition-colors ${tab === t ? "bg-accent text-black" : "border border-fg/20 text-fg/60 hover:text-fg"}`}
               >
-                <option value="" disabled>
-                  Selecciona un escenario
-                </option>
-                {escenarios.map((esc) => (
-                  <option key={esc.id} value={esc.id}>
-                    {esc.nombre} ({esc.fecha_inicio} a {esc.fecha_fin})
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
+                {t === "participantes" ? "Tablero" : "Configuración"}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Tab: Configuración */}
+        {tab === "config" && (
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <form onSubmit={guardarConfig} className="border border-fg/10 bg-panel p-6 space-y-5">
+              <h2 className="font-mono text-[11px] uppercase tracking-widest text-fg/40">Condiciones del grupo</h2>
+
               <div>
-                <label className="mb-1 block text-sm font-medium text-fg/70">Duración (minutos)</label>
+                <label className="block font-mono text-[11px] uppercase tracking-wider text-fg/50 mb-1">Nombre del reto</label>
                 <input
-                  type="number"
-                  min="1"
-                  required
-                  value={duracionMinutos}
-                  onChange={(e) => setDuracionMinutos(e.target.value)}
-                  className="w-full rounded-none border border-fg/20 px-3 py-2 text-sm"
+                  value={cfgNombre}
+                  onChange={(e) => setCfgNombre(e.target.value)}
+                  className="w-full border border-fg/20 bg-canvas px-3 py-2 font-mono text-sm text-fg outline-none focus:border-accent"
                 />
               </div>
+
               <div>
-                <label className="mb-1 block text-sm font-medium text-fg/70">Capital inicial del reto</label>
+                <label className="block font-mono text-[11px] uppercase tracking-wider text-fg/50 mb-2">Capital inicial</label>
+                <div className="flex gap-2 flex-wrap">
+                  {CAPITALES.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setCfgCapital(c)}
+                      className={`px-3 py-1.5 font-mono text-xs transition-colors ${cfgCapital === c ? "bg-accent text-black" : "border border-fg/20 text-fg/60 hover:text-fg"}`}
+                    >
+                      ${c.toLocaleString()}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-mono text-[11px] uppercase tracking-wider text-fg/50 mb-2">Mercados permitidos</label>
+                <div className="flex flex-wrap gap-2">
+                  {MERCADOS.map((m) => (
+                    <label key={m} className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={cfgMercados.includes(m)}
+                        onChange={(e) => {
+                          if (e.target.checked) setCfgMercados([...cfgMercados, m]);
+                          else setCfgMercados(cfgMercados.filter((x) => x !== m));
+                        }}
+                        className="accent-accent"
+                      />
+                      <span className="font-mono text-xs capitalize text-fg/70">{m}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-mono text-[11px] uppercase tracking-wider text-fg/50 mb-1">Fecha inicio</label>
+                  <input
+                    type="date"
+                    value={cfgFechaInicio}
+                    onChange={(e) => setCfgFechaInicio(e.target.value)}
+                    className="w-full border border-fg/20 bg-canvas px-3 py-2 font-mono text-sm text-fg outline-none focus:border-accent"
+                  />
+                </div>
+                <div>
+                  <label className="block font-mono text-[11px] uppercase tracking-wider text-fg/50 mb-1">Fecha cierre</label>
+                  <input
+                    type="date"
+                    value={cfgFechaFin}
+                    onChange={(e) => setCfgFechaFin(e.target.value)}
+                    className="w-full border border-fg/20 bg-canvas px-3 py-2 font-mono text-sm text-fg outline-none focus:border-accent"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-mono text-[11px] uppercase tracking-wider text-fg/50 mb-1">Comisiones</label>
+                <select
+                  value={cfgComision}
+                  onChange={(e) => setCfgComision(e.target.value)}
+                  className="w-full border border-fg/20 bg-canvas px-3 py-2 font-mono text-sm text-fg outline-none focus:border-accent"
+                >
+                  {COMISIONES.map((c) => (
+                    <option key={c.value} value={c.value}>{c.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-mono text-[11px] uppercase tracking-wider text-fg/50 mb-1">Límite por orden (USD, opcional)</label>
                 <input
                   type="number"
-                  min="0"
-                  step="0.01"
-                  required
-                  value={capitalReto}
-                  onChange={(e) => setCapitalReto(e.target.value)}
-                  className="w-full rounded-none border border-fg/20 px-3 py-2 text-sm"
+                  value={cfgLimiteOrden}
+                  onChange={(e) => setCfgLimiteOrden(e.target.value)}
+                  placeholder="Sin límite"
+                  className="w-full border border-fg/20 bg-canvas px-3 py-2 font-mono text-sm text-fg outline-none focus:border-accent"
                 />
               </div>
+
+              {msgConfig && (
+                <p className={`font-mono text-xs ${msgConfig === "Cambios guardados" ? "text-ganancia" : "text-perdida"}`}>
+                  {msgConfig}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                disabled={guardando}
+                className="w-full bg-accent py-2.5 font-mono text-[11px] font-bold uppercase tracking-widest text-black disabled:opacity-50"
+              >
+                {guardando ? "Guardando..." : "Guardar cambios"}
+              </button>
+            </form>
+
+            {/* Invite panel */}
+            <div className="border border-fg/10 bg-panel p-6">
+              <h2 className="mb-4 font-mono text-[11px] uppercase tracking-widest text-fg/40">Agregar participante</h2>
+              <form onSubmit={invitar} className="flex gap-2">
+                <input
+                  value={emailInvitar}
+                  onChange={(e) => setEmailInvitar(e.target.value)}
+                  placeholder="correo@alumno.com"
+                  className="flex-1 border border-fg/20 bg-canvas px-3 py-2 font-mono text-sm text-fg outline-none focus:border-accent"
+                />
+                <button type="submit" className="bg-accent px-4 py-2 font-mono text-[11px] font-bold uppercase text-black">
+                  Agregar
+                </button>
+              </form>
+              {mensajeInvitar && (
+                <p className={`mt-2 font-mono text-xs ${mensajeInvitar.includes("exitosamente") ? "text-ganancia" : "text-perdida"}`}>
+                  {mensajeInvitar}
+                </p>
+              )}
+
+              <div className="mt-6">
+                <h3 className="mb-3 font-mono text-[11px] uppercase tracking-widest text-fg/40">Info del grupo</h3>
+                <div className="space-y-1.5 font-mono text-xs text-fg/60">
+                  <div className="flex justify-between"><span>Capital inicial</span><span className="text-fg">{fmt(grupo.capital_inicial)}</span></div>
+                  <div className="flex justify-between"><span>Comisión</span><span className="text-fg">{(Number(grupo.comision_porcentaje) * 100).toFixed(0)}%</span></div>
+                  <div className="flex justify-between"><span>Participantes</span><span className="text-fg">{grupo.memberships.length}</span></div>
+                  <div className="flex justify-between"><span>Mercados</span><span className="text-fg">{grupo.activos_permitidos.join(", ")}</span></div>
+                </div>
+              </div>
             </div>
-            {errorReto && <p className="text-sm text-perdida">{errorReto}</p>}
-            <button
-              type="submit"
-              disabled={guardandoReto}
-              className="self-start rounded-none bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-ink/80 disabled:opacity-50"
-            >
-              {guardandoReto ? "Lanzando..." : "Lanzar reto"}
-            </button>
-          </form>
+          </div>
         )}
 
-        <div className="overflow-hidden rounded-none border border-fg/10 bg-panel">
-          <table className="w-full text-sm">
-            <thead className="bg-fg/5 text-left text-fg/60">
-              <tr>
-                <th className="px-4 py-3">Nombre</th>
-                <th className="px-4 py-3">Escenario</th>
-                <th className="px-4 py-3">Inicio</th>
-                <th className="px-4 py-3">Fin</th>
-                <th className="px-4 py-3"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {retos.map((r) => (
-                <tr key={r.id} className="border-t border-fg/5">
-                  <td className="px-4 py-3 font-medium text-fg">{r.nombre}</td>
-                  <td className="px-4 py-3">{r.escenario_id}</td>
-                  <td className="px-4 py-3">{new Date(r.fecha_inicio).toLocaleString("es-MX")}</td>
-                  <td className="px-4 py-3">{new Date(r.fecha_fin).toLocaleString("es-MX")}</td>
-                  <td className="px-4 py-3 text-right">
-                    <Link href={`/maestro/retos/${r.id}`} className="text-fg/70 underline hover:text-fg">
-                      Ver ranking
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-              {retos.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-4 py-3 text-fg/40">
-                    Todavía no se ha lanzado ningún reto en este grupo.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        {/* Tab: Participantes (Tablero de evaluación) */}
+        {tab === "participantes" && (
+          <div>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="font-mono text-[11px] uppercase tracking-widest text-fg/40">
+                Tablero de evaluación — {evaluacion.length} participantes
+              </h2>
+              <button
+                onClick={() => { cargar(); cargarEvaluacion(); }}
+                className="border border-fg/20 px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-fg/50 hover:text-fg"
+              >
+                Actualizar
+              </button>
+            </div>
+
+            {evaluacion.length === 0 ? (
+              <div className="border border-fg/10 bg-panel p-8 text-center">
+                <p className="font-mono text-sm text-fg/40">Aún no hay participantes en este grupo.</p>
+                <button onClick={() => setTab("config")} className="mt-3 font-mono text-xs text-accent underline">
+                  Agregar participantes →
+                </button>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full border border-fg/10 bg-panel text-sm">
+                  <thead className="bg-fg/5">
+                    <tr>
+                      {["#", "Nombre", "Valor portafolio", "Rendimiento", "Comisiones", "Ops.", "Activos", "Días", "Escuela", "Ciudad / Estado", ""].map((h) => (
+                        <th key={h} className="px-3 py-3 text-left font-mono text-[10px] uppercase tracking-wider text-fg/40">
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {evaluacion.map((e) => {
+                      const m = membershipByAlumno[e.alumno_id];
+                      const rend = Number(e.rendimiento_porcentaje);
+                      return (
+                        <tr key={e.alumno_id} className={`border-t border-fg/5 ${e.pausado ? "opacity-50" : "hover:bg-fg/5"}`}>
+                          <td className="px-3 py-3 font-mono text-xs font-bold text-fg/60">#{e.posicion}</td>
+                          <td className="px-3 py-3">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-sm font-semibold text-fg">{e.nombre}</span>
+                              {e.pausado && (
+                                <span className="bg-perdida/10 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase text-perdida">
+                                  Pausado
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-3 py-3 font-mono text-sm font-bold text-fg">{fmt(e.valor_total)}</td>
+                          <td className={`px-3 py-3 font-mono text-sm font-semibold ${rend >= 0 ? "text-ganancia" : "text-perdida"}`}>
+                            {rend >= 0 ? "+" : ""}{rend.toFixed(2)}%
+                          </td>
+                          <td className="px-3 py-3 font-mono text-xs text-fg/60">{fmt(e.comisiones_pagadas)}</td>
+                          <td className="px-3 py-3 font-mono text-xs text-fg/60">{e.num_operaciones}</td>
+                          <td className="px-3 py-3 font-mono text-[11px] text-fg/60">
+                            {e.tickers.length > 0 ? e.tickers.join(", ") : "—"}
+                          </td>
+                          <td className="px-3 py-3 font-mono text-xs text-fg/60">{e.dias_activo}d</td>
+                          <td className="px-3 py-3 font-mono text-[11px] text-fg/60">{e.escuela ?? "—"}</td>
+                          <td className="px-3 py-3 font-mono text-[11px] text-fg/60">
+                            {[e.ciudad, e.estado].filter(Boolean).join(", ") || "—"}
+                          </td>
+                          <td className="px-3 py-3">
+                            {m && (
+                              <button
+                                onClick={() => togglePausar(m.id)}
+                                className={`px-2 py-1 font-mono text-[10px] font-bold uppercase transition-colors ${e.pausado ? "bg-ganancia/10 text-ganancia hover:bg-ganancia/20" : "bg-perdida/10 text-perdida hover:bg-perdida/20"}`}
+                              >
+                                {e.pausado ? "Reanudar" : "Pausar"}
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Orders table */}
+            {grupo.ordenes.length > 0 && (
+              <div className="mt-8">
+                <h2 className="mb-3 font-mono text-[11px] uppercase tracking-widest text-fg/40">
+                  Últimas operaciones del grupo
+                </h2>
+                <div className="overflow-x-auto">
+                  <table className="w-full border border-fg/10 bg-panel text-sm">
+                    <thead className="bg-fg/5">
+                      <tr>
+                        {["Alumno", "Tipo", "Ticker", "Cantidad", "Precio", "Comisión", "Fecha"].map((h) => (
+                          <th key={h} className="px-4 py-2.5 text-left font-mono text-[10px] uppercase tracking-wider text-fg/40">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {grupo.ordenes.slice(0, 30).map((o) => {
+                        const alumno = evaluacion.find((e) => e.alumno_id === o.alumno_id);
+                        return (
+                          <tr key={o.id} className="border-t border-fg/5 hover:bg-fg/5">
+                            <td className="px-4 py-2.5 font-mono text-xs text-fg/70">{alumno?.nombre ?? "—"}</td>
+                            <td className="px-4 py-2.5">
+                              <span className={`px-2 py-0.5 font-mono text-[10px] font-bold uppercase ${o.tipo === "compra" ? "bg-ganancia/10 text-ganancia" : "bg-perdida/10 text-perdida"}`}>
+                                {o.tipo}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2.5 font-mono font-bold text-fg">{o.ticker}</td>
+                            <td className="px-4 py-2.5 font-mono text-xs text-fg/70">{Number(o.cantidad).toFixed(4)}</td>
+                            <td className="px-4 py-2.5 font-mono text-xs">{fmt(o.precio_ejecucion)}</td>
+                            <td className="px-4 py-2.5 font-mono text-xs text-fg/60">{fmt(o.comision)}</td>
+                            <td className="px-4 py-2.5 font-mono text-[10px] text-fg/40">
+                              {new Date(o.timestamp).toLocaleDateString("es-MX", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </main>
   );
