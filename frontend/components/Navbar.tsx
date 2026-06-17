@@ -31,6 +31,7 @@ export default function Navbar() {
       ? [
           { href: "/admin/dashboard", label: "Dashboard" },
           { href: "/admin/maestros", label: "Maestros" },
+          { href: "/admin/usuarios", label: "Usuarios" },
           { href: "/admin/ranking", label: "Ranking Global" },
         ]
       : sesion?.rol === "sponsor"
@@ -104,9 +105,9 @@ export default function Navbar() {
         {/* Desktop user info */}
         {sesion && (
           <div className="ml-auto hidden items-center gap-3 border-l border-fg/15 pl-3 md:flex">
-            <span className="font-mono text-[11px] text-fg/60">
+            <Link href="/perfil" className="font-mono text-[11px] text-fg/60 hover:text-fg">
               {sesion.nombre} · {sesion.rol === "maestro" ? "Maestro" : sesion.rol === "admin" ? "Admin" : sesion.rol === "sponsor" ? "Patrocinador" : "Alumno"}
-            </span>
+            </Link>
             <button
               onClick={salir}
               className="border border-fg/20 px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider text-fg/70 hover:bg-fg/5"

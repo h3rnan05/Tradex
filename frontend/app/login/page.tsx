@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
 import { guardarSesion, type Rol } from "@/lib/auth";
@@ -111,6 +112,12 @@ export default function LoginPage() {
         >
           {modo === "login" ? "¿No tienes cuenta? Regístrate" : "¿Ya tienes cuenta? Inicia sesión"}
         </button>
+
+        {modo === "login" && (
+          <Link href="/forgot-password" className="mt-2 block text-center text-sm text-fg/30 hover:text-fg/60">
+            ¿Olvidaste tu contraseña?
+          </Link>
+        )}
       </div>
     </main>
   );
