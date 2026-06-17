@@ -34,7 +34,7 @@ export default function HistorialPage() {
   return (
     <main className="min-h-screen bg-canvas">
       <Navbar />
-      <div className="mx-auto max-w-4xl p-6">
+      <div className="mx-auto max-w-4xl p-4 md:p-6">
         <h1 className="mb-6 text-2xl font-bold text-fg">Historial de órdenes</h1>
 
         {error && <p className="mb-4 text-sm text-perdida">{error}</p>}

@@ -362,7 +362,7 @@ function OperarPageInterna() {
   return (
     <main className="min-h-screen bg-canvas">
       <Navbar />
-      <div className="mx-auto max-w-7xl p-6">
+      <div className="mx-auto max-w-7xl p-4 md:p-6">
         <h1 className="mb-4 text-2xl font-bold text-fg">Operar</h1>
 
         {activosProximos.length > 0 && (

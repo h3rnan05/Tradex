@@ -149,7 +149,7 @@ export default function PortafolioPage() {
   return (
     <main className="min-h-screen bg-canvas">
       <Navbar />
-      <div className="mx-auto max-w-7xl p-6">
+      <div className="mx-auto max-w-7xl p-4 md:p-6">
         <h1 className="mb-6 text-2xl font-bold text-fg">Mi portafolio</h1>
 
         {/* KPIs */}
@@ -246,6 +246,7 @@ export default function PortafolioPage() {
           <div className="lg:col-span-8">
             <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">Posiciones</p>
             <Card className="overflow-hidden p-0">
+              <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-fg/5 text-left text-fg/60">
                   <tr>
@@ -296,6 +297,7 @@ export default function PortafolioPage() {
                   )}
                 </tbody>
               </table>
+              </div>
             </Card>
 
             {/* Órdenes recientes */}
@@ -305,6 +307,7 @@ export default function PortafolioPage() {
                   Órdenes recientes
                 </p>
                 <Card className="overflow-hidden p-0">
+                  <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead className="bg-fg/5 text-left text-fg/60">
                       <tr>
@@ -352,6 +355,7 @@ export default function PortafolioPage() {
                       })}
                     </tbody>
                   </table>
+                  </div>
                 </Card>
               </div>
             )}
