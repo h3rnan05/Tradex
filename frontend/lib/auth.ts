@@ -1,4 +1,4 @@
-export type Rol = "maestro" | "alumno";
+export type Rol = "maestro" | "alumno" | "admin" | "sponsor";
 
 export interface Sesion {
   token: string;
@@ -20,7 +20,9 @@ export function obtenerSesion(): Sesion | null {
   const raw = localStorage.getItem(SESSION_KEY);
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as Sesion;
+    const parsed = JSON.parse(raw);
+    if (!parsed?.token || !parsed?.userId || !parsed?.rol) return null;
+    return parsed as Sesion;
   } catch {
     return null;
   }

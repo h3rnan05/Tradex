@@ -13,7 +13,7 @@ from models.holding import Holding
 from models.membership import Membership
 from models.orden import Orden, TipoOrdenEnum
 from models.user import User
-from precios_utils import obtener_precio_actual
+from precios_utils import obtener_precio_actual, validar_ticker
 from schemas.orden import OrdenCreate, OrdenOut
 
 router = APIRouter(prefix="/ordenes", tags=["ordenes"])
@@ -32,7 +32,7 @@ def ejecutar_compra(db: Session, alumno: User, membership: Membership, grupo: Gr
     if cantidad <= 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La cantidad debe ser mayor a cero")
 
-    ticker = ticker.upper().strip()
+    ticker = validar_ticker(ticker)
 
     tipo_activo = clasificar_ticker(ticker)
     fases_activo = db.query(FaseActivo).filter(FaseActivo.grupo_id == grupo.id).all()
@@ -116,7 +116,7 @@ def vender(payload: OrdenCreate, db: Session = Depends(get_db), alumno: User = D
     if membership.pausado:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tu participación está pausada")
     grupo = db.query(Grupo).filter(Grupo.id == payload.grupo_id).first()
-    ticker = payload.ticker.upper().strip()
+    ticker = validar_ticker(payload.ticker)
 
     holding = db.query(Holding).filter(
         Holding.alumno_id == alumno.id, Holding.grupo_id == payload.grupo_id, Holding.ticker == ticker

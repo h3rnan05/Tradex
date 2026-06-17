@@ -3,13 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
-import { guardarSesion } from "@/lib/auth";
+import { guardarSesion, type Rol } from "@/lib/auth";
 
 interface TokenResponse {
   access_token: string;
   user_id: string;
   nombre: string;
-  rol: "maestro" | "alumno";
+  rol: Rol;
 }
 
 export default function LoginPage() {
@@ -18,7 +18,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [nombre, setNombre] = useState("");
-  const [rol, setRol] = useState<"maestro" | "alumno">("alumno");
+  const [rol, setRol] = useState<"maestro" | "alumno">("alumno"); // kept for UI display only; backend ignores it
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
 
@@ -29,7 +29,7 @@ export default function LoginPage() {
     try {
       const ruta = modo === "login" ? "/auth/login" : "/auth/register";
       const payload =
-        modo === "login" ? { email, password } : { email, password, nombre, rol };
+        modo === "login" ? { email, password } : { email, password, nombre };
       const data = await api.post<TokenResponse>(ruta, payload);
 
       guardarSesion({
@@ -93,19 +93,6 @@ export default function LoginPage() {
             />
           </div>
 
-          {modo === "registro" && (
-            <div>
-              <label className="mb-1 block text-sm font-medium text-fg/70">Rol</label>
-              <select
-                value={rol}
-                onChange={(e) => setRol(e.target.value as "maestro" | "alumno")}
-                className="w-full rounded-none border border-fg/20 px-3 py-2 text-sm"
-              >
-                <option value="alumno">Alumno</option>
-                <option value="maestro">Maestro</option>
-              </select>
-            </div>
-          )}
 
           {error && <p className="text-sm text-perdida">{error}</p>}
 

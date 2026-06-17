@@ -22,7 +22,7 @@ router = APIRouter(prefix="/portafolios-modelo", tags=["portafolios-modelo"])
 
 
 @router.get("", response_model=list[PlantillaPortafolioOut])
-def listar_plantillas():
+def listar_plantillas(_alumno: User = Depends(require_alumno)):
     return [
         PlantillaPortafolioOut(
             perfil_riesgo=perfil,

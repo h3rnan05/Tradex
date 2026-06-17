@@ -5,17 +5,23 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from auth_utils import get_current_user, require_maestro
+from auth_utils import get_current_user, maestro_owns_alumno, require_maestro
 from database import get_db
 from models.comentario import ComentarioOrden
+from models.grupo import Grupo
 from models.orden import Orden
-from models.user import User
+from models.user import RolEnum, User
 
 router = APIRouter(prefix="/comentarios", tags=["comentarios"])
 
 
 class ComentarioCreate(BaseModel):
     texto: str = Field(..., min_length=1, max_length=1000)
+
+
+def _maestro_owns_orden(db: Session, maestro_id: uuid.UUID, orden: Orden) -> bool:
+    grupo = db.query(Grupo).filter(Grupo.id == orden.grupo_id, Grupo.maestro_id == maestro_id).first()
+    return grupo is not None
 
 
 @router.post("/orden/{orden_id}", status_code=status.HTTP_201_CREATED)
@@ -28,6 +34,8 @@ def crear_comentario(
     orden = db.query(Orden).filter(Orden.id == orden_id).first()
     if not orden:
         raise HTTPException(status_code=404, detail="Orden no encontrada")
+    if not _maestro_owns_orden(db, maestro.id, orden):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No autorizado")
 
     comentario = ComentarioOrden(
         orden_id=orden_id,
@@ -57,10 +65,20 @@ def listar_comentarios_orden(
     orden = db.query(Orden).filter(Orden.id == orden_id).first()
     if not orden:
         raise HTTPException(status_code=404, detail="Orden no encontrada")
-    if current_user.rol == "alumno" and orden.alumno_id != current_user.id:
-        raise HTTPException(status_code=403, detail="No autorizado")
 
-    comentarios = db.query(ComentarioOrden).filter(ComentarioOrden.orden_id == orden_id).order_by(ComentarioOrden.created_at).all()
+    if current_user.rol == RolEnum.alumno:
+        if orden.alumno_id != current_user.id:
+            raise HTTPException(status_code=403, detail="No autorizado")
+    elif current_user.rol == RolEnum.maestro:
+        if not _maestro_owns_orden(db, current_user.id, orden):
+            raise HTTPException(status_code=403, detail="No autorizado")
+
+    comentarios = (
+        db.query(ComentarioOrden)
+        .filter(ComentarioOrden.orden_id == orden_id)
+        .order_by(ComentarioOrden.created_at)
+        .all()
+    )
     return [
         {
             "id": str(c.id),
@@ -78,8 +96,12 @@ def comentarios_alumno(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    if current_user.rol == "alumno" and current_user.id != alumno_id:
-        raise HTTPException(status_code=403, detail="No autorizado")
+    if current_user.rol == RolEnum.alumno:
+        if current_user.id != alumno_id:
+            raise HTTPException(status_code=403, detail="No autorizado")
+    elif current_user.rol == RolEnum.maestro:
+        if not maestro_owns_alumno(db, current_user.id, str(alumno_id)):
+            raise HTTPException(status_code=403, detail="No autorizado")
 
     ordenes_ids = [o.id for o in db.query(Orden).filter(Orden.alumno_id == alumno_id).all()]
     if not ordenes_ids:
@@ -109,7 +131,9 @@ def eliminar_comentario(
     db: Session = Depends(get_db),
     maestro: User = Depends(require_maestro),
 ):
-    c = db.query(ComentarioOrden).filter(ComentarioOrden.id == comentario_id, ComentarioOrden.maestro_id == maestro.id).first()
+    c = db.query(ComentarioOrden).filter(
+        ComentarioOrden.id == comentario_id, ComentarioOrden.maestro_id == maestro.id
+    ).first()
     if not c:
         raise HTTPException(status_code=404, detail="Comentario no encontrado")
     db.delete(c)

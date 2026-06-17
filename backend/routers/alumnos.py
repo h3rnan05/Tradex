@@ -3,11 +3,11 @@ from collections import defaultdict
 from datetime import date, timedelta, timezone
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from activos_utils import separar_activos_por_disponibilidad
-from auth_utils import get_current_user
+from auth_utils import get_current_user, maestro_owns_alumno
 from database import get_db
 from models.fase_activo import FaseActivo
 from models.holding import Holding
@@ -21,12 +21,27 @@ from schemas.orden import OrdenOut
 router = APIRouter(prefix="/alumnos", tags=["alumnos"])
 
 
-@router.get("/{alumno_id}/portafolio", response_model=PortafolioOut)
-def portafolio(alumno_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if str(current_user.id) != alumno_id and current_user.rol != RolEnum.maestro:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No autorizado")
+def _check_alumno_access(db: Session, current_user: User, alumno_id: str) -> None:
+    if str(current_user.id) == alumno_id:
+        return
+    if current_user.rol == RolEnum.maestro and maestro_owns_alumno(db, current_user.id, alumno_id):
+        return
+    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No autorizado")
 
-    membership = db.query(Membership).filter(Membership.alumno_id == alumno_id).first()
+
+@router.get("/{alumno_id}/portafolio", response_model=PortafolioOut)
+def portafolio(
+    alumno_id: str,
+    grupo_id: str | None = Query(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    _check_alumno_access(db, current_user, alumno_id)
+
+    q = db.query(Membership).filter(Membership.alumno_id == alumno_id)
+    if grupo_id:
+        q = q.filter(Membership.grupo_id == grupo_id)
+    membership = q.first()
     if not membership:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="El alumno no pertenece a ningun grupo")
 
@@ -84,9 +99,12 @@ def portafolio(alumno_id: str, db: Session = Depends(get_db), current_user: User
 
 
 @router.get("/{alumno_id}/ordenes", response_model=list[OrdenOut])
-def historial_ordenes(alumno_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if str(current_user.id) != alumno_id and current_user.rol != RolEnum.maestro:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No autorizado")
+def historial_ordenes(
+    alumno_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    _check_alumno_access(db, current_user, alumno_id)
 
     return (
         db.query(Orden)
@@ -96,18 +114,14 @@ def historial_ordenes(alumno_id: str, db: Session = Depends(get_db), current_use
     )
 
 
-@router.get("/{alumno_id}/historial-valor")
-def historial_valor_portafolio(
-    alumno_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    if str(current_user.id) != alumno_id and current_user.rol != RolEnum.maestro:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No autorizado")
-
-    membership = db.query(Membership).filter(Membership.alumno_id == alumno_id).first()
+def _historial_valor_impl(alumno_id: str, grupo_id: str | None, db: Session) -> list:
+    """Core portfolio-value-over-time computation. Caller must have verified auth."""
+    q = db.query(Membership).filter(Membership.alumno_id == alumno_id)
+    if grupo_id:
+        q = q.filter(Membership.grupo_id == grupo_id)
+    membership = q.first()
     if not membership:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="El alumno no pertenece a ningun grupo")
+        return []
 
     ordenes = (
         db.query(Orden)
@@ -123,7 +137,6 @@ def historial_valor_portafolio(
     fecha_inicio = ordenes[0].timestamp.astimezone(timezone.utc).date()
     fecha_fin = date.today()
 
-    # Collect all tickers and fetch their price history once
     tickers = list({o.ticker for o in ordenes})
     precios_por_ticker: dict[str, dict[str, Decimal]] = {}
     for ticker in tickers:
@@ -133,7 +146,6 @@ def historial_valor_portafolio(
         except Exception:
             precios_por_ticker[ticker] = {}
 
-    # Build day-by-day portfolio value
     resultado = []
     capital = capital_inicial
     cantidades: dict[str, Decimal] = defaultdict(Decimal)
@@ -143,7 +155,6 @@ def historial_valor_portafolio(
     while dia <= fecha_fin:
         fecha_str = dia.isoformat()
 
-        # Apply all orders that happened on or before this day
         while orden_idx < len(ordenes):
             o = ordenes[orden_idx]
             o_fecha = o.timestamp.astimezone(timezone.utc).date()
@@ -158,14 +169,12 @@ def historial_valor_portafolio(
                 cantidades[o.ticker] -= o.cantidad
             orden_idx += 1
 
-        # Calculate portfolio value using nearest available price for each ticker
         valor_holdings = Decimal("0")
         for ticker, cantidad in cantidades.items():
             if cantidad <= 0:
                 continue
             precio_dia = precios_por_ticker.get(ticker, {}).get(fecha_str)
             if precio_dia is None:
-                # fallback: use most recent available price up to today
                 precios_ticker = precios_por_ticker.get(ticker, {})
                 fechas_disponibles = sorted(f for f in precios_ticker if f <= fecha_str)
                 if fechas_disponibles:
@@ -180,30 +189,40 @@ def historial_valor_portafolio(
     return resultado
 
 
+@router.get("/{alumno_id}/historial-valor")
+def historial_valor_portafolio(
+    alumno_id: str,
+    grupo_id: str | None = Query(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    _check_alumno_access(db, current_user, alumno_id)
+    return _historial_valor_impl(alumno_id, grupo_id, db)
+
 
 @router.get("/{alumno_id}/metricas-riesgo")
 def metricas_riesgo(
     alumno_id: uuid.UUID,
-    grupo_id: uuid.UUID,
+    grupo_id: uuid.UUID = Query(...),
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     from riesgo_utils import calcular_metricas
     from precios_utils import obtener_historial_precios
 
-    serie = historial_valor_portafolio(alumno_id, grupo_id, db, current_user)
+    _check_alumno_access(db, current_user, str(alumno_id))
+
+    serie = _historial_valor_impl(str(alumno_id), str(grupo_id), db)
     metricas = calcular_metricas(serie)
 
-    # S&P 500 comparison
     try:
         sp_hist = obtener_historial_precios("^GSPC", dias=len(serie) + 10)
         if serie and sp_hist:
             fecha_inicio = serie[0]["fecha"]
             sp_filt = [p for p in sp_hist if p["fecha"] >= fecha_inicio]
             if sp_filt:
-                from riesgo_utils import calcular_retornos_diarios, calcular_volatilidad_anualizada
+                from riesgo_utils import calcular_retornos_diarios
                 sp_valores = [p["precio"] for p in sp_filt]
-                sp_retornos = calcular_retornos_diarios(sp_valores)
                 sp_rendimiento = (sp_valores[-1] - sp_valores[0]) / sp_valores[0] * 100 if len(sp_valores) >= 2 else 0
                 metricas["rendimiento_sp500_pct"] = round(sp_rendimiento, 2)
                 metricas["alpha"] = round(metricas.get("rendimiento_total_pct", 0) - sp_rendimiento, 2)

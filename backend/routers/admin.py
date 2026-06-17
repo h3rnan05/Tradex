@@ -1,8 +1,10 @@
 import uuid
+from collections import defaultdict
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from auth_utils import require_admin
@@ -13,22 +15,9 @@ from models.membership import Membership
 from models.orden import Orden
 from models.user import RolEnum, User
 from precios_utils import obtener_precio_actual
+from schemas.user import UserOut
 
 router = APIRouter(prefix="/admin", tags=["admin"])
-
-
-class UserOut(BaseModel):
-    id: uuid.UUID
-    email: str
-    nombre: str
-    rol: str
-    escuela: str | None
-    ciudad: str | None
-    estado: str | None
-    suspendido: bool
-
-    class Config:
-        from_attributes = True
 
 
 class GlobalRankingEntry(BaseModel):
@@ -106,6 +95,10 @@ def suspender_usuario(
 
 @router.get("/grupos")
 def listar_todos_grupos(db: Session = Depends(get_db), _admin=Depends(require_admin)):
+    # Batch fetch membership counts to avoid N+1
+    counts_raw = db.query(Membership.grupo_id, func.count().label("n")).group_by(Membership.grupo_id).all()
+    counts = {str(r.grupo_id): r.n for r in counts_raw}
+
     grupos = db.query(Grupo).options(joinedload(Grupo.maestro)).all()
     return [
         {
@@ -116,7 +109,7 @@ def listar_todos_grupos(db: Session = Depends(get_db), _admin=Depends(require_ad
             "capital_inicial": str(g.capital_inicial),
             "fecha_inicio": g.fecha_inicio.isoformat(),
             "fecha_fin": g.fecha_fin.isoformat(),
-            "num_alumnos": db.query(Membership).filter(Membership.grupo_id == g.id).count(),
+            "num_alumnos": counts.get(str(g.id), 0),
         }
         for g in grupos
     ]
@@ -147,15 +140,38 @@ def ranking_global(
             query = query.filter(User.estado.ilike(f"%{estado}%"))
 
     memberships = query.all()
+    if not memberships:
+        return []
+
+    grupo_ids = list({m.grupo_id for m in memberships})
+    alumno_ids = list({m.alumno_id for m in memberships})
+
+    # Batch fetch holdings
+    all_holdings = db.query(Holding).filter(
+        Holding.grupo_id.in_(grupo_ids),
+        Holding.alumno_id.in_(alumno_ids),
+        Holding.cantidad > 0,
+    ).all()
+    holdings_map: dict = defaultdict(list)
+    for h in all_holdings:
+        holdings_map[(str(h.alumno_id), str(h.grupo_id))].append(h)
+
+    # Batch fetch order counts
+    orden_counts_raw = db.query(
+        Orden.alumno_id, Orden.grupo_id, func.count().label("n")
+    ).filter(
+        Orden.grupo_id.in_(grupo_ids),
+        Orden.alumno_id.in_(alumno_ids),
+    ).group_by(Orden.alumno_id, Orden.grupo_id).all()
+    orden_counts = {(str(r.alumno_id), str(r.grupo_id)): r.n for r in orden_counts_raw}
 
     precios_cache: dict[str, Decimal] = {}
     entradas = []
 
     for m in memberships:
-        holdings = db.query(Holding).filter(
-            Holding.alumno_id == m.alumno_id, Holding.grupo_id == m.grupo_id, Holding.cantidad > 0
-        ).all()
-        num_ops = db.query(Orden).filter(Orden.alumno_id == m.alumno_id, Orden.grupo_id == m.grupo_id).count()
+        key = (str(m.alumno_id), str(m.grupo_id))
+        holdings = holdings_map[key]
+        num_ops = orden_counts.get(key, 0)
 
         valor_holdings = Decimal("0")
         for h in holdings:
@@ -191,7 +207,7 @@ def ranking_global(
     return entradas
 
 
-@router.get("/sponsors")
+@router.get("/sponsors", response_model=list[UserOut])
 def listar_sponsors(db: Session = Depends(get_db), _admin=Depends(require_admin)):
     return db.query(User).filter(User.rol == RolEnum.sponsor).order_by(User.nombre).all()
 
@@ -206,6 +222,14 @@ def asignar_sponsor(
     grupo = db.query(Grupo).filter(Grupo.id == grupo_id).first()
     if not grupo:
         raise HTTPException(status_code=404, detail="Grupo no encontrado")
-    grupo.sponsor_id = sponsor_id if sponsor_id else None
+
+    if sponsor_id:
+        sponsor = db.query(User).filter(User.id == sponsor_id, User.rol == RolEnum.sponsor).first()
+        if not sponsor:
+            raise HTTPException(status_code=404, detail="Patrocinador no encontrado")
+        grupo.sponsor_id = sponsor_id
+    else:
+        grupo.sponsor_id = None
+
     db.commit()
     return {"ok": True}

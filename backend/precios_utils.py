@@ -1,4 +1,5 @@
 import logging
+import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
@@ -7,6 +8,15 @@ import httpx
 from fastapi import HTTPException, status
 
 from config import settings
+
+_TICKER_RE = re.compile(r'^[A-Z0-9\.\^\=\-\+]{1,15}$')
+
+
+def validar_ticker(ticker: str) -> str:
+    t = ticker.upper().strip()
+    if not _TICKER_RE.match(t):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Ticker inválido: '{ticker}'")
+    return t
 
 logger = logging.getLogger(__name__)
 
