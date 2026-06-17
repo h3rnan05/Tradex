@@ -1,3 +1,4 @@
+import uuid
 from collections import defaultdict
 from datetime import date, timedelta, timezone
 from decimal import Decimal
