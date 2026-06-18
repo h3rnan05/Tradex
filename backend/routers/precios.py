@@ -6,6 +6,7 @@ from limiter import limiter
 from models.user import User
 from precios_utils import (
     normalizar_ticker,
+    obtener_explorador_categoria,
     obtener_earnings_calendar,
     obtener_ficha_empresa,
     obtener_historial_precios,
@@ -66,6 +67,16 @@ def historial_escenario(
 @limiter.limit("30/minute")
 def precios_destacados(request: Request, current_user: User = Depends(get_current_user)):
     return obtener_precios_destacados()
+
+
+@router.get("/explorador/{categoria}")
+@limiter.limit("30/minute")
+def explorador_categoria(
+    request: Request,
+    categoria: str,
+    current_user: User = Depends(get_current_user),
+):
+    return obtener_explorador_categoria(categoria)
 
 
 @router.get("/noticias-generales")
