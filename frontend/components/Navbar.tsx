@@ -122,13 +122,15 @@ export default function Navbar() {
             </Link>
             <button
               onClick={() => setLang(lang === "es" ? "en" : "es")}
-              className="font-mono text-[11px] uppercase border border-fg/20 px-2 py-1.5 text-fg/70 hover:bg-fg/5"
+              title={lang === "es" ? "Switch to English" : "Cambiar a Español"}
+              className="flex items-center gap-1 font-mono text-[10px] font-bold uppercase tracking-widest text-fg/50 hover:text-fg transition-colors"
             >
+              <span className={`inline-block h-1.5 w-1.5 rounded-full ${lang === "es" ? "bg-fg/25" : "bg-accent"}`} />
               {lang === "es" ? "EN" : "ES"}
             </button>
             <button
               onClick={salir}
-              className="border border-fg/20 px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider text-fg/70 hover:bg-fg/5"
+              className="font-mono text-[11px] uppercase tracking-wider text-fg/40 hover:text-fg/80 transition-colors"
             >
               {t("nav.logout")}
             </button>
@@ -196,13 +198,14 @@ export default function Navbar() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setLang(lang === "es" ? "en" : "es")}
-                  className="font-mono text-[11px] uppercase border border-fg/20 px-2 py-1.5 text-fg/70"
+                  className="flex items-center gap-1 font-mono text-[10px] font-bold uppercase tracking-widest text-fg/50 px-3 py-2"
                 >
+                  <span className={`inline-block h-1.5 w-1.5 rounded-full ${lang === "es" ? "bg-fg/25" : "bg-accent"}`} />
                   {lang === "es" ? "EN" : "ES"}
                 </button>
                 <button
                   onClick={salir}
-                  className="border border-fg/20 px-4 py-2 font-mono text-[11px] uppercase tracking-wider text-fg/70"
+                  className="border border-fg/20 px-4 py-2 font-mono text-[11px] uppercase tracking-wider text-fg/50"
                 >
                   {t("nav.logout")}
                 </button>
