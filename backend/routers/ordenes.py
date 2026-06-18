@@ -52,12 +52,23 @@ def ejecutar_compra(db: Session, alumno: User, membership: Membership, grupo: Gr
             detail=f"El monto de la orden supera el limite permitido de ${grupo.limite_orden_valor}",
         )
 
+    # Lock the membership row to prevent concurrent orders from overdrawing capital
+    membership = (
+        db.query(Membership)
+        .with_for_update()
+        .filter(Membership.id == membership.id)
+        .first()
+    )
+
     if costo_total + comision > membership.capital_disponible:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Capital disponible insuficiente")
 
-    holding = db.query(Holding).filter(
-        Holding.alumno_id == alumno.id, Holding.grupo_id == membership.grupo_id, Holding.ticker == ticker
-    ).first()
+    holding = (
+        db.query(Holding)
+        .with_for_update()
+        .filter(Holding.alumno_id == alumno.id, Holding.grupo_id == membership.grupo_id, Holding.ticker == ticker)
+        .first()
+    )
 
     if holding:
         cantidad_total = holding.cantidad + cantidad
@@ -118,9 +129,19 @@ def vender(payload: OrdenCreate, db: Session = Depends(get_db), alumno: User = D
     grupo = db.query(Grupo).filter(Grupo.id == payload.grupo_id).first()
     ticker = validar_ticker(payload.ticker)
 
-    holding = db.query(Holding).filter(
-        Holding.alumno_id == alumno.id, Holding.grupo_id == payload.grupo_id, Holding.ticker == ticker
-    ).first()
+    # Lock both rows to prevent concurrent sells from going negative
+    holding = (
+        db.query(Holding)
+        .with_for_update()
+        .filter(Holding.alumno_id == alumno.id, Holding.grupo_id == payload.grupo_id, Holding.ticker == ticker)
+        .first()
+    )
+    membership = (
+        db.query(Membership)
+        .with_for_update()
+        .filter(Membership.id == membership.id)
+        .first()
+    )
 
     if not holding or holding.cantidad < payload.cantidad:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No tienes suficientes acciones para vender")

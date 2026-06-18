@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
 from auth_utils import get_current_user
 from escenarios_historicos import ESCENARIOS_HISTORICOS
+from limiter import limiter
 from models.user import User
 from precios_utils import (
     obtener_earnings_calendar,
@@ -36,7 +37,9 @@ def listar_escenarios(current_user: User = Depends(get_current_user)):
 
 
 @router.get("/escenarios/{escenario_id}/historial")
+@limiter.limit("30/minute")
 def historial_escenario(
+    request: Request,
     escenario_id: str,
     ticker: str = Query(...),
     current_user: User = Depends(get_current_user),
@@ -59,32 +62,39 @@ def historial_escenario(
 
 
 @router.get("/destacados")
-def precios_destacados(current_user: User = Depends(get_current_user)):
+@limiter.limit("30/minute")
+def precios_destacados(request: Request, current_user: User = Depends(get_current_user)):
     return obtener_precios_destacados()
 
 
 @router.get("/noticias-generales")
-def noticias_generales_mercado(current_user: User = Depends(get_current_user)):
+@limiter.limit("20/minute")
+def noticias_generales_mercado(request: Request, current_user: User = Depends(get_current_user)):
     return {"noticias": obtener_noticias_generales()}
 
 
 @router.get("/indices")
-def indices_mercado(current_user: User = Depends(get_current_user)):
+@limiter.limit("30/minute")
+def indices_mercado(request: Request, current_user: User = Depends(get_current_user)):
     return obtener_precios_indices()
 
 
 @router.get("/earnings-calendar")
-def earnings_calendar(current_user: User = Depends(get_current_user)):
+@limiter.limit("10/minute")
+def earnings_calendar(request: Request, current_user: User = Depends(get_current_user)):
     return obtener_earnings_calendar()
 
 
 @router.get("/sectores")
-def sectores_mercado(current_user: User = Depends(get_current_user)):
+@limiter.limit("20/minute")
+def sectores_mercado(request: Request, current_user: User = Depends(get_current_user)):
     return obtener_sectores()
 
 
 @router.get("/screener")
+@limiter.limit("20/minute")
 def screener(
+    request: Request,
     tipo: str = Query(default="most_actives"),
     current_user: User = Depends(get_current_user),
 ):
@@ -92,13 +102,16 @@ def screener(
 
 
 @router.get("/{ticker}")
-def precio_actual(ticker: str, current_user: User = Depends(get_current_user)):
+@limiter.limit("60/minute")
+def precio_actual(request: Request, ticker: str, current_user: User = Depends(get_current_user)):
     precio = obtener_precio_actual(ticker)
     return {"ticker": ticker.upper(), "precio": precio}
 
 
 @router.get("/{ticker}/historial")
+@limiter.limit("30/minute")
 def historial_precio(
+    request: Request,
     ticker: str,
     dias: int = Query(default=30, ge=1, le=1825),
     current_user: User = Depends(get_current_user),
@@ -108,11 +121,13 @@ def historial_precio(
 
 
 @router.get("/{ticker}/noticias")
-def noticias_ticker(ticker: str, current_user: User = Depends(get_current_user)):
+@limiter.limit("20/minute")
+def noticias_ticker(request: Request, ticker: str, current_user: User = Depends(get_current_user)):
     noticias = obtener_noticias(ticker)
     return {"ticker": ticker.upper(), "noticias": noticias}
 
 
 @router.get("/{ticker}/ficha")
-def ficha_empresa(ticker: str, current_user: User = Depends(get_current_user)):
+@limiter.limit("20/minute")
+def ficha_empresa(request: Request, ticker: str, current_user: User = Depends(get_current_user)):
     return obtener_ficha_empresa(ticker)

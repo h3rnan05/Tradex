@@ -18,14 +18,15 @@ from routers import admin, alumnos, auth, comentarios, comparador, grupos, insig
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Warn (do not crash) on a weak JWT secret so a misconfigured env var can
-    # never take the whole service down. Harden by setting a strong JWT_SECRET.
     if settings.jwt_secret in ("", "change-me") or len(settings.jwt_secret) < 32:
         logging.getLogger("tradex").warning(
             "JWT_SECRET is weak or unset. Set a strong random value (>=32 chars): "
             'python -c "import secrets; print(secrets.token_hex(32))"'
         )
+    from scheduler import start_scheduler
+    scheduler = start_scheduler()
     yield
+    scheduler.shutdown(wait=False)
 
 
 app = FastAPI(title="Tradex API", description="Simulador educativo de inversion", lifespan=lifespan)

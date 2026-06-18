@@ -12,6 +12,7 @@ class EstadoOrdenEnum(str, enum.Enum):
     pendiente = "pendiente"
     ejecutada = "ejecutada"
     cancelada = "cancelada"
+    fallida = "fallida"
 
 
 class OrdenPendiente(Base):

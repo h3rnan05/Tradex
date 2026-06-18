@@ -372,10 +372,10 @@ _EARNINGS_WATCHLIST = [
     "NFLX", "DIS", "CMCSA", "T", "VZ", "CHTR", "PARA", "WBD",
     # Consumer staples
     "KO", "PEP", "PG", "CL", "KHC", "GIS", "CPB", "K",
-    # Others
-    "PYPL", "SQ", "UBER", "LYFT", "AIRB", "ABNB", "BKNG", "EXPE",
+    # Others (TWTR→eliminado, AIRB→typo era ABNB, SQ→XYZ renombrado)
+    "PYPL", "XYZ", "UBER", "LYFT", "ABNB", "BKNG", "EXPE",
     "FDX", "UPS", "DAL", "AAL", "UAL", "LUV",
-    "SNAP", "PINS", "TWTR", "RBLX", "U", "MTCH",
+    "SNAP", "PINS", "RBLX", "MTCH",
     "F", "GM", "RIVN", "LCID",
 ]
 
