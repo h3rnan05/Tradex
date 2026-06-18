@@ -22,18 +22,18 @@ interface RankingEntry {
 export default function RankingPage() {
   const [ranking, setRanking] = useState<RankingEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [sesionId, setSesionId] = useState<string | null>(null);
 
   useEffect(() => {
     const sesion = obtenerSesion();
-    if (!sesion) return;
+    if (!sesion) { setError("Sesión no encontrada"); return; }
+    setSesionId(sesion.userId);
     api
       .get<Portafolio>(`/alumnos/${sesion.userId}/portafolio`)
       .then((portafolio) => api.get<RankingEntry[]>(`/grupos/${portafolio.grupo_id}/ranking`))
       .then(setRanking)
       .catch((err) => setError(err instanceof ApiError ? err.message : "Error al cargar el ranking"));
   }, []);
-
-  const sesion = obtenerSesion();
 
   return (
     <main className="min-h-screen bg-canvas">
@@ -61,7 +61,7 @@ export default function RankingPage() {
                   <tr
                     key={entrada.alumno_id}
                     className={`border-t border-fg/5 ${
-                      entrada.alumno_id === sesion?.userId ? "bg-canvas font-medium" : ""
+                      entrada.alumno_id === sesionId ? "bg-canvas font-medium" : ""
                     }`}
                   >
                     <td className="px-4 py-3 text-fg/40">{i + 1}</td>
