@@ -269,3 +269,60 @@ def eliminar_alerta(alerta_id: uuid.UUID, db: Session = Depends(get_db), alumno:
         raise HTTPException(status_code=404, detail="Alerta no encontrada")
     alerta.activa = False
     db.commit()
+
+
+@router.get("/notificaciones")
+def obtener_notificaciones(db: Session = Depends(get_db), alumno: User = Depends(require_alumno)):
+    """Return recently executed limit orders and triggered alerts for in-app notifications."""
+    _procesar_ordenes_pendientes(db, alumno)
+    _procesar_alertas(db, alumno)
+
+    desde = datetime.now(timezone.utc).replace(microsecond=0)
+    from datetime import timedelta
+    desde = desde - timedelta(minutes=60)
+
+    ordenes_ejecutadas = (
+        db.query(OrdenPendiente)
+        .filter(
+            OrdenPendiente.alumno_id == alumno.id,
+            OrdenPendiente.estado == EstadoOrdenEnum.ejecutada,
+            OrdenPendiente.ejecutada_en >= desde,
+        )
+        .order_by(OrdenPendiente.ejecutada_en.desc())
+        .limit(10)
+        .all()
+    )
+
+    alertas_disparadas = (
+        db.query(Alerta)
+        .filter(
+            Alerta.alumno_id == alumno.id,
+            Alerta.disparada == True,
+            Alerta.disparada_en >= desde,
+        )
+        .order_by(Alerta.disparada_en.desc())
+        .limit(10)
+        .all()
+    )
+
+    notifs = []
+    for o in ordenes_ejecutadas:
+        notifs.append({
+            "id": f"orden-{o.id}",
+            "tipo": "orden_ejecutada",
+            "mensaje": f"Orden {o.tipo} de {o.cantidad} {o.ticker} ejecutada a ${o.precio_limite}",
+            "ticker": o.ticker,
+            "ts": o.ejecutada_en.isoformat() if o.ejecutada_en else None,
+        })
+    for a in alertas_disparadas:
+        cond = "subió a" if a.condicion == "gte" else "bajó a"
+        notifs.append({
+            "id": f"alerta-{a.id}",
+            "tipo": "alerta_precio",
+            "mensaje": f"Alerta: {a.ticker} {cond} ${a.precio_objetivo}",
+            "ticker": a.ticker,
+            "ts": a.disparada_en.isoformat() if a.disparada_en else None,
+        })
+
+    notifs.sort(key=lambda n: n["ts"] or "", reverse=True)
+    return notifs
