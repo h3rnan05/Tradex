@@ -275,33 +275,33 @@ function OperarPageInterna() {
   const [explorador, setExplorador] = useState<Record<string, Destacado[]>>({});
   const [cargandoCat, setCargandoCat] = useState(false);
   const [sugerenciasAbiertas, setSugerenciasAbiertas] = useState(false);
+  const [grupoId, setGrupoId] = useState<string | null>(null);
 
   useEffect(() => {
-    api
-      .get<Destacado[]>("/precios/destacados")
-      .then(setDestacados)
-      .catch(() => {});
-
-    api
-      .get<NoticiasGeneralesResponse>("/precios/noticias-generales")
-      .then((r) => setNoticiasGenerales(r.noticias))
-      .catch(() => {});
-
-    api.get<OrdenPendiente[]>("/ordenes-limite").then(setOrdenesPendientes).catch(() => {});
-    api.get<Alerta[]>("/ordenes-limite/alertas").then(setAlertas).catch(() => {});
-
     const sesion = obtenerSesion();
-    if (sesion) {
-      api
-        .get<Portafolio>(`/alumnos/${sesion.userId}/portafolio`)
-        .then((p) => {
-          setActivosProximos(p.activos_proximos || []);
-          setActivosDisponibles(p.activos_disponibles || []);
-          setHoldings(p.holdings || []);
-          setCapitalDisponible(p.capital_disponible);
-        })
-        .catch(() => {});
-    }
+
+    // Lanzar todas las cargas iniciales en paralelo
+    Promise.all([
+      api.get<Destacado[]>("/precios/destacados").catch(() => [] as Destacado[]),
+      api.get<NoticiasGeneralesResponse>("/precios/noticias-generales").catch(() => ({ noticias: [] })),
+      api.get<OrdenPendiente[]>("/ordenes-limite").catch(() => [] as OrdenPendiente[]),
+      api.get<Alerta[]>("/ordenes-limite/alertas").catch(() => [] as Alerta[]),
+      sesion
+        ? api.get<Portafolio>(`/alumnos/${sesion.userId}/portafolio`).catch(() => null)
+        : Promise.resolve(null),
+    ]).then(([dest, notiGen, ordenes, alertasData, portafolio]) => {
+      setDestacados(dest);
+      setNoticiasGenerales(notiGen.noticias);
+      setOrdenesPendientes(ordenes);
+      setAlertas(alertasData);
+      if (portafolio) {
+        setActivosProximos(portafolio.activos_proximos || []);
+        setActivosDisponibles(portafolio.activos_disponibles || []);
+        setHoldings(portafolio.holdings || []);
+        setCapitalDisponible(portafolio.capital_disponible);
+        setGrupoId(portafolio.grupo_id);
+      }
+    });
   }, []);
 
   // Categorías que el alumno puede operar, en el orden del explorador
@@ -387,13 +387,13 @@ function OperarPageInterna() {
     setMensaje(null);
     const sesion = obtenerSesion();
     if (!sesion) { setError("Tu sesión expiró"); return; }
+    if (!grupoId) { setError("No tienes grupo asignado"); return; }
     if (!Number(cantidad) || Number(cantidad) <= 0) { setError("Ingresa una cantidad válida"); return; }
     if (!Number(precioLimite) || Number(precioLimite) <= 0) { setError("Ingresa un precio límite válido"); return; }
     setOperando(true);
     try {
-      const portafolio = await api.get<Portafolio>(`/alumnos/${sesion.userId}/portafolio`);
       await api.post("/ordenes-limite", {
-        grupo_id: portafolio.grupo_id,
+        grupo_id: grupoId,
         ticker: ticker.trim().toUpperCase(),
         tipo,
         cantidad,
@@ -446,30 +446,21 @@ function OperarPageInterna() {
     setMensaje(null);
 
     const sesion = obtenerSesion();
-    if (!sesion) {
-      setError("Tu sesión expiró, vuelve a iniciar sesión");
-      return;
-    }
+    if (!sesion) { setError("Tu sesión expiró, vuelve a iniciar sesión"); return; }
+    if (!grupoId) { setError("No tienes grupo asignado"); return; }
     const cantidadNum = Number(cantidad);
-    if (!cantidadNum || cantidadNum <= 0) {
-      setError("Ingresa una cantidad válida");
-      return;
-    }
+    if (!cantidadNum || cantidadNum <= 0) { setError("Ingresa una cantidad válida"); return; }
 
     setOperando(true);
     try {
-      const portafolio = await api.get<Portafolio>(`/alumnos/${sesion.userId}/portafolio`);
       const orden = await api.post<OrdenResponse>(`/ordenes/${tipo}`, {
-        grupo_id: portafolio.grupo_id,
+        grupo_id: grupoId,
         ticker: ticker.trim().toUpperCase(),
         cantidad,
       });
       setMensaje(
-        `${tipo === "compra" ? "Compra" : "Venta"} ejecutada: ${orden.cantidad} ${orden.ticker} a $${Number(
-          orden.precio_ejecucion
-        ).toFixed(2)}`
+        `${tipo === "compra" ? "Compra" : "Venta"} ejecutada: ${orden.cantidad} ${orden.ticker} a $${Number(orden.precio_ejecucion).toFixed(2)}`
       );
-      // Refresh holdings after order
       const p2 = await api.get<Portafolio>(`/alumnos/${sesion.userId}/portafolio`).catch(() => null);
       if (p2) {
         setHoldings(p2.holdings || []);
@@ -487,28 +478,20 @@ function OperarPageInterna() {
     setMensaje(null);
 
     const sesion = obtenerSesion();
-    if (!sesion) {
-      setError("Tu sesión expiró, vuelve a iniciar sesión");
-      return;
-    }
+    if (!sesion) { setError("Tu sesión expiró, vuelve a iniciar sesión"); return; }
+    if (!grupoId) { setError("No tienes grupo asignado"); return; }
     const cantidadNum = Number(cantidad);
-    if (!cantidadNum || cantidadNum <= 0) {
-      setError("Ingresa una cantidad válida");
-      return;
-    }
+    if (!cantidadNum || cantidadNum <= 0) { setError("Ingresa una cantidad válida"); return; }
 
     setOperando(true);
     try {
-      const portafolio = await api.get<Portafolio>(`/alumnos/${sesion.userId}/portafolio`);
       const orden = await api.post<OrdenResponse>(`/ordenes/${endpoint}`, {
-        grupo_id: portafolio.grupo_id,
+        grupo_id: grupoId,
         ticker: ticker.trim().toUpperCase(),
         cantidad,
       });
       setMensaje(
-        `${endpoint === "short" ? "Posicion corta abierta" : "Corto cubierto"}: ${orden.cantidad} ${orden.ticker} a $${Number(
-          orden.precio_ejecucion
-        ).toFixed(2)}`
+        `${endpoint === "short" ? "Posicion corta abierta" : "Corto cubierto"}: ${orden.cantidad} ${orden.ticker} a $${Number(orden.precio_ejecucion).toFixed(2)}`
       );
       const p2 = await api.get<Portafolio>(`/alumnos/${sesion.userId}/portafolio`).catch(() => null);
       if (p2) {

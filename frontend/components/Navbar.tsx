@@ -40,13 +40,13 @@ export default function Navbar() {
       ? [{ href: "/maestro/grupos", label: "Grupos" }]
       : [
           { href: "/alumno/portafolio", label: "Portafolio" },
-          { href: "/alumno/clase", label: "Clase" },
           { href: "/alumno/operar", label: "Operar" },
-          { href: "/alumno/mercados", label: "Mercados" },
-          { href: "/alumno/plantillas", label: "Plantillas" },
-          { href: "/alumno/retos", label: "Retos" },
           { href: "/alumno/historial", label: "Historial" },
           { href: "/alumno/ranking", label: "Ranking" },
+          { href: "/alumno/mercados", label: "Mercados" },
+          { href: "/alumno/clase", label: "Clase" },
+          { href: "/alumno/plantillas", label: "Plantillas" },
+          { href: "/alumno/retos", label: "Retos" },
         ];
 
   return (
