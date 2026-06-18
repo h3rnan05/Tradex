@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 import ComentariosMaestro from "@/components/ComentariosMaestro";
 import { Badge, Card, formatoMoneda } from "@/components/primitives";
 import { api, ApiError } from "@/lib/api";
@@ -80,6 +81,7 @@ export default function HistorialPage() {
           </div>
         )}
       </div>
+      <Footer />
     </main>
   );
 }

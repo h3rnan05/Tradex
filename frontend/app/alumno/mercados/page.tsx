@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 import Tooltip from "@/components/Tooltip";
 import { api } from "@/lib/api";
 
@@ -276,6 +277,7 @@ export default function MercadosPage() {
           )}
         </section>
       </div>
+      <Footer />
     </main>
   );
 }

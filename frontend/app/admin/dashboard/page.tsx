@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 import { api } from "@/lib/api";
 
 interface Stats {
@@ -106,6 +107,7 @@ export default function AdminDashboard() {
           </table>
         </div>
       </div>
+      <Footer />
     </main>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 import { Card, formatoMoneda, formatoPorcentaje } from "@/components/primitives";
 import { api, ApiError } from "@/lib/api";
 import { obtenerSesion } from "@/lib/auth";
@@ -80,6 +81,7 @@ export default function RankingPage() {
           </Card>
         )}
       </div>
+      <Footer />
     </main>
   );
 }

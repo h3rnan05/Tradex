@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid } from "recharts";
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 import MercadosMundo from "@/components/MercadosMundo";
 import PanelInsignias from "@/components/PanelInsignias";
 import { Card, StatTile, formatoMoneda, formatoPorcentaje } from "@/components/primitives";
@@ -100,7 +101,8 @@ export default function PortafolioPage() {
       <main className="min-h-screen bg-canvas">
         <Navbar />
         <p className="p-6 text-sm text-perdida">{error}</p>
-      </main>
+        <Footer />
+    </main>
     );
   }
 
@@ -109,7 +111,8 @@ export default function PortafolioPage() {
       <main className="min-h-screen bg-canvas">
         <Navbar />
         <p className="p-6 text-fg/40">Cargando...</p>
-      </main>
+        <Footer />
+    </main>
     );
   }
 
@@ -462,6 +465,7 @@ export default function PortafolioPage() {
           <PanelInsignias insignias={insignias} />
         </div>
       </div>
+      <Footer />
     </main>
   );
 }

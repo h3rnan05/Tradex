@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 import ProChart from "@/components/ProChart";
 import BarraIndices from "@/components/BarraIndices";
 import Tooltip from "@/components/Tooltip";
@@ -1096,6 +1097,7 @@ function OperarPageInterna() {
           </div>
         </div>
       </div>
+      <Footer />
     </main>
   );
 }
