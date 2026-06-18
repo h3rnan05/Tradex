@@ -44,6 +44,61 @@ const CATEGORIAS_EXPLORADOR: { key: string; label: string }[] = [
   { key: "crypto", label: "Cripto" },
 ];
 
+const CAT_LABEL: Record<string, string> = {
+  acciones: "Acción",
+  indices: "ETF/Índice",
+  commodities: "Commodity",
+  crypto: "Cripto",
+};
+
+// Sugerencias para el autocompletado del buscador (ticker + nombre + categoría)
+const SUGERENCIAS: { ticker: string; nombre: string; cat: string }[] = [
+  // Acciones
+  { ticker: "AAPL", nombre: "Apple", cat: "acciones" },
+  { ticker: "MSFT", nombre: "Microsoft", cat: "acciones" },
+  { ticker: "GOOGL", nombre: "Alphabet (Google)", cat: "acciones" },
+  { ticker: "AMZN", nombre: "Amazon", cat: "acciones" },
+  { ticker: "NVDA", nombre: "NVIDIA", cat: "acciones" },
+  { ticker: "TSLA", nombre: "Tesla", cat: "acciones" },
+  { ticker: "META", nombre: "Meta (Facebook)", cat: "acciones" },
+  { ticker: "NFLX", nombre: "Netflix", cat: "acciones" },
+  { ticker: "JPM", nombre: "JPMorgan", cat: "acciones" },
+  { ticker: "DIS", nombre: "Disney", cat: "acciones" },
+  { ticker: "KO", nombre: "Coca-Cola", cat: "acciones" },
+  { ticker: "NKE", nombre: "Nike", cat: "acciones" },
+  { ticker: "AMD", nombre: "AMD", cat: "acciones" },
+  { ticker: "INTC", nombre: "Intel", cat: "acciones" },
+  { ticker: "BA", nombre: "Boeing", cat: "acciones" },
+  { ticker: "PYPL", nombre: "PayPal", cat: "acciones" },
+  // ETFs / Índices
+  { ticker: "SPY", nombre: "S&P 500 ETF", cat: "indices" },
+  { ticker: "QQQ", nombre: "Nasdaq 100 ETF", cat: "indices" },
+  { ticker: "DIA", nombre: "Dow Jones ETF", cat: "indices" },
+  { ticker: "IWM", nombre: "Russell 2000 ETF", cat: "indices" },
+  { ticker: "VOO", nombre: "Vanguard S&P 500", cat: "indices" },
+  { ticker: "VTI", nombre: "Vanguard Total Market", cat: "indices" },
+  { ticker: "EFA", nombre: "Mercados Desarrollados", cat: "indices" },
+  { ticker: "EEM", nombre: "Mercados Emergentes", cat: "indices" },
+  // Commodities
+  { ticker: "GLD", nombre: "Oro", cat: "commodities" },
+  { ticker: "SLV", nombre: "Plata", cat: "commodities" },
+  { ticker: "USO", nombre: "Petróleo", cat: "commodities" },
+  { ticker: "UNG", nombre: "Gas Natural", cat: "commodities" },
+  { ticker: "DBA", nombre: "Agricultura", cat: "commodities" },
+  { ticker: "DBC", nombre: "Commodities Mix", cat: "commodities" },
+  { ticker: "PPLT", nombre: "Platino", cat: "commodities" },
+  { ticker: "PALL", nombre: "Paladio", cat: "commodities" },
+  // Cripto
+  { ticker: "BTC-USD", nombre: "Bitcoin", cat: "crypto" },
+  { ticker: "ETH-USD", nombre: "Ethereum", cat: "crypto" },
+  { ticker: "SOL-USD", nombre: "Solana", cat: "crypto" },
+  { ticker: "XRP-USD", nombre: "XRP", cat: "crypto" },
+  { ticker: "DOGE-USD", nombre: "Dogecoin", cat: "crypto" },
+  { ticker: "ADA-USD", nombre: "Cardano", cat: "crypto" },
+  { ticker: "AVAX-USD", nombre: "Avalanche", cat: "crypto" },
+  { ticker: "LINK-USD", nombre: "Chainlink", cat: "crypto" },
+];
+
 interface Noticia {
   titulo: string;
   fuente: string;
@@ -194,6 +249,7 @@ function OperarPageInterna() {
   const [catActiva, setCatActiva] = useState<string>("");
   const [explorador, setExplorador] = useState<Record<string, Destacado[]>>({});
   const [cargandoCat, setCargandoCat] = useState(false);
+  const [sugerenciasAbiertas, setSugerenciasAbiertas] = useState(false);
 
   useEffect(() => {
     api
@@ -227,6 +283,17 @@ function OperarPageInterna() {
   const categoriasVisibles = CATEGORIAS_EXPLORADOR.filter((c) =>
     activosDisponibles.includes(c.key)
   );
+
+  // Sugerencias del buscador: solo categorías permitidas, filtradas por lo escrito
+  const q = ticker.trim().toLowerCase();
+  const sugerenciasFiltradas = SUGERENCIAS.filter((s) => {
+    if (activosDisponibles.length > 0 && !activosDisponibles.includes(s.cat)) return false;
+    if (!q) return true;
+    return (
+      s.ticker.toLowerCase().includes(q) ||
+      s.nombre.toLowerCase().includes(q)
+    );
+  }).slice(0, 8);
 
   async function cargarCategoria(cat: string) {
     if (explorador[cat]) return; // ya cargada
@@ -424,15 +491,48 @@ function OperarPageInterna() {
           onSubmit={buscarPrecio}
           className="mb-4 flex items-end gap-3 rounded-none border border-fg/10 bg-panel p-4 shadow-sm"
         >
-          <div className="flex-1">
+          <div className="relative flex-1">
             <label className="mb-1 block text-sm font-medium text-fg/70">Ticker</label>
             <input
               required
               value={ticker}
-              onChange={(e) => setTicker(e.target.value)}
-              placeholder="AAPL"
+              onChange={(e) => {
+                setTicker(e.target.value);
+                setSugerenciasAbiertas(true);
+              }}
+              onFocus={() => setSugerenciasAbiertas(true)}
+              onBlur={() => setTimeout(() => setSugerenciasAbiertas(false), 150)}
+              placeholder="Busca por símbolo o nombre (ej. AAPL, Bitcoin, Oro)"
               className="w-full rounded-none border border-fg/20 bg-canvas px-3 py-2 font-mono text-sm uppercase"
             />
+
+            {sugerenciasAbiertas && sugerenciasFiltradas.length > 0 && (
+              <ul className="absolute z-20 mt-1 max-h-80 w-full overflow-auto rounded-none border border-fg/20 bg-panel shadow-lg">
+                {sugerenciasFiltradas.map((s) => (
+                  <li key={s.ticker}>
+                    <button
+                      type="button"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        setSugerenciasAbiertas(false);
+                        buscar(s.ticker);
+                      }}
+                      className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left hover:bg-fg/5"
+                    >
+                      <span className="flex min-w-0 flex-col">
+                        <span className="font-mono text-sm font-bold text-fg">
+                          {s.ticker.replace("-USD", "")}
+                        </span>
+                        <span className="truncate font-mono text-[11px] text-fg/50">{s.nombre}</span>
+                      </span>
+                      <span className="shrink-0 font-mono text-[9px] uppercase tracking-wider text-fg/40">
+                        {CAT_LABEL[s.cat]}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
           <button
             type="submit"
@@ -442,21 +542,6 @@ function OperarPageInterna() {
             {buscando ? "Buscando..." : "Buscar"}
           </button>
         </form>
-
-        {activosDisponibles.includes("crypto") && (
-          <div className="mb-4 flex flex-wrap items-center gap-2">
-            <span className="font-mono text-[11px] uppercase tracking-wider text-fg/40">Cripto:</span>
-            {["BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD", "DOGE-USD", "ADA-USD"].map((c) => (
-              <button
-                key={c}
-                onClick={() => buscar(c)}
-                className="border border-fg/20 bg-panel px-2.5 py-1 font-mono text-xs text-fg/70 hover:border-accent hover:text-accent"
-              >
-                {c.replace("-USD", "")}
-              </button>
-            ))}
-          </div>
-        )}
 
         <BarraIndices onSeleccionar={buscar} />
 
