@@ -74,14 +74,12 @@ def portafolio(
         precio_actual = precios.get(h.ticker)
         if precio_actual is None:
             continue
-        if h.es_corto:
-            # Short: PnL = (entry - current) * qty; colateral locked = entry * qty
+        es_corto = getattr(h, "es_corto", False) or False
+        if es_corto:
             costo = h.precio_promedio * h.cantidad
             pnl = (h.precio_promedio - precio_actual) * h.cantidad
             pnl_porcentaje = (pnl / costo * 100) if costo else Decimal("0")
-            valor_mercado = precio_actual * h.cantidad  # current buyback cost
-            # For portfolio value, short position value = colateral + pnl (already deducted from capital)
-            # We do NOT add to valor_holdings since colateral is already out of capital_disponible
+            valor_mercado = precio_actual * h.cantidad
         else:
             valor_mercado = precio_actual * h.cantidad
             costo = h.precio_promedio * h.cantidad
@@ -100,7 +98,7 @@ def portafolio(
                 valor_mercado=valor_mercado,
                 pnl=pnl,
                 pnl_porcentaje=pnl_porcentaje,
-                es_corto=h.es_corto,
+                es_corto=es_corto,
             )
         )
 
@@ -273,8 +271,12 @@ def mis_grupos(alumno_id: str, db: Session = Depends(get_db), current_user: User
     result = []
     for m in memberships:
         g = m.grupo
-        holdings = db.query(Holding).filter(Holding.alumno_id == alumno_id, Holding.grupo_id == g.id).all()
-        valor_holdings = sum(h.precio_promedio * h.cantidad for h in holdings if h.cantidad > 0)
+        from sqlalchemy import text as _text
+        rows = db.execute(
+            _text("SELECT precio_promedio, cantidad FROM holdings WHERE alumno_id = :aid AND grupo_id = :gid"),
+            {"aid": str(alumno_id), "gid": str(g.id)},
+        ).fetchall()
+        valor_holdings = sum(Decimal(str(r.precio_promedio)) * Decimal(str(r.cantidad)) for r in rows if r.cantidad > 0)
         valor_total = m.capital_disponible + valor_holdings
         result.append(MisGruposEntry(
             grupo_id=g.id,
