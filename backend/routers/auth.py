@@ -11,6 +11,8 @@ from database import get_db
 from email_utils import send_password_reset_email, send_welcome_email
 from limiter import limiter
 from models.password_reset_token import PasswordResetToken
+from models.grupo import Grupo
+from models.membership import Membership
 from models.user import RolEnum, User
 from schemas.auth import LoginRequest, RegisterRequest, TokenResponse
 from schemas.user import UserOut
@@ -33,6 +35,21 @@ def register(request: Request, payload: RegisterRequest, db: Session = Depends(g
         rol=RolEnum.alumno,
     )
     db.add(user)
+    db.flush()
+
+    if payload.codigo_grupo:
+        grupo = db.query(Grupo).filter(Grupo.codigo == payload.codigo_grupo.upper().strip()).first()
+        if not grupo:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Código de grupo inválido")
+        if grupo.max_alumnos is not None:
+            total = db.query(Membership).filter(Membership.grupo_id == grupo.id).count()
+            if total >= grupo.max_alumnos:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"El grupo ya alcanzó el límite de {grupo.max_alumnos} alumnos",
+                )
+        db.add(Membership(grupo_id=grupo.id, alumno_id=user.id, capital_disponible=grupo.capital_inicial))
+
     db.commit()
     db.refresh(user)
 

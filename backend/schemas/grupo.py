@@ -33,6 +33,7 @@ class GrupoOut(BaseModel):
     activos_permitidos: list[str]
     limite_orden_valor: Decimal | None
     comision_porcentaje: Decimal
+    codigo: str | None
     created_at: datetime
 
     class Config:

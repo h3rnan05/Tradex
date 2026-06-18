@@ -37,6 +37,7 @@ interface Orden {
 interface GrupoDetalle {
   id: string;
   nombre: string;
+  codigo: string | null;
   capital_inicial: string;
   fecha_inicio: string;
   fecha_fin: string;
@@ -221,6 +222,22 @@ export default function DetalleGrupoPage() {
               {new Date(grupo.fecha_fin).toLocaleDateString("es-MX")} · Capital inicial:{" "}
               {fmt(grupo.capital_inicial)}
             </p>
+            {grupo.codigo && (
+              <div className="mt-2 flex items-center gap-2">
+                <span className="font-mono text-[11px] text-fg/40 uppercase tracking-widest">Código:</span>
+                <span className="font-mono text-lg font-bold tracking-[0.3em] text-accent">{grupo.codigo}</span>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const actualizado = await api.post<GrupoDetalle>(`/grupos/${grupo.id}/regenerar-codigo`, {});
+                    setGrupo(actualizado);
+                  }}
+                  className="border border-fg/20 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-fg/50 hover:text-fg"
+                >
+                  Regenerar
+                </button>
+              </div>
+            )}
           </div>
           <div className="flex gap-1">
             {(["participantes", "config"] as const).map((t) => (

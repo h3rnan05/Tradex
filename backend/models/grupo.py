@@ -1,3 +1,5 @@
+import random
+import string
 import uuid
 from datetime import datetime, timezone
 
@@ -8,11 +10,16 @@ from sqlalchemy.orm import relationship
 from database import Base
 
 
+def _generar_codigo() -> str:
+    return "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
+
+
 class Grupo(Base):
     __tablename__ = "grupos"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     nombre = Column(String, nullable=False)
+    codigo = Column(String(6), unique=True, nullable=True, index=True)
     maestro_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     fecha_inicio = Column(DateTime(timezone=True), nullable=False)
     fecha_fin = Column(DateTime(timezone=True), nullable=False)

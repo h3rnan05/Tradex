@@ -2,6 +2,7 @@ from collections import defaultdict
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
@@ -9,7 +10,7 @@ from activos_utils import validar_activos_permitidos
 from auth_utils import get_current_user, require_maestro
 from database import get_db
 from models.fase_activo import FaseActivo
-from models.grupo import Grupo
+from models.grupo import Grupo, _generar_codigo
 from models.holding import Holding
 from models.membership import Membership
 from models.user import RolEnum, User
@@ -24,6 +25,12 @@ router = APIRouter(prefix="/grupos", tags=["grupos"])
 @router.post("", response_model=GrupoOut, status_code=status.HTTP_201_CREATED)
 def crear_grupo(payload: GrupoCreate, db: Session = Depends(get_db), maestro: User = Depends(require_maestro)):
     validar_activos_permitidos(payload.activos_permitidos)
+    # Generate a unique 6-char code, retry on collision
+    for _ in range(10):
+        codigo = _generar_codigo()
+        if not db.query(Grupo).filter(Grupo.codigo == codigo).first():
+            break
+
     grupo = Grupo(
         nombre=payload.nombre,
         maestro_id=maestro.id,
@@ -34,6 +41,7 @@ def crear_grupo(payload: GrupoCreate, db: Session = Depends(get_db), maestro: Us
         activos_permitidos=payload.activos_permitidos,
         limite_orden_valor=payload.limite_orden_valor,
         comision_porcentaje=payload.comision_porcentaje,
+        codigo=codigo,
     )
     db.add(grupo)
     db.flush()
@@ -299,3 +307,64 @@ def ranking_grupo(grupo_id: str, db: Session = Depends(get_db), current_user: Us
 
     entradas.sort(key=lambda e: e.valor_total, reverse=True)
     return entradas
+
+
+@router.post("/{grupo_id}/regenerar-codigo", response_model=GrupoOut)
+def regenerar_codigo(
+    grupo_id: str,
+    db: Session = Depends(get_db),
+    maestro: User = Depends(require_maestro),
+):
+    grupo = db.query(Grupo).filter(Grupo.id == grupo_id, Grupo.maestro_id == maestro.id).first()
+    if not grupo:
+        raise HTTPException(status_code=404, detail="Grupo no encontrado")
+    for _ in range(10):
+        codigo = _generar_codigo()
+        if not db.query(Grupo).filter(Grupo.codigo == codigo).first():
+            break
+    grupo.codigo = codigo
+    db.commit()
+    db.refresh(grupo)
+    return grupo
+
+
+class UnirseRequest(BaseModel):
+    codigo: str
+
+
+@router.post("/unirse", response_model=MembershipOut, status_code=status.HTTP_201_CREATED)
+def unirse_por_codigo(
+    payload: UnirseRequest,
+    db: Session = Depends(get_db),
+    alumno: User = Depends(get_current_user),
+):
+    if alumno.rol != RolEnum.alumno:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Solo los alumnos pueden unirse por código")
+
+    grupo = db.query(Grupo).filter(Grupo.codigo == payload.codigo.upper().strip()).first()
+    if not grupo:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Código de grupo inválido")
+
+    existente = db.query(Membership).filter(
+        Membership.grupo_id == grupo.id, Membership.alumno_id == alumno.id
+    ).first()
+    if existente:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Ya perteneces a este grupo")
+
+    if grupo.max_alumnos is not None:
+        total_actual = db.query(Membership).filter(Membership.grupo_id == grupo.id).count()
+        if total_actual >= grupo.max_alumnos:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"El grupo ya alcanzó el límite de {grupo.max_alumnos} alumnos",
+            )
+
+    membership = Membership(
+        grupo_id=grupo.id,
+        alumno_id=alumno.id,
+        capital_disponible=grupo.capital_inicial,
+    )
+    db.add(membership)
+    db.commit()
+    db.refresh(membership)
+    return membership
