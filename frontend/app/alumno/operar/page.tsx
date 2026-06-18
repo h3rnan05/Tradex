@@ -44,6 +44,7 @@ const CATEGORIAS_EXPLORADOR: { key: string; label: string }[] = [
   { key: "commodities", label: "Commodities" },
   { key: "crypto", label: "Cripto" },
   { key: "forex", label: "Divisas" },
+  { key: "bolsa_mx", label: "Bolsa MX" },
 ];
 
 const CAT_LABEL: Record<string, string> = {
@@ -52,6 +53,7 @@ const CAT_LABEL: Record<string, string> = {
   commodities: "Commodity",
   crypto: "Cripto",
   forex: "Divisa",
+  bolsa_mx: "Bolsa MX",
 };
 
 // Sugerencias para el autocompletado del buscador (ticker + nombre + categoría)
@@ -109,6 +111,17 @@ const SUGERENCIAS: { ticker: string; nombre: string; cat: string }[] = [
   { ticker: "AUDUSD=X", nombre: "Dólar AU / Dólar", cat: "forex" },
   { ticker: "USDCHF=X", nombre: "Dólar / Franco CH", cat: "forex" },
   { ticker: "NZDUSD=X", nombre: "Dólar NZ / Dólar", cat: "forex" },
+  // Bolsa Mexicana de Valores
+  { ticker: "AMXL.MX", nombre: "América Móvil", cat: "bolsa_mx" },
+  { ticker: "FEMSAUBD.MX", nombre: "FEMSA", cat: "bolsa_mx" },
+  { ticker: "WALMEX.MX", nombre: "Walmart México", cat: "bolsa_mx" },
+  { ticker: "GMEXICOB.MX", nombre: "Grupo México", cat: "bolsa_mx" },
+  { ticker: "GFNORTEO.MX", nombre: "Banorte", cat: "bolsa_mx" },
+  { ticker: "BIMBOA.MX", nombre: "Bimbo", cat: "bolsa_mx" },
+  { ticker: "CEMEXCPO.MX", nombre: "CEMEX", cat: "bolsa_mx" },
+  { ticker: "ALSEA.MX", nombre: "Alsea", cat: "bolsa_mx" },
+  { ticker: "GRUMAB.MX", nombre: "Gruma", cat: "bolsa_mx" },
+  { ticker: "LABB.MX", nombre: "Genomma Lab", cat: "bolsa_mx" },
 ];
 
 interface Noticia {
@@ -573,7 +586,7 @@ function OperarPageInterna() {
                     >
                       <span className="flex min-w-0 flex-col">
                         <span className="font-mono text-sm font-bold text-fg">
-                          {s.ticker.replace("-USD", "").replace("=X", "")}
+                          {s.ticker.replace("-USD", "").replace("=X", "").replace(".MX", "")}
                         </span>
                         <span className="truncate font-mono text-[11px] text-fg/50">{s.nombre}</span>
                       </span>
@@ -1150,7 +1163,7 @@ function OperarPageInterna() {
                   >
                     <div className="flex min-w-0 flex-1 flex-col">
                       <span className="truncate font-mono text-sm font-bold text-fg">
-                        {d.ticker.replace("-USD", "").replace("=X", "")}
+                        {d.ticker.replace("-USD", "").replace("=X", "").replace(".MX", "")}
                       </span>
                       {d.nombre && (
                         <span className="truncate font-mono text-[10px] text-fg/40">{d.nombre}</span>

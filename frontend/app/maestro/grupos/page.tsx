@@ -25,6 +25,7 @@ const ACTIVOS_DISPONIBLES = [
   { value: "commodities", label: "Commodities" },
   { value: "crypto", label: "Cripto" },
   { value: "forex", label: "Divisas (Forex)" },
+  { value: "bolsa_mx", label: "Bolsa Mexicana (BMV)" },
 ];
 
 const ACTIVOS_LABEL: Record<string, string> = Object.fromEntries(

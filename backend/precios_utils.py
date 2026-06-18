@@ -500,6 +500,18 @@ EXPLORADOR_CATEGORIAS: dict[str, list[dict]] = {
         {"ticker": "USDCHF=X", "nombre": "Dólar / Franco CH"},
         {"ticker": "NZDUSD=X", "nombre": "Dólar NZ / Dólar"},
     ],
+    "bolsa_mx": [
+        {"ticker": "AMXL.MX", "nombre": "América Móvil"},
+        {"ticker": "FEMSAUBD.MX", "nombre": "FEMSA"},
+        {"ticker": "WALMEX.MX", "nombre": "Walmart México"},
+        {"ticker": "GMEXICOB.MX", "nombre": "Grupo México"},
+        {"ticker": "GFNORTEO.MX", "nombre": "Banorte"},
+        {"ticker": "BIMBOA.MX", "nombre": "Bimbo"},
+        {"ticker": "CEMEXCPO.MX", "nombre": "CEMEX"},
+        {"ticker": "ALSEA.MX", "nombre": "Alsea"},
+        {"ticker": "GRUMAB.MX", "nombre": "Gruma"},
+        {"ticker": "LABB.MX", "nombre": "Genomma Lab"},
+    ],
 }
 
 

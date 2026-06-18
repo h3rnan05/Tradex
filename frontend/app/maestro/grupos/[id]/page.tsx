@@ -83,6 +83,7 @@ const MERCADOS: { value: string; label: string }[] = [
   { value: "commodities", label: "Commodities" },
   { value: "crypto", label: "Cripto" },
   { value: "forex", label: "Divisas (Forex)" },
+  { value: "bolsa_mx", label: "Bolsa Mexicana (BMV)" },
 ];
 const fmt = (v: string | number) =>
   Number(v).toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 });
