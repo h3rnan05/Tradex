@@ -24,6 +24,7 @@ const ACTIVOS_DISPONIBLES = [
   { value: "indices", label: "Índices" },
   { value: "commodities", label: "Commodities" },
   { value: "crypto", label: "Cripto" },
+  { value: "forex", label: "Divisas (Forex)" },
 ];
 
 const ACTIVOS_LABEL: Record<string, string> = Object.fromEntries(

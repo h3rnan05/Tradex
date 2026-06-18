@@ -43,6 +43,7 @@ const CATEGORIAS_EXPLORADOR: { key: string; label: string }[] = [
   { key: "indices", label: "ETFs/Índices" },
   { key: "commodities", label: "Commodities" },
   { key: "crypto", label: "Cripto" },
+  { key: "forex", label: "Divisas" },
 ];
 
 const CAT_LABEL: Record<string, string> = {
@@ -50,6 +51,7 @@ const CAT_LABEL: Record<string, string> = {
   indices: "ETF/Índice",
   commodities: "Commodity",
   crypto: "Cripto",
+  forex: "Divisa",
 };
 
 // Sugerencias para el autocompletado del buscador (ticker + nombre + categoría)
@@ -98,6 +100,15 @@ const SUGERENCIAS: { ticker: string; nombre: string; cat: string }[] = [
   { ticker: "ADA-USD", nombre: "Cardano", cat: "crypto" },
   { ticker: "AVAX-USD", nombre: "Avalanche", cat: "crypto" },
   { ticker: "LINK-USD", nombre: "Chainlink", cat: "crypto" },
+  // Forex
+  { ticker: "EURUSD=X", nombre: "Euro / Dólar", cat: "forex" },
+  { ticker: "GBPUSD=X", nombre: "Libra / Dólar", cat: "forex" },
+  { ticker: "USDJPY=X", nombre: "Dólar / Yen", cat: "forex" },
+  { ticker: "USDMXN=X", nombre: "Dólar / Peso MX", cat: "forex" },
+  { ticker: "USDCAD=X", nombre: "Dólar / Dólar CA", cat: "forex" },
+  { ticker: "AUDUSD=X", nombre: "Dólar AU / Dólar", cat: "forex" },
+  { ticker: "USDCHF=X", nombre: "Dólar / Franco CH", cat: "forex" },
+  { ticker: "NZDUSD=X", nombre: "Dólar NZ / Dólar", cat: "forex" },
 ];
 
 interface Noticia {
@@ -562,7 +573,7 @@ function OperarPageInterna() {
                     >
                       <span className="flex min-w-0 flex-col">
                         <span className="font-mono text-sm font-bold text-fg">
-                          {s.ticker.replace("-USD", "")}
+                          {s.ticker.replace("-USD", "").replace("=X", "")}
                         </span>
                         <span className="truncate font-mono text-[11px] text-fg/50">{s.nombre}</span>
                       </span>
@@ -1139,7 +1150,7 @@ function OperarPageInterna() {
                   >
                     <div className="flex min-w-0 flex-1 flex-col">
                       <span className="truncate font-mono text-sm font-bold text-fg">
-                        {d.ticker.replace("-USD", "")}
+                        {d.ticker.replace("-USD", "").replace("=X", "")}
                       </span>
                       {d.nombre && (
                         <span className="truncate font-mono text-[10px] text-fg/40">{d.nombre}</span>

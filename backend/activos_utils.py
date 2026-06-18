@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 from fastapi import HTTPException, status
 
-TIPOS_ACTIVO_VALIDOS = ["acciones", "indices", "commodities", "crypto"]
+TIPOS_ACTIVO_VALIDOS = ["acciones", "indices", "commodities", "crypto", "forex"]
 
 TICKERS_INDICES = {"SPY", "QQQ", "DIA", "IWM", "VOO", "VTI", "EFA", "EEM"}
 TICKERS_COMMODITIES = {"GLD", "SLV", "USO", "UNG", "DBA", "DBC", "PALL", "PPLT"}
@@ -10,7 +10,10 @@ TICKERS_COMMODITIES = {"GLD", "SLV", "USO", "UNG", "DBA", "DBC", "PALL", "PPLT"}
 
 def clasificar_ticker(ticker: str) -> str:
     ticker = ticker.upper().strip()
-    # Las criptomonedas en Yahoo Finance usan el sufijo -USD (ej. BTC-USD, ETH-USD)
+    # Forex en Yahoo Finance usa sufijo =X (ej. EURUSD=X, GBPUSD=X)
+    if ticker.endswith("=X"):
+        return "forex"
+    # Criptomonedas en Yahoo Finance usan el sufijo -USD (ej. BTC-USD, ETH-USD)
     if ticker.endswith("-USD"):
         return "crypto"
     if ticker in TICKERS_INDICES:

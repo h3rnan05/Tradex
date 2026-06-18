@@ -490,6 +490,16 @@ EXPLORADOR_CATEGORIAS: dict[str, list[dict]] = {
         {"ticker": "AVAX-USD", "nombre": "Avalanche"},
         {"ticker": "LINK-USD", "nombre": "Chainlink"},
     ],
+    "forex": [
+        {"ticker": "EURUSD=X", "nombre": "Euro / Dólar"},
+        {"ticker": "GBPUSD=X", "nombre": "Libra / Dólar"},
+        {"ticker": "USDJPY=X", "nombre": "Dólar / Yen"},
+        {"ticker": "USDMXN=X", "nombre": "Dólar / Peso MX"},
+        {"ticker": "USDCAD=X", "nombre": "Dólar / Dólar CA"},
+        {"ticker": "AUDUSD=X", "nombre": "Dólar AU / Dólar"},
+        {"ticker": "USDCHF=X", "nombre": "Dólar / Franco CH"},
+        {"ticker": "NZDUSD=X", "nombre": "Dólar NZ / Dólar"},
+    ],
 }
 
 
