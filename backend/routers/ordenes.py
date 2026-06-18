@@ -178,3 +178,113 @@ def vender(payload: OrdenCreate, db: Session = Depends(get_db), alumno: User = D
     except Exception:
         pass
     return orden
+
+
+@router.post("/short", response_model=OrdenOut, status_code=status.HTTP_201_CREATED)
+def abrir_corto(payload: OrdenCreate, db: Session = Depends(get_db), alumno: User = Depends(require_alumno)):
+    """Open a short position: borrow and sell shares, hold the proceeds as collateral."""
+    if payload.cantidad <= 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La cantidad debe ser mayor a cero")
+
+    membership = _get_membership(db, alumno, payload.grupo_id)
+    if membership.pausado:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tu participación está pausada")
+
+    grupo = db.query(Grupo).filter(Grupo.id == payload.grupo_id).first()
+    if not grupo:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Grupo no encontrado")
+
+    ticker = validar_ticker(payload.ticker)
+    precio = obtener_precio_actual(ticker)
+    valor_posicion = precio * payload.cantidad
+    comision = valor_posicion * grupo.comision_porcentaje
+
+    # Require capital as collateral (100% of position value + commission)
+    colateral = valor_posicion + comision
+
+    membership = db.query(Membership).with_for_update().filter(Membership.id == membership.id).first()
+    if colateral > membership.capital_disponible:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Capital insuficiente para abrir la posición corta (se requiere colateral del 100%)")
+
+    holding_corto = (
+        db.query(Holding).with_for_update()
+        .filter(Holding.alumno_id == alumno.id, Holding.grupo_id == membership.grupo_id,
+                Holding.ticker == ticker, Holding.es_corto == True)
+        .first()
+    )
+    if holding_corto:
+        total_cant = holding_corto.cantidad + payload.cantidad
+        costo_previo = holding_corto.precio_promedio * holding_corto.cantidad
+        holding_corto.precio_promedio = (costo_previo + valor_posicion) / total_cant
+        holding_corto.cantidad = total_cant
+    else:
+        holding_corto = Holding(
+            alumno_id=alumno.id, grupo_id=membership.grupo_id,
+            ticker=ticker, cantidad=payload.cantidad,
+            precio_promedio=precio, es_corto=True,
+        )
+        db.add(holding_corto)
+
+    membership.capital_disponible -= colateral
+
+    orden = Orden(
+        alumno_id=alumno.id, grupo_id=membership.grupo_id,
+        ticker=ticker, tipo=TipoOrdenEnum.venta,
+        cantidad=payload.cantidad, precio_ejecucion=precio, comision=comision,
+    )
+    db.add(orden)
+    db.commit()
+    db.refresh(orden)
+    return orden
+
+
+@router.post("/cubrir", response_model=OrdenOut, status_code=status.HTTP_201_CREATED)
+def cubrir_corto(payload: OrdenCreate, db: Session = Depends(get_db), alumno: User = Depends(require_alumno)):
+    """Cover (close) a short position: buy back shares."""
+    if payload.cantidad <= 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La cantidad debe ser mayor a cero")
+
+    membership = _get_membership(db, alumno, payload.grupo_id)
+    if membership.pausado:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tu participación está pausada")
+
+    grupo = db.query(Grupo).filter(Grupo.id == payload.grupo_id).first()
+    if not grupo:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Grupo no encontrado")
+
+    ticker = validar_ticker(payload.ticker)
+
+    holding_corto = (
+        db.query(Holding).with_for_update()
+        .filter(Holding.alumno_id == alumno.id, Holding.grupo_id == payload.grupo_id,
+                Holding.ticker == ticker, Holding.es_corto == True)
+        .first()
+    )
+    membership = db.query(Membership).with_for_update().filter(Membership.id == membership.id).first()
+
+    if not holding_corto or holding_corto.cantidad < payload.cantidad:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No tienes suficientes acciones en corto para cubrir")
+
+    precio_actual = obtener_precio_actual(ticker)
+    comision = precio_actual * payload.cantidad * grupo.comision_porcentaje
+
+    precio_entrada = holding_corto.precio_promedio
+    colateral_liberado = precio_entrada * payload.cantidad
+    pnl = (precio_entrada - precio_actual) * payload.cantidad
+
+    devolucion = colateral_liberado + pnl - comision
+    membership.capital_disponible += devolucion
+
+    holding_corto.cantidad -= payload.cantidad
+    if holding_corto.cantidad == 0:
+        holding_corto.precio_promedio = Decimal("0")
+
+    orden = Orden(
+        alumno_id=alumno.id, grupo_id=payload.grupo_id,
+        ticker=ticker, tipo=TipoOrdenEnum.compra,
+        cantidad=payload.cantidad, precio_ejecucion=precio_actual, comision=comision,
+    )
+    db.add(orden)
+    db.commit()
+    db.refresh(orden)
+    return orden

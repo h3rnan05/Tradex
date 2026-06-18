@@ -17,8 +17,10 @@ from models.user import RolEnum, User
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from precios_utils import obtener_historial_precios_rango, obtener_precio_actual
-from schemas.holding import HoldingConPrecio, PortafolioOut
+from schemas.holding import HoldingConPrecio, MisGruposEntry, PortafolioOut
 from schemas.orden import OrdenOut
+from sqlalchemy.orm import joinedload
+from models.grupo import Grupo
 
 router = APIRouter(prefix="/alumnos", tags=["alumnos"])
 
@@ -72,11 +74,20 @@ def portafolio(
         precio_actual = precios.get(h.ticker)
         if precio_actual is None:
             continue
-        valor_mercado = precio_actual * h.cantidad
-        costo = h.precio_promedio * h.cantidad
-        pnl = valor_mercado - costo
-        pnl_porcentaje = (pnl / costo * 100) if costo else Decimal("0")
-        valor_holdings += valor_mercado
+        if h.es_corto:
+            # Short: PnL = (entry - current) * qty; colateral locked = entry * qty
+            costo = h.precio_promedio * h.cantidad
+            pnl = (h.precio_promedio - precio_actual) * h.cantidad
+            pnl_porcentaje = (pnl / costo * 100) if costo else Decimal("0")
+            valor_mercado = precio_actual * h.cantidad  # current buyback cost
+            # For portfolio value, short position value = colateral + pnl (already deducted from capital)
+            # We do NOT add to valor_holdings since colateral is already out of capital_disponible
+        else:
+            valor_mercado = precio_actual * h.cantidad
+            costo = h.precio_promedio * h.cantidad
+            pnl = valor_mercado - costo
+            pnl_porcentaje = (pnl / costo * 100) if costo else Decimal("0")
+            valor_holdings += valor_mercado
         holdings_con_precio.append(
             HoldingConPrecio(
                 id=h.id,
@@ -89,6 +100,7 @@ def portafolio(
                 valor_mercado=valor_mercado,
                 pnl=pnl,
                 pnl_porcentaje=pnl_porcentaje,
+                es_corto=h.es_corto,
             )
         )
 
@@ -247,3 +259,44 @@ def metricas_riesgo(
         pass
 
     return metricas
+
+
+@router.get("/{alumno_id}/grupos", response_model=list[MisGruposEntry])
+def mis_grupos(alumno_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    _check_alumno_access(db, current_user, alumno_id)
+    memberships = (
+        db.query(Membership)
+        .options(joinedload(Membership.grupo))
+        .filter(Membership.alumno_id == alumno_id)
+        .all()
+    )
+    result = []
+    for m in memberships:
+        g = m.grupo
+        holdings = db.query(Holding).filter(Holding.alumno_id == alumno_id, Holding.grupo_id == g.id).all()
+        valor_holdings = sum(h.precio_promedio * h.cantidad for h in holdings if h.cantidad > 0)
+        valor_total = m.capital_disponible + valor_holdings
+        result.append(MisGruposEntry(
+            grupo_id=g.id,
+            nombre=g.nombre,
+            codigo=g.codigo,
+            fecha_inicio=g.fecha_inicio,
+            fecha_fin=g.fecha_fin,
+            capital_inicial=g.capital_inicial,
+            capital_disponible=m.capital_disponible,
+            valor_total=valor_total,
+            pausado=m.pausado,
+            activos_permitidos=g.activos_permitidos,
+        ))
+    return result
+
+
+@router.delete("/{alumno_id}/grupos/{grupo_id}", status_code=204)
+def salir_grupo(alumno_id: str, grupo_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if str(current_user.id) != alumno_id:
+        raise HTTPException(status_code=403, detail="No autorizado")
+    membership = db.query(Membership).filter(Membership.alumno_id == alumno_id, Membership.grupo_id == grupo_id).first()
+    if not membership:
+        raise HTTPException(status_code=404, detail="No perteneces a ese grupo")
+    db.delete(membership)
+    db.commit()

@@ -19,6 +19,7 @@ interface HoldingConPrecio {
   valor_mercado: string;
   pnl: string;
   pnl_porcentaje: string;
+  es_corto: boolean;
 }
 
 interface Portafolio {
@@ -116,7 +117,8 @@ export default function PortafolioPage() {
     );
   }
 
-  const holdings = portafolio.holdings ?? [];
+  const holdings = (portafolio.holdings ?? []).filter((h) => !h.es_corto);
+  const holdingsCortos = (portafolio.holdings ?? []).filter((h) => h.es_corto);
 
   const distribucion = [
     { nombre: "Efectivo", valor: Number(portafolio.capital_disponible) },
@@ -304,6 +306,60 @@ export default function PortafolioPage() {
               </table>
               </div>
             </Card>
+
+            {/* Posiciones cortas */}
+            {holdingsCortos.length > 0 && (
+              <div className="mt-4">
+                <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">Posiciones Cortas</p>
+                <Card className="overflow-hidden p-0">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-perdida/5 text-left text-fg/60">
+                        <tr>
+                          <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wider">Ticker</th>
+                          <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wider">Cantidad</th>
+                          <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wider">P. Entrada</th>
+                          <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wider">P. Actual</th>
+                          <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wider">P&amp;L Corto</th>
+                          <th className="px-4 py-3"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {holdingsCortos.map((h) => {
+                          // For short: profit when price drops below entry
+                          const pnlCorto = (Number(h.precio_promedio) - Number(h.precio_actual)) * Number(h.cantidad);
+                          const pnlPct = Number(h.precio_promedio) > 0 ? (pnlCorto / (Number(h.precio_promedio) * Number(h.cantidad))) * 100 : 0;
+                          const gana = pnlCorto >= 0;
+                          return (
+                            <tr key={h.id} className="border-t border-fg/5 hover:bg-fg/5">
+                              <td className="px-4 py-3 font-mono font-bold text-fg">
+                                {h.ticker}
+                                <span className="ml-1 font-mono text-[9px] uppercase text-perdida">corto</span>
+                              </td>
+                              <td className="px-4 py-3 font-mono tabular-nums text-fg/70">{Number(h.cantidad).toFixed(4)}</td>
+                              <td className="px-4 py-3 font-mono tabular-nums">{formatoMoneda(h.precio_promedio)}</td>
+                              <td className="px-4 py-3 font-mono tabular-nums">{formatoMoneda(h.precio_actual)}</td>
+                              <td className={`px-4 py-3 font-mono font-medium tabular-nums ${gana ? "text-ganancia" : "text-perdida"}`}>
+                                {gana ? "▲" : "▼"} {formatoMoneda(Math.abs(pnlCorto))}{" "}
+                                <span className="text-xs">({pnlPct.toFixed(2)}%)</span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <a
+                                  href={`/alumno/operar?t=${h.ticker}`}
+                                  className="rounded-none border border-fg/20 px-2 py-1 font-mono text-[11px] text-fg/60 hover:border-perdida hover:text-perdida"
+                                >
+                                  Cubrir
+                                </a>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </Card>
+              </div>
+            )}
 
             {/* Órdenes recientes */}
             {ordenes.length > 0 && (

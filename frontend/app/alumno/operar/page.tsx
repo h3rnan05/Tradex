@@ -458,6 +458,46 @@ function OperarPageInterna() {
     }
   }
 
+  async function ejecutarShort(endpoint: "short" | "cubrir") {
+    setError(null);
+    setMensaje(null);
+
+    const sesion = obtenerSesion();
+    if (!sesion) {
+      setError("Tu sesión expiró, vuelve a iniciar sesión");
+      return;
+    }
+    const cantidadNum = Number(cantidad);
+    if (!cantidadNum || cantidadNum <= 0) {
+      setError("Ingresa una cantidad válida");
+      return;
+    }
+
+    setOperando(true);
+    try {
+      const portafolio = await api.get<Portafolio>(`/alumnos/${sesion.userId}/portafolio`);
+      const orden = await api.post<OrdenResponse>(`/ordenes/${endpoint}`, {
+        grupo_id: portafolio.grupo_id,
+        ticker: ticker.trim().toUpperCase(),
+        cantidad,
+      });
+      setMensaje(
+        `${endpoint === "short" ? "Posicion corta abierta" : "Corto cubierto"}: ${orden.cantidad} ${orden.ticker} a $${Number(
+          orden.precio_ejecucion
+        ).toFixed(2)}`
+      );
+      const p2 = await api.get<Portafolio>(`/alumnos/${sesion.userId}/portafolio`).catch(() => null);
+      if (p2) {
+        setHoldings(p2.holdings || []);
+        setCapitalDisponible(p2.capital_disponible);
+      }
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "No se pudo ejecutar la orden");
+    } finally {
+      setOperando(false);
+    }
+  }
+
   const precioInicial = historial.length > 0 ? Number(historial[0].precio) : null;
   const precioNum = precio ? Number(precio) : null;
   const cambioPorcentaje =
@@ -951,6 +991,33 @@ function OperarPageInterna() {
                       {tipoOrden === "limite" ? "Límite venta" : "Vender"}
                     </button>
                   </div>
+
+                  {tipoOrden === "mercado" && (
+                    <>
+                      <div className="mt-3 border-t border-fg/10 pt-3">
+                        <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-fg/40">Ventas en corto</p>
+                        <p className="mb-2 text-xs text-fg/50">
+                          Vendes acciones prestadas esperando que el precio baje. Se bloquea el 100% como colateral.
+                        </p>
+                        <div className="flex gap-3">
+                          <button
+                            onClick={() => ejecutarShort("short")}
+                            disabled={operando}
+                            className="flex-1 rounded-none border border-perdida bg-perdida/10 px-4 py-2 text-sm font-medium text-perdida hover:bg-perdida/20 disabled:opacity-50"
+                          >
+                            Corto (vender prestado)
+                          </button>
+                          <button
+                            onClick={() => ejecutarShort("cubrir")}
+                            disabled={operando}
+                            className="flex-1 rounded-none border border-ganancia bg-ganancia/10 px-4 py-2 text-sm font-medium text-ganancia hover:bg-ganancia/20 disabled:opacity-50"
+                          >
+                            Cubrir corto
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
                   {error && <p className="mt-3 text-sm text-perdida">{error}</p>}
                   {mensaje && <p className="mt-3 text-sm text-ganancia">{mensaje}</p>}
                 </div>

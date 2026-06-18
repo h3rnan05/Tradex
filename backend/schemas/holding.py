@@ -1,5 +1,7 @@
 import uuid
+from datetime import datetime
 from decimal import Decimal
+from typing import Optional
 
 from pydantic import BaseModel
 
@@ -11,6 +13,7 @@ class HoldingOut(BaseModel):
     ticker: str
     cantidad: Decimal
     precio_promedio: Decimal
+    es_corto: bool = False
 
     class Config:
         from_attributes = True
@@ -33,3 +36,19 @@ class PortafolioOut(BaseModel):
     rendimiento_porcentaje: Decimal
     activos_disponibles: list[str] = []
     activos_proximos: list[dict] = []
+
+
+class MisGruposEntry(BaseModel):
+    grupo_id: uuid.UUID
+    nombre: str
+    codigo: Optional[str] = None
+    fecha_inicio: datetime
+    fecha_fin: datetime
+    capital_inicial: Decimal
+    capital_disponible: Decimal
+    valor_total: Decimal
+    pausado: bool
+    activos_permitidos: list[str]
+
+    class Config:
+        from_attributes = True
