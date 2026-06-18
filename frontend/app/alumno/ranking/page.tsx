@@ -6,6 +6,7 @@ import Footer from "@/components/Footer";
 import { Card, formatoMoneda, formatoPorcentaje } from "@/components/primitives";
 import { api, ApiError } from "@/lib/api";
 import { obtenerSesion } from "@/lib/auth";
+import { useLanguage } from "@/lib/i18n";
 
 interface Portafolio {
   grupo_id: string;
@@ -20,6 +21,7 @@ interface RankingEntry {
 }
 
 export default function RankingPage() {
+  const { t } = useLanguage();
   const [ranking, setRanking] = useState<RankingEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sesionId, setSesionId] = useState<string | null>(null);
@@ -39,21 +41,21 @@ export default function RankingPage() {
     <main className="min-h-screen bg-canvas">
       <Navbar />
       <div className="mx-auto max-w-3xl p-6">
-        <h1 className="mb-6 text-2xl font-bold text-fg">Ranking del grupo</h1>
+        <h1 className="mb-6 text-2xl font-bold text-fg">{t("ranking.title")}</h1>
 
         {error && <p className="mb-4 text-sm text-perdida">{error}</p>}
 
         {!ranking ? (
-          <p className="text-fg/40">Cargando...</p>
+          <p className="text-fg/40">{t("common.loading")}</p>
         ) : (
           <Card className="overflow-hidden p-0">
             <table className="w-full text-sm">
               <thead className="bg-fg/5 text-left text-fg/60">
                 <tr>
                   <th className="px-4 py-3">#</th>
-                  <th className="px-4 py-3">Alumno</th>
-                  <th className="px-4 py-3">Valor total</th>
-                  <th className="px-4 py-3">Rendimiento</th>
+                  <th className="px-4 py-3">{t("ranking.student")}</th>
+                  <th className="px-4 py-3">{t("ranking.totalValue")}</th>
+                  <th className="px-4 py-3">{t("ranking.return")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -65,7 +67,12 @@ export default function RankingPage() {
                     }`}
                   >
                     <td className="px-4 py-3 text-fg/40">{i + 1}</td>
-                    <td className="px-4 py-3 text-fg">{entrada.nombre}</td>
+                    <td className="px-4 py-3 text-fg">
+                      {entrada.nombre}
+                      {entrada.alumno_id === sesionId && (
+                        <span className="ml-2 font-mono text-[10px] text-accent">({t("ranking.you")})</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3">{formatoMoneda(entrada.valor_total)}</td>
                     <td
                       className={`px-4 py-3 ${
@@ -76,6 +83,11 @@ export default function RankingPage() {
                     </td>
                   </tr>
                 ))}
+                {ranking.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-6 text-center text-sm text-fg/40">{t("ranking.noData")}</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </Card>

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
 import { guardarSesion, type Rol } from "@/lib/auth";
+import { useLanguage } from "@/lib/i18n";
 
 interface TokenResponse {
   access_token: string;
@@ -15,6 +16,7 @@ interface TokenResponse {
 
 export default function LoginPage() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [modo, setModo] = useState<"login" | "registro">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -43,7 +45,7 @@ export default function LoginPage() {
       });
       router.push("/dashboard");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "No se pudo conectar con el servidor");
+      setError(err instanceof ApiError ? err.message : t("login.error.noConnection"));
     } finally {
       setCargando(false);
     }
@@ -56,13 +58,13 @@ export default function LoginPage() {
           <span className="text-accent">■</span> Tradex
         </h1>
         <p className="mb-6 text-sm text-fg/40">
-          {modo === "login" ? "Inicia sesión en tu cuenta" : "Crea una nueva cuenta"}
+          {modo === "login" ? t("login.subtitle.login") : t("login.subtitle.register")}
         </p>
 
         <form onSubmit={manejarSubmit} className="flex flex-col gap-4">
           {modo === "registro" && (
             <div>
-              <label className="mb-1 block text-sm font-medium text-fg/70">Nombre</label>
+              <label className="mb-1 block text-sm font-medium text-fg/70">{t("login.name")}</label>
               <input
                 type="text"
                 required
@@ -74,7 +76,7 @@ export default function LoginPage() {
           )}
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-fg/70">Correo</label>
+            <label className="mb-1 block text-sm font-medium text-fg/70">{t("login.email")}</label>
             <input
               type="email"
               required
@@ -85,7 +87,7 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-fg/70">Contraseña</label>
+            <label className="mb-1 block text-sm font-medium text-fg/70">{t("login.password")}</label>
             <input
               type="password"
               required
@@ -99,17 +101,17 @@ export default function LoginPage() {
           {modo === "registro" && (
             <div>
               <label className="mb-1 block text-sm font-medium text-fg/70">
-                Código de grupo <span className="text-fg/40">(opcional)</span>
+                {t("login.groupCode")} <span className="text-fg/40">{t("login.groupCodeOptional")}</span>
               </label>
               <input
                 type="text"
                 maxLength={6}
                 value={codigoGrupo}
                 onChange={(e) => setCodigoGrupo(e.target.value.toUpperCase())}
-                placeholder="Ej. AB12CD"
+                placeholder={t("login.groupCodePlaceholder")}
                 className="w-full rounded-none border border-fg/20 px-3 py-2 font-mono text-sm uppercase tracking-widest"
               />
-              <p className="mt-1 text-xs text-fg/40">Tu maestro te proporcionará este código.</p>
+              <p className="mt-1 text-xs text-fg/40">{t("login.groupCodeHint")}</p>
             </div>
           )}
 
@@ -120,7 +122,7 @@ export default function LoginPage() {
             disabled={cargando}
             className="rounded-none bg-accent px-4 py-2 font-mono text-sm font-bold uppercase tracking-wide text-black hover:opacity-90 disabled:opacity-50"
           >
-            {cargando ? "Cargando..." : modo === "login" ? "Iniciar sesión" : "Registrarme"}
+            {cargando ? t("login.loading") : modo === "login" ? t("login.submit.login") : t("login.submit.register")}
           </button>
         </form>
 
@@ -128,12 +130,12 @@ export default function LoginPage() {
           onClick={() => setModo(modo === "login" ? "registro" : "login")}
           className="mt-4 w-full text-center text-sm text-fg/40 hover:text-fg/70"
         >
-          {modo === "login" ? "¿No tienes cuenta? Regístrate" : "¿Ya tienes cuenta? Inicia sesión"}
+          {modo === "login" ? t("login.toggle.toRegister") : t("login.toggle.toLogin")}
         </button>
 
         {modo === "login" && (
           <Link href="/forgot-password" className="mt-2 block text-center text-sm text-fg/30 hover:text-fg/60">
-            ¿Olvidaste tu contraseña?
+            {t("login.forgotPassword")}
           </Link>
         )}
       </div>

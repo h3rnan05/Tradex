@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cerrarSesion, obtenerSesion } from "@/lib/auth";
+import { useLanguage } from "@/lib/i18n";
 
 export default function Navbar() {
   const router = useRouter();
@@ -11,6 +12,7 @@ export default function Navbar() {
   const sesion = obtenerSesion();
   const [comando, setComando] = useState("");
   const [menuAbierto, setMenuAbierto] = useState(false);
+  const { lang, t, setLang } = useLanguage();
 
   function salir() {
     cerrarSesion();
@@ -29,25 +31,34 @@ export default function Navbar() {
   const enlaces =
     sesion?.rol === "admin"
       ? [
-          { href: "/admin/dashboard", label: "Dashboard" },
-          { href: "/admin/maestros", label: "Maestros" },
-          { href: "/admin/usuarios", label: "Usuarios" },
-          { href: "/admin/ranking", label: "Ranking Global" },
+          { href: "/admin/dashboard", label: t("nav.dashboard") },
+          { href: "/admin/maestros", label: t("nav.teachers") },
+          { href: "/admin/usuarios", label: t("nav.users") },
+          { href: "/admin/ranking", label: t("nav.globalRanking") },
         ]
       : sesion?.rol === "sponsor"
-      ? [{ href: "/sponsor/dashboard", label: "Dashboard" }]
+      ? [{ href: "/sponsor/dashboard", label: t("nav.dashboard") }]
       : sesion?.rol === "maestro"
-      ? [{ href: "/maestro/grupos", label: "Grupos" }]
+      ? [{ href: "/maestro/grupos", label: t("nav.groups") }]
       : [
-          { href: "/alumno/portafolio", label: "Portafolio" },
-          { href: "/alumno/operar", label: "Operar" },
-          { href: "/alumno/historial", label: "Historial" },
-          { href: "/alumno/ranking", label: "Ranking" },
-          { href: "/alumno/mercados", label: "Mercados" },
-          { href: "/alumno/clase", label: "Clase" },
-          { href: "/alumno/plantillas", label: "Plantillas" },
-          { href: "/alumno/retos", label: "Retos" },
+          { href: "/alumno/portafolio", label: t("nav.portfolio") },
+          { href: "/alumno/operar", label: t("nav.trade") },
+          { href: "/alumno/historial", label: t("nav.history") },
+          { href: "/alumno/ranking", label: t("nav.ranking") },
+          { href: "/alumno/mercados", label: t("nav.markets") },
+          { href: "/alumno/clase", label: t("nav.class") },
+          { href: "/alumno/plantillas", label: t("nav.templates") },
+          { href: "/alumno/retos", label: t("nav.challenges") },
         ];
+
+  const rolLabel =
+    sesion?.rol === "maestro"
+      ? t("nav.teacher")
+      : sesion?.rol === "admin"
+      ? t("nav.admin")
+      : sesion?.rol === "sponsor"
+      ? t("nav.sponsor")
+      : t("nav.student");
 
   return (
     <header className="sticky top-0 z-40 border-b-2 border-accent bg-canvas">
@@ -90,14 +101,14 @@ export default function Navbar() {
               <input
                 value={comando}
                 onChange={(e) => setComando(e.target.value)}
-                placeholder="AAPL"
+                placeholder={t("nav.searchPlaceholder")}
                 className="w-full bg-transparent py-1.5 font-mono text-[11px] uppercase tracking-wide text-fg outline-none placeholder:text-fg/30"
               />
               <button
                 type="submit"
                 className="shrink-0 bg-accent px-2 py-1.5 font-mono text-[10px] font-bold uppercase text-black"
               >
-                GO
+                {t("nav.go")}
               </button>
             </div>
           </form>
@@ -107,13 +118,19 @@ export default function Navbar() {
         {sesion && (
           <div className="ml-auto hidden items-center gap-3 border-l border-fg/15 pl-3 md:flex">
             <Link href="/perfil" className="font-mono text-[11px] text-fg/60 hover:text-fg">
-              {sesion.nombre} · {sesion.rol === "maestro" ? "Maestro" : sesion.rol === "admin" ? "Admin" : sesion.rol === "sponsor" ? "Patrocinador" : "Alumno"}
+              {sesion.nombre} · {rolLabel}
             </Link>
+            <button
+              onClick={() => setLang(lang === "es" ? "en" : "es")}
+              className="font-mono text-[11px] uppercase border border-fg/20 px-2 py-1.5 text-fg/70 hover:bg-fg/5"
+            >
+              {lang === "es" ? "EN" : "ES"}
+            </button>
             <button
               onClick={salir}
               className="border border-fg/20 px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider text-fg/70 hover:bg-fg/5"
             >
-              Salir
+              {t("nav.logout")}
             </button>
           </div>
         )}
@@ -158,14 +175,14 @@ export default function Navbar() {
                   <input
                     value={comando}
                     onChange={(e) => setComando(e.target.value)}
-                    placeholder="Buscar ticker — AAPL"
+                    placeholder={t("nav.searchMobilePlaceholder")}
                     className="flex-1 bg-transparent py-2 font-mono text-[12px] uppercase tracking-wide text-fg outline-none placeholder:text-fg/30"
                   />
                   <button
                     type="submit"
                     className="shrink-0 bg-accent px-3 py-2 font-mono text-[10px] font-bold uppercase text-black"
                   >
-                    GO
+                    {t("nav.go")}
                   </button>
                 </div>
               </form>
@@ -174,14 +191,22 @@ export default function Navbar() {
             {/* Mobile user + salir */}
             <div className="flex items-center justify-between px-5 py-4">
               <span className="font-mono text-[12px] text-fg/50">
-                {sesion.nombre} · {sesion.rol === "maestro" ? "Maestro" : sesion.rol === "admin" ? "Admin" : sesion.rol === "sponsor" ? "Patrocinador" : "Alumno"}
+                {sesion.nombre} · {rolLabel}
               </span>
-              <button
-                onClick={salir}
-                className="border border-fg/20 px-4 py-2 font-mono text-[11px] uppercase tracking-wider text-fg/70"
-              >
-                Salir
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setLang(lang === "es" ? "en" : "es")}
+                  className="font-mono text-[11px] uppercase border border-fg/20 px-2 py-1.5 text-fg/70"
+                >
+                  {lang === "es" ? "EN" : "ES"}
+                </button>
+                <button
+                  onClick={salir}
+                  className="border border-fg/20 px-4 py-2 font-mono text-[11px] uppercase tracking-wider text-fg/70"
+                >
+                  {t("nav.logout")}
+                </button>
+              </div>
             </div>
           </nav>
         </div>

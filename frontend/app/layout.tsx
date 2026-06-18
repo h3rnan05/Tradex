@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import TickerTape from "@/components/TickerTape";
 import { ToastProvider } from "@/components/Toast";
 import Notificaciones from "@/components/Notificaciones";
+import { LanguageProvider } from "@/lib/i18n";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -21,11 +22,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
-        <ToastProvider>
-          <TickerTape />
-          {children}
-          <Notificaciones />
-        </ToastProvider>
+        <LanguageProvider>
+          <ToastProvider>
+            <TickerTape />
+            {children}
+            <Notificaciones />
+          </ToastProvider>
+        </LanguageProvider>
       </body>
     </html>
   );

@@ -9,6 +9,7 @@ import PanelInsignias from "@/components/PanelInsignias";
 import { Card, StatTile, formatoMoneda, formatoPorcentaje } from "@/components/primitives";
 import { api, ApiError } from "@/lib/api";
 import { obtenerSesion } from "@/lib/auth";
+import { useLanguage } from "@/lib/i18n";
 
 interface HoldingConPrecio {
   id: string;
@@ -50,6 +51,7 @@ interface PuntoValor {
 const COLORES_DONUT = ["#ff6600", "#0077b6", "#6d28d9", "#0096a0", "#cc5200", "#007a2e"];
 
 export default function PortafolioPage() {
+  const { t } = useLanguage();
   const [portafolio, setPortafolio] = useState<Portafolio | null>(null);
   const [ordenes, setOrdenes] = useState<Orden[]>([]);
   const [historialValor, setHistorialValor] = useState<PuntoValor[]>([]);
@@ -111,7 +113,7 @@ export default function PortafolioPage() {
     return (
       <main className="min-h-screen bg-canvas">
         <Navbar />
-        <p className="p-6 text-fg/40">Cargando...</p>
+        <p className="p-6 text-fg/40">{t("common.loading")}</p>
         <Footer />
     </main>
     );
@@ -121,7 +123,7 @@ export default function PortafolioPage() {
   const holdingsCortos = (portafolio.holdings ?? []).filter((h) => h.es_corto);
 
   const distribucion = [
-    { nombre: "Efectivo", valor: Number(portafolio.capital_disponible) },
+    { nombre: t("portfolio.cash"), valor: Number(portafolio.capital_disponible) },
     ...holdings.map((h) => ({ nombre: h.ticker, valor: Number(h.valor_mercado) })),
   ].filter((d) => d.valor > 0);
 
@@ -157,14 +159,14 @@ export default function PortafolioPage() {
     <main className="min-h-screen bg-canvas">
       <Navbar />
       <div className="mx-auto max-w-7xl p-4 md:p-6">
-        <h1 className="mb-6 text-2xl font-bold text-fg">Mi portafolio</h1>
+        <h1 className="mb-6 text-2xl font-bold text-fg">{t("portfolio.title")}</h1>
 
         {/* KPIs */}
         <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <StatTile label="Capital disponible" value={formatoMoneda(portafolio.capital_disponible)} />
-          <StatTile label="Valor total del portafolio" value={formatoMoneda(portafolio.valor_total)} />
+          <StatTile label={t("portfolio.availableCapital")} value={formatoMoneda(portafolio.capital_disponible)} />
+          <StatTile label={t("portfolio.totalValue")} value={formatoMoneda(portafolio.valor_total)} />
           <StatTile
-            label="Rendimiento vs capital inicial"
+            label={t("portfolio.return")}
             value={`${formatoMoneda(portafolio.rendimiento)} (${formatoPorcentaje(portafolio.rendimiento_porcentaje)})`}
             tone={Number(portafolio.rendimiento) >= 0 ? "ganancia" : "perdida"}
           />
@@ -174,12 +176,12 @@ export default function PortafolioPage() {
         {(datosGrafica.length > 1 || cargandoGrafica) && (
           <div className="mb-6">
             <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">
-              Rendimiento histórico
+              {t("portfolio.historicalReturn")}
             </p>
             <Card className="p-4">
               {cargandoGrafica ? (
                 <div className="flex h-40 items-center justify-center">
-                  <p className="text-sm text-fg/40">Calculando rendimiento...</p>
+                  <p className="text-sm text-fg/40">{t("portfolio.calculating")}</p>
                 </div>
               ) : (
                 <>
@@ -189,7 +191,7 @@ export default function PortafolioPage() {
                     </span>
                     <span className={`font-mono text-sm font-semibold ${graficaSubiendo ? "text-ganancia" : "text-perdida"}`}>
                       {graficaSubiendo ? "▲" : "▼"} {formatoMoneda(portafolio.rendimiento)} (
-                      {formatoPorcentaje(portafolio.rendimiento_porcentaje)}) desde inicio
+                      {formatoPorcentaje(portafolio.rendimiento_porcentaje)}) {t("portfolio.sinceStart")}
                     </span>
                   </div>
                   <div className="h-44 w-full">
@@ -240,7 +242,7 @@ export default function PortafolioPage() {
                     </ResponsiveContainer>
                   </div>
                   <p className="mt-1 text-right font-mono text-[10px] text-fg/30">
-                    Línea punteada = capital inicial ${capitalInicial.toLocaleString("en-US")}
+                    {t("portfolio.dottedLine")} ${capitalInicial.toLocaleString("en-US")}
                   </p>
                 </>
               )}
@@ -251,17 +253,17 @@ export default function PortafolioPage() {
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
           {/* Columna izquierda-central: posiciones + órdenes recientes */}
           <div className="lg:col-span-8">
-            <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">Posiciones</p>
+            <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">{t("portfolio.positions")}</p>
             <Card className="overflow-hidden p-0">
               <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-fg/5 text-left text-fg/60">
                   <tr>
-                    <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wider">Ticker</th>
-                    <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wider">Cantidad</th>
-                    <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wider">P. Promedio</th>
-                    <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wider">P. Actual</th>
-                    <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wider">Valor</th>
+                    <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wider">{t("common.ticker")}</th>
+                    <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wider">{t("common.amount")}</th>
+                    <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wider">{t("portfolio.avgPrice")}</th>
+                    <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wider">{t("portfolio.currentPrice")}</th>
+                    <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wider">{t("common.value")}</th>
                     <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wider">P&amp;L</th>
                     <th className="px-4 py-3"></th>
                   </tr>
@@ -287,7 +289,7 @@ export default function PortafolioPage() {
                           href={`/alumno/operar?t=${h.ticker}`}
                           className="rounded-none border border-fg/20 px-2 py-1 font-mono text-[11px] text-fg/60 hover:border-accent hover:text-accent"
                         >
-                          Operar
+                          {t("common.trade")}
                         </a>
                       </td>
                     </tr>
@@ -295,9 +297,9 @@ export default function PortafolioPage() {
                   {holdings.length === 0 && (
                     <tr>
                       <td colSpan={7} className="px-4 py-6 text-center text-sm text-fg/40">
-                        Aún no tienes posiciones abiertas.{" "}
+                        {t("portfolio.noPositions")}{" "}
                         <a href="/alumno/operar" className="text-accent underline">
-                          Ir a operar
+                          {t("portfolio.goTrade")}
                         </a>
                       </td>
                     </tr>
@@ -310,17 +312,17 @@ export default function PortafolioPage() {
             {/* Posiciones cortas */}
             {holdingsCortos.length > 0 && (
               <div className="mt-4">
-                <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">Posiciones Cortas</p>
+                <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">{t("portfolio.shortPositions")}</p>
                 <Card className="overflow-hidden p-0">
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead className="bg-perdida/5 text-left text-fg/60">
                         <tr>
-                          <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wider">Ticker</th>
-                          <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wider">Cantidad</th>
-                          <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wider">P. Entrada</th>
-                          <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wider">P. Actual</th>
-                          <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wider">P&amp;L Corto</th>
+                          <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wider">{t("common.ticker")}</th>
+                          <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wider">{t("common.amount")}</th>
+                          <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wider">{t("portfolio.entryPrice")}</th>
+                          <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wider">{t("portfolio.currentPrice")}</th>
+                          <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wider">{t("portfolio.pnlShort")}</th>
                           <th className="px-4 py-3"></th>
                         </tr>
                       </thead>
@@ -334,7 +336,7 @@ export default function PortafolioPage() {
                             <tr key={h.id} className="border-t border-fg/5 hover:bg-fg/5">
                               <td className="px-4 py-3 font-mono font-bold text-fg">
                                 {h.ticker}
-                                <span className="ml-1 font-mono text-[9px] uppercase text-perdida">corto</span>
+                                <span className="ml-1 font-mono text-[9px] uppercase text-perdida">{t("portfolio.shortTag")}</span>
                               </td>
                               <td className="px-4 py-3 font-mono tabular-nums text-fg/70">{Number(h.cantidad).toFixed(4)}</td>
                               <td className="px-4 py-3 font-mono tabular-nums">{formatoMoneda(h.precio_promedio)}</td>
@@ -348,7 +350,7 @@ export default function PortafolioPage() {
                                   href={`/alumno/operar?t=${h.ticker}`}
                                   className="rounded-none border border-fg/20 px-2 py-1 font-mono text-[11px] text-fg/60 hover:border-perdida hover:text-perdida"
                                 >
-                                  Cubrir
+                                  {t("common.cover")}
                                 </a>
                               </td>
                             </tr>
@@ -365,19 +367,19 @@ export default function PortafolioPage() {
             {ordenes.length > 0 && (
               <div className="mt-4">
                 <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">
-                  Órdenes recientes
+                  {t("portfolio.recentOrders")}
                 </p>
                 <Card className="overflow-hidden p-0">
                   <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead className="bg-fg/5 text-left text-fg/60">
                       <tr>
-                        <th className="px-4 py-2.5 font-mono text-[11px] uppercase tracking-wider">Tipo</th>
-                        <th className="px-4 py-2.5 font-mono text-[11px] uppercase tracking-wider">Ticker</th>
-                        <th className="px-4 py-2.5 font-mono text-[11px] uppercase tracking-wider">Cantidad</th>
-                        <th className="px-4 py-2.5 font-mono text-[11px] uppercase tracking-wider">Precio</th>
-                        <th className="px-4 py-2.5 font-mono text-[11px] uppercase tracking-wider">Total</th>
-                        <th className="px-4 py-2.5 font-mono text-[11px] uppercase tracking-wider">Fecha</th>
+                        <th className="px-4 py-2.5 font-mono text-[11px] uppercase tracking-wider">{t("common.type")}</th>
+                        <th className="px-4 py-2.5 font-mono text-[11px] uppercase tracking-wider">{t("common.ticker")}</th>
+                        <th className="px-4 py-2.5 font-mono text-[11px] uppercase tracking-wider">{t("common.amount")}</th>
+                        <th className="px-4 py-2.5 font-mono text-[11px] uppercase tracking-wider">{t("common.price")}</th>
+                        <th className="px-4 py-2.5 font-mono text-[11px] uppercase tracking-wider">{t("common.total")}</th>
+                        <th className="px-4 py-2.5 font-mono text-[11px] uppercase tracking-wider">{t("common.date")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -425,10 +427,10 @@ export default function PortafolioPage() {
               <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Card>
                   <p className="mb-3 font-mono text-[11px] uppercase tracking-widest text-fg/40">
-                    Mejores posiciones
+                    {t("portfolio.bestPositions")}
                   </p>
                   {ganadoras.length === 0 ? (
-                    <p className="text-sm text-fg/40">Sin posiciones en ganancia.</p>
+                    <p className="text-sm text-fg/40">{t("portfolio.noGains")}</p>
                   ) : (
                     <ul className="flex flex-col gap-2">
                       {ganadoras.slice(0, 3).map((h) => (
@@ -444,10 +446,10 @@ export default function PortafolioPage() {
                 </Card>
                 <Card>
                   <p className="mb-3 font-mono text-[11px] uppercase tracking-widest text-fg/40">
-                    Peores posiciones
+                    {t("portfolio.worstPositions")}
                   </p>
                   {perdedoras.length === 0 ? (
-                    <p className="text-sm text-fg/40">Sin posiciones en pérdida.</p>
+                    <p className="text-sm text-fg/40">{t("portfolio.noLosses")}</p>
                   ) : (
                     <ul className="flex flex-col gap-2">
                       {perdedoras.slice(0, 3).map((h) => (
@@ -467,10 +469,10 @@ export default function PortafolioPage() {
 
           {/* Columna derecha: distribución */}
           <div className="lg:col-span-4">
-            <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">Distribución</p>
+            <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">{t("portfolio.distribution")}</p>
             <Card>
               {distribucion.length === 0 ? (
-                <p className="text-sm text-fg/40">Sin datos para mostrar.</p>
+                <p className="text-sm text-fg/40">{t("common.noData")}</p>
               ) : (
                 <>
                   <div className="h-56 w-full">
@@ -519,7 +521,7 @@ export default function PortafolioPage() {
 
         {/* Insignias */}
         <div className="mt-8">
-          <p className="mb-3 font-mono text-[11px] uppercase tracking-widest text-fg/40">Mis Logros</p>
+          <p className="mb-3 font-mono text-[11px] uppercase tracking-widest text-fg/40">{t("portfolio.achievements")}</p>
           <PanelInsignias insignias={insignias} />
         </div>
       </div>

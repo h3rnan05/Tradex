@@ -6,6 +6,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { api, ApiError } from "@/lib/api";
 import { obtenerSesion } from "@/lib/auth";
+import { useLanguage } from "@/lib/i18n";
 
 interface MiClase {
   grupo_id: string;
@@ -22,6 +23,7 @@ interface MiClase {
 
 export default function ClasePage() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [clases, setClases] = useState<MiClase[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -89,8 +91,8 @@ export default function ClasePage() {
     <main className="min-h-screen bg-canvas">
       <Navbar />
       <div className="mx-auto max-w-5xl px-4 py-8">
-        <h1 className="mb-1 font-mono text-[11px] uppercase tracking-widest text-accent">Alumno</h1>
-        <h2 className="mb-6 text-2xl font-bold text-fg">Mis Clases</h2>
+        <h1 className="mb-1 font-mono text-[11px] uppercase tracking-widest text-accent">{t("nav.student")}</h1>
+        <h2 className="mb-6 text-2xl font-bold text-fg">{t("class.title")}</h2>
 
         {/* Join form */}
         <form onSubmit={unirse} className="mb-8 flex flex-col sm:flex-row gap-3 items-start">
@@ -98,7 +100,7 @@ export default function ClasePage() {
             <input
               value={codigo}
               onChange={(e) => setCodigo(e.target.value.toUpperCase())}
-              placeholder="Codigo de grupo — ej. AB12CD"
+              placeholder={t("login.groupCodePlaceholder")}
               maxLength={6}
               className="w-full border border-fg/20 bg-panel px-4 py-2 font-mono text-sm uppercase tracking-widest text-fg outline-none focus:border-accent"
             />
@@ -110,19 +112,19 @@ export default function ClasePage() {
             disabled={uniendose || !codigo.trim()}
             className="bg-accent px-6 py-2 font-mono text-sm font-bold uppercase tracking-wide text-black hover:opacity-90 disabled:opacity-50"
           >
-            {uniendose ? "Uniendose..." : "Unirse a clase"}
+            {uniendose ? t("class.joining") : t("class.join")}
           </button>
         </form>
 
         {/* Classes list */}
         {cargando ? (
-          <p className="text-sm text-fg/40">Cargando...</p>
+          <p className="text-sm text-fg/40">{t("common.loading")}</p>
         ) : error ? (
           <p className="text-sm text-perdida">{error}</p>
         ) : clases.length === 0 ? (
           <div className="border border-fg/10 bg-panel p-8 text-center">
-            <p className="text-fg/40 text-sm">No estas inscrito en ninguna clase.</p>
-            <p className="mt-1 text-fg/30 text-xs">Ingresa el codigo que te dio tu maestro para unirte.</p>
+            <p className="text-fg/40 text-sm">{t("class.noGroups")}</p>
+            <p className="mt-1 text-fg/30 text-xs">{t("login.groupCodeHint")}</p>
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">
@@ -140,7 +142,7 @@ export default function ClasePage() {
                       </p>
                     </div>
                     <span className={`shrink-0 font-mono text-[10px] uppercase px-2 py-0.5 ${activa ? "bg-ganancia/10 text-ganancia" : "bg-fg/10 text-fg/40"}`}>
-                      {activa ? "Activa" : "Finalizada"}
+                      {activa ? t("class.active") : t("class.finished")}
                     </span>
                   </div>
 
@@ -150,17 +152,17 @@ export default function ClasePage() {
 
                   <div className="grid grid-cols-3 gap-3 mb-4">
                     <div>
-                      <p className="font-mono text-[9px] uppercase tracking-wider text-fg/40">Valor</p>
+                      <p className="font-mono text-[9px] uppercase tracking-wider text-fg/40">{t("common.value")}</p>
                       <p className="font-mono text-sm font-bold text-fg">{fmt(cl.valor_total)}</p>
                     </div>
                     <div>
-                      <p className="font-mono text-[9px] uppercase tracking-wider text-fg/40">Rendimiento</p>
+                      <p className="font-mono text-[9px] uppercase tracking-wider text-fg/40">{t("ranking.return")}</p>
                       <p className={`font-mono text-sm font-bold ${r >= 0 ? "text-ganancia" : "text-perdida"}`}>
                         {r >= 0 ? "+" : ""}{rPct.toFixed(2)}%
                       </p>
                     </div>
                     <div>
-                      <p className="font-mono text-[9px] uppercase tracking-wider text-fg/40">Mercados</p>
+                      <p className="font-mono text-[9px] uppercase tracking-wider text-fg/40">{t("markets.title")}</p>
                       <p className="font-mono text-[10px] text-fg/60">{cl.activos_permitidos.join(", ")}</p>
                     </div>
                   </div>
@@ -170,15 +172,15 @@ export default function ClasePage() {
                       onClick={() => router.push(`/alumno/portafolio?grupo_id=${cl.grupo_id}`)}
                       className="flex-1 bg-accent py-1.5 font-mono text-[11px] font-bold uppercase tracking-wide text-black hover:opacity-90"
                     >
-                      Ver portafolio
+                      {t("portfolio.title")}
                     </button>
                     {confirmandoSalir === cl.grupo_id ? (
                       <>
                         <button onClick={() => salir(cl.grupo_id)} className="border border-perdida px-3 py-1.5 font-mono text-[10px] text-perdida hover:bg-perdida/10">
-                          Confirmar
+                          {t("common.confirm")}
                         </button>
                         <button onClick={() => setConfirmandoSalir(null)} className="border border-fg/20 px-3 py-1.5 font-mono text-[10px] text-fg/50">
-                          Cancelar
+                          {t("common.cancel")}
                         </button>
                       </>
                     ) : (
@@ -186,7 +188,7 @@ export default function ClasePage() {
                         onClick={() => setConfirmandoSalir(cl.grupo_id)}
                         className="border border-fg/20 px-3 py-1.5 font-mono text-[10px] text-fg/50 hover:border-perdida hover:text-perdida"
                       >
-                        Salir
+                        {t("nav.logout")}
                       </button>
                     )}
                   </div>

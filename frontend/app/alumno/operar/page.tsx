@@ -10,6 +10,7 @@ import Tooltip from "@/components/Tooltip";
 import { Badge, Card } from "@/components/primitives";
 import { api, ApiError } from "@/lib/api";
 import { obtenerSesion } from "@/lib/auth";
+import { useLanguage } from "@/lib/i18n";
 
 interface PrecioResponse {
   ticker: string;
@@ -248,6 +249,7 @@ export default function OperarPage() {
 }
 
 function OperarPageInterna() {
+  const { t, lang } = useLanguage();
   const searchParams = useSearchParams();
   const [ticker, setTicker] = useState("");
   const [precio, setPrecio] = useState<string | null>(null);
@@ -305,6 +307,23 @@ function OperarPageInterna() {
   }, []);
 
   // Categorías que el alumno puede operar, en el orden del explorador
+  const CAT_LABELS_I18N: Record<string, string> = {
+    acciones: lang === "en" ? "Stocks" : "Acciones",
+    indices: lang === "en" ? "ETFs/Indices" : "ETFs/Índices",
+    commodities: lang === "en" ? "Commodities" : "Commodities",
+    crypto: lang === "en" ? "Crypto" : "Cripto",
+    forex: lang === "en" ? "Forex" : "Divisas",
+    bolsa_mx: lang === "en" ? "Mexico" : "Bolsa MX",
+  };
+  const CAT_TAG_I18N: Record<string, string> = {
+    acciones: lang === "en" ? "Stock" : "Acción",
+    indices: lang === "en" ? "ETF/Index" : "ETF/Índice",
+    commodities: lang === "en" ? "Commodity" : "Commodity",
+    crypto: lang === "en" ? "Crypto" : "Cripto",
+    forex: lang === "en" ? "Forex" : "Divisa",
+    bolsa_mx: lang === "en" ? "Mexico" : "Bolsa MX",
+  };
+
   const categoriasVisibles = CATEGORIAS_EXPLORADOR.filter((c) =>
     activosDisponibles.includes(c.key)
   );
@@ -550,7 +569,7 @@ function OperarPageInterna() {
               }}
               onFocus={() => setSugerenciasAbiertas(true)}
               onBlur={() => setTimeout(() => setSugerenciasAbiertas(false), 150)}
-              placeholder="Busca por símbolo o nombre (ej. AAPL, Bitcoin, Oro)"
+              placeholder={lang === "en" ? "Search by symbol or name (e.g. AAPL, Bitcoin, Gold)" : "Busca por símbolo o nombre (ej. AAPL, Bitcoin, Oro)"}
               className="w-full rounded-none border border-fg/20 bg-canvas px-3 py-2 font-mono text-sm uppercase"
             />
 
@@ -574,7 +593,7 @@ function OperarPageInterna() {
                         <span className="truncate font-mono text-[11px] text-fg/50">{s.nombre}</span>
                       </span>
                       <span className="shrink-0 font-mono text-[9px] uppercase tracking-wider text-fg/40">
-                        {CAT_LABEL[s.cat]}
+                        {CAT_TAG_I18N[s.cat] ?? CAT_LABEL[s.cat]}
                       </span>
                     </button>
                   </li>
@@ -587,7 +606,7 @@ function OperarPageInterna() {
             disabled={buscando}
             className="rounded-none bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-ink/80 disabled:opacity-50"
           >
-            {buscando ? "Buscando..." : "Buscar"}
+            {buscando ? (lang === "en" ? "Searching..." : "Buscando...") : t("trade.searchButton")}
           </button>
         </form>
 
@@ -597,11 +616,11 @@ function OperarPageInterna() {
 
           {/* ── Columna izquierda: Mi cartera ── */}
           <div className="lg:col-span-3">
-            <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">Mi cartera</p>
+            <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">{lang === "en" ? "My Portfolio" : "Mi cartera"}</p>
 
             {capitalDisponible !== null && (
               <div className="mb-2 rounded-none border border-fg/10 bg-panel px-3 py-2">
-                <p className="font-mono text-[10px] uppercase tracking-widest text-fg/40">Capital disponible</p>
+                <p className="font-mono text-[10px] uppercase tracking-widest text-fg/40">{t("trade.availableCapital")}</p>
                 <p className="font-mono text-base font-bold tabular-nums text-fg">
                   ${Number(capitalDisponible).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
@@ -610,7 +629,7 @@ function OperarPageInterna() {
 
             {holdings.length === 0 ? (
               <div className="rounded-none border border-fg/10 bg-panel p-4">
-                <p className="text-sm text-fg/40">No tienes posiciones abiertas.</p>
+                <p className="text-sm text-fg/40">{lang === "en" ? "No open positions." : "No tienes posiciones abiertas."}</p>
               </div>
             ) : (
               <div className="flex flex-col gap-2">
@@ -658,10 +677,10 @@ function OperarPageInterna() {
               /* Landing: noticias generales */
               <div>
                 <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">
-                  Noticias · Mercados
+                  {lang === "en" ? "News · Markets" : "Noticias · Mercados"}
                 </p>
                 {noticiasGenerales.length === 0 ? (
-                  <Card><p className="text-sm text-fg/40">Cargando noticias...</p></Card>
+                  <Card><p className="text-sm text-fg/40">{t("common.loading")}</p></Card>
                 ) : (
                   <div className="flex flex-col gap-3">
                     {/* Featured story */}
@@ -803,7 +822,10 @@ function OperarPageInterna() {
                       const total = a.strong_buy + a.buy + a.hold + a.sell + a.strong_sell;
                       if (total === 0) return null;
                       const pct = (n: number) => `${((n / total) * 100).toFixed(0)}%`;
-                      const recMap: Record<string, string> = {
+                      const recMap: Record<string, string> = lang === "en" ? {
+                        "strong_buy": "Strong Buy", "buy": "Buy",
+                        "hold": "Hold", "sell": "Sell", "strong_sell": "Strong Sell",
+                      } : {
                         "strong_buy": "Compra fuerte", "buy": "Comprar",
                         "hold": "Mantener", "sell": "Vender", "strong_sell": "Venta fuerte",
                       };
@@ -830,9 +852,9 @@ function OperarPageInterna() {
                             {a.strong_sell > 0 && <div style={{ width: pct(a.strong_sell) }} className="bg-perdida" />}
                           </div>
                           <div className="mt-1.5 flex justify-between font-mono text-[10px] text-fg/50">
-                            <span className="text-ganancia">▲ {a.strong_buy + a.buy} comprar</span>
-                            <span>{a.hold} mantener</span>
-                            <span className="text-perdida">▼ {a.sell + a.strong_sell} vender</span>
+                            <span className="text-ganancia">▲ {a.strong_buy + a.buy} {lang === "en" ? "buy" : "comprar"}</span>
+                            <span>{a.hold} {lang === "en" ? "hold" : "mantener"}</span>
+                            <span className="text-perdida">▼ {a.sell + a.strong_sell} {lang === "en" ? "sell" : "vender"}</span>
                           </div>
                         </div>
                       );
@@ -922,18 +944,18 @@ function OperarPageInterna() {
                   {/* Order type toggle */}
                   <div className="mb-3 flex items-center justify-between">
                     <p className="font-mono text-[11px] uppercase tracking-widest text-fg/40">
-                      Enviar orden
+                      {lang === "en" ? "Place order" : "Enviar orden"}
                     </p>
                     <div className="flex overflow-hidden rounded-none border border-fg/20">
-                      {(["mercado", "limite"] as const).map((t) => (
+                      {(["mercado", "limite"] as const).map((tipo) => (
                         <button
-                          key={t}
-                          onClick={() => setTipoOrden(t)}
+                          key={tipo}
+                          onClick={() => setTipoOrden(tipo)}
                           className={`px-3 py-1 font-mono text-[11px] uppercase ${
-                            tipoOrden === t ? "bg-ink text-white" : "text-fg/50 hover:bg-fg/5"
+                            tipoOrden === tipo ? "bg-ink text-white" : "text-fg/50 hover:bg-fg/5"
                           }`}
                         >
-                          {t === "mercado" ? "Mercado" : "Límite"}
+                          {tipo === "mercado" ? t("trade.market") : t("trade.limit")}
                         </button>
                       ))}
                     </div>
@@ -948,7 +970,7 @@ function OperarPageInterna() {
                     </div>
                   )}
 
-                  <label className="mb-1 block text-sm font-medium text-fg/70">Cantidad</label>
+                  <label className="mb-1 block text-sm font-medium text-fg/70">{t("trade.quantity")}</label>
                   <input
                     type="number"
                     min="0.0001"
@@ -960,7 +982,7 @@ function OperarPageInterna() {
 
                   {tipoOrden === "limite" && (
                     <>
-                      <label className="mb-1 block text-sm font-medium text-fg/70">Precio límite</label>
+                      <label className="mb-1 block text-sm font-medium text-fg/70">{t("trade.limitPrice")}</label>
                       <input
                         type="number"
                         min="0.01"
@@ -975,7 +997,7 @@ function OperarPageInterna() {
 
                   {tipoOrden === "mercado" && (
                     <p className="mb-3 text-sm text-fg/40">
-                      Total estimado:{" "}
+                      {lang === "en" ? "Estimated total:" : "Total estimado:"}{" "}
                       <span className="font-mono font-semibold text-fg">
                         ${(Number(precio) * Number(cantidad || 0)).toFixed(2)}
                       </span>
@@ -988,23 +1010,23 @@ function OperarPageInterna() {
                       disabled={operando}
                       className="flex-1 rounded-none bg-ganancia px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
                     >
-                      {tipoOrden === "limite" ? "Límite compra" : "Comprar"}
+                      {tipoOrden === "limite" ? t("trade.limitBuyButton") : t("trade.buyButton")}
                     </button>
                     <button
                       onClick={() => tipoOrden === "mercado" ? ejecutarOrden("venta") : ejecutarOrdenLimite("venta")}
                       disabled={operando}
                       className="flex-1 rounded-none bg-perdida px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
                     >
-                      {tipoOrden === "limite" ? "Límite venta" : "Vender"}
+                      {tipoOrden === "limite" ? t("trade.limitSellButton") : t("trade.sellButton")}
                     </button>
                   </div>
 
                   {tipoOrden === "mercado" && (
                     <>
                       <div className="mt-3 border-t border-fg/10 pt-3">
-                        <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-fg/40">Ventas en corto</p>
+                        <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-fg/40">{lang === "en" ? "Short selling" : "Ventas en corto"}</p>
                         <p className="mb-2 text-xs text-fg/50">
-                          Vendes acciones prestadas esperando que el precio baje. Se bloquea el 100% como colateral.
+                          {lang === "en" ? "Borrow and sell shares expecting the price to fall. 100% held as collateral." : "Vendes acciones prestadas esperando que el precio baje. Se bloquea el 100% como colateral."}
                         </p>
                         <div className="flex gap-3">
                           <button
@@ -1012,14 +1034,14 @@ function OperarPageInterna() {
                             disabled={operando}
                             className="flex-1 rounded-none border border-perdida bg-perdida/10 px-4 py-2 text-sm font-medium text-perdida hover:bg-perdida/20 disabled:opacity-50"
                           >
-                            Corto (vender prestado)
+                            {lang === "en" ? "Short (borrow & sell)" : "Corto (vender prestado)"}
                           </button>
                           <button
                             onClick={() => ejecutarShort("cubrir")}
                             disabled={operando}
                             className="flex-1 rounded-none border border-ganancia bg-ganancia/10 px-4 py-2 text-sm font-medium text-ganancia hover:bg-ganancia/20 disabled:opacity-50"
                           >
-                            Cubrir corto
+                            {lang === "en" ? "Cover short" : "Cubrir corto"}
                           </button>
                         </div>
                       </div>
@@ -1032,7 +1054,7 @@ function OperarPageInterna() {
                 {/* Price alert panel */}
                 <div className="mt-3 rounded-none border border-fg/10 bg-canvas p-4">
                   <p className="mb-3 flex items-center font-mono text-[11px] uppercase tracking-widest text-fg/40">
-                    Alerta de precio
+                    {t("trade.priceAlert")}
                     <Tooltip texto="Te notifica (en esta página) cuando el precio de la acción suba o baje al nivel que defines. Útil para monitorear sin estar pendiente del precio todo el tiempo." />
                   </p>
                   <div className="flex gap-2">
@@ -1041,8 +1063,8 @@ function OperarPageInterna() {
                       onChange={(e) => setCondicionAlerta(e.target.value as "gte" | "lte")}
                       className="rounded-none border border-fg/20 bg-panel px-2 py-2 font-mono text-xs text-fg"
                     >
-                      <option value="lte">Baja a</option>
-                      <option value="gte">Sube a</option>
+                      <option value="lte">{lang === "en" ? "Falls to" : "Baja a"}</option>
+                      <option value="gte">{lang === "en" ? "Rises to" : "Sube a"}</option>
                     </select>
                     <input
                       type="number"
@@ -1057,7 +1079,7 @@ function OperarPageInterna() {
                       onClick={crearAlerta}
                       className="rounded-none border border-fg/20 px-3 py-2 font-mono text-xs hover:bg-fg/5"
                     >
-                      + Alertar
+                      {lang === "en" ? "+ Alert" : "+ Alertar"}
                     </button>
                   </div>
 
@@ -1079,7 +1101,7 @@ function OperarPageInterna() {
                 {/* Pending limit orders */}
                 {ordenesPendientes.filter((o) => o.estado === "pendiente").length > 0 && (
                   <div className="mt-3 rounded-none border border-fg/10 bg-canvas p-4">
-                    <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">Órdenes límite pendientes</p>
+                    <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">{t("trade.pendingOrders")}</p>
                     <ul className="flex flex-col gap-1">
                       {ordenesPendientes.filter((o) => o.estado === "pendiente").map((o) => (
                         <li key={o.id} className="flex items-center justify-between rounded-none border border-fg/10 px-2 py-1.5 text-xs">
@@ -1100,7 +1122,7 @@ function OperarPageInterna() {
 
           {/* ── Columna derecha: Explorar mercados ── */}
           <div className="lg:col-span-3">
-            <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">Explorar mercados</p>
+            <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">{t("trade.explorer")}</p>
 
             {categoriasVisibles.length > 1 && (
               <div className="mb-3 flex flex-wrap gap-1">
@@ -1117,7 +1139,7 @@ function OperarPageInterna() {
                         : "border-fg/15 bg-panel text-fg/50 hover:text-fg"
                     }`}
                   >
-                    {c.label}
+                    {CAT_LABELS_I18N[c.key] ?? c.label}
                   </button>
                 ))}
               </div>
@@ -1125,11 +1147,11 @@ function OperarPageInterna() {
 
             <div className="flex flex-col gap-2">
               {(cargandoCat && !explorador[catActiva]) && (
-                <p className="rounded-none border border-fg/10 bg-panel p-3 text-sm text-fg/40">Cargando...</p>
+                <p className="rounded-none border border-fg/10 bg-panel p-3 text-sm text-fg/40">{t("common.loading")}</p>
               )}
               {categoriasVisibles.length === 0 && (
                 <p className="rounded-none border border-fg/10 bg-panel p-3 text-sm text-fg/40">
-                  Tu grupo aún no tiene mercados habilitados.
+                  {lang === "en" ? "Your group has no markets enabled yet." : "Tu grupo aún no tiene mercados habilitados."}
                 </p>
               )}
               {(explorador[catActiva] || []).map((d) => {
