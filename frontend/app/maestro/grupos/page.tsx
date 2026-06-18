@@ -21,12 +21,12 @@ interface Grupo {
 }
 
 const ACTIVOS_DISPONIBLES = [
-  { value: "acciones", label: "Acciones", icon: "📈" },
-  { value: "indices", label: "Índices / ETFs", icon: "📊" },
-  { value: "commodities", label: "Commodities", icon: "🛢️" },
-  { value: "crypto", label: "Cripto", icon: "₿" },
-  { value: "forex", label: "Divisas (Forex)", icon: "💱" },
-  { value: "bolsa_mx", label: "Bolsa Mexicana (BMV)", icon: "🇲🇽" },
+  { value: "acciones", label: "Acciones" },
+  { value: "indices", label: "Índices / ETFs" },
+  { value: "commodities", label: "Commodities" },
+  { value: "crypto", label: "Cripto" },
+  { value: "forex", label: "Divisas (Forex)" },
+  { value: "bolsa_mx", label: "Bolsa Mexicana (BMV)" },
 ];
 
 const ACTIVOS_LABEL: Record<string, string> = Object.fromEntries(
@@ -221,7 +221,6 @@ export default function GruposPage() {
                               : "border-fg/15 bg-canvas text-fg/50 hover:border-fg/30"
                           }`}
                         >
-                          <span className="mr-2">{activo.icon}</span>
                           {activo.label}
                         </button>
                         {activosPermitidos.includes(activo.value) && (
@@ -265,7 +264,7 @@ export default function GruposPage() {
           </div>
         ) : grupos.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-none border border-dashed border-fg/20 py-20 text-center">
-            <p className="font-mono text-4xl text-fg/10">■</p>
+            <p className="font-mono text-4xl font-bold text-fg/10">TRADEX</p>
             <p className="mt-3 font-medium text-fg/50">Todavía no tienes ningún grupo</p>
             <p className="mt-1 text-sm text-fg/30">Crea tu primer grupo para compartir el código con tus alumnos</p>
             <button
