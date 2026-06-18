@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { obtenerSesion } from "@/lib/auth";
 
@@ -15,6 +15,7 @@ const RUTAS_PUBLICAS = ["/", "/login"];
 
 export default function TickerTape() {
   const pathname = usePathname();
+  const router = useRouter();
   const [datos, setDatos] = useState<PrecioDestacado[]>([]);
   const [autenticado, setAutenticado] = useState(false);
 
@@ -30,7 +31,7 @@ export default function TickerTape() {
 
     async function cargar() {
       try {
-        const data = await api.get<PrecioDestacado[]>("/precios/destacados");
+        const data = await api.get<PrecioDestacado[]>("/precios/trending");
         if (activo && data.length > 0) setDatos(data);
       } catch {
         // se mantiene el último dato conocido
@@ -67,8 +68,15 @@ export default function TickerTape() {
           <div className="flex animate-ticker gap-8 whitespace-nowrap pr-8">
             {fila.map((d, i) => {
               const sube = d.cambio_porcentaje >= 0;
+              const isSecondHalf = i >= datos.length;
               return (
-                <span key={`${d.ticker}-${i}`} className="flex items-center gap-2 font-mono text-[11px] font-semibold tracking-wide">
+                <button
+                  key={`${d.ticker}-${i}`}
+                  onClick={isSecondHalf ? undefined : () => router.push(`/alumno/operar?t=${encodeURIComponent(d.ticker)}`)}
+                  tabIndex={isSecondHalf ? -1 : 0}
+                  aria-hidden={isSecondHalf}
+                  className="flex items-center gap-2 font-mono text-[11px] font-semibold tracking-wide hover:opacity-75 transition-opacity cursor-pointer"
+                >
                   <span className="font-bold text-black">{d.ticker}</span>
                   <span className="text-black/75">${Number(d.precio).toFixed(2)}</span>
                   <span
@@ -79,7 +87,7 @@ export default function TickerTape() {
                     {sube ? "▲" : "▼"} {sube ? "+" : ""}
                     {d.cambio_porcentaje.toFixed(2)}%
                   </span>
-                </span>
+                </button>
               );
             })}
           </div>

@@ -420,6 +420,57 @@ def _destacado_de_ticker(ticker: str, nombre: str | None = None) -> dict | None:
     return item
 
 
+@ttl_cache(seconds=120)
+def obtener_trending() -> list[dict]:
+    """Return up to 16 real-time trending tickers (most active + top gainers/losers)."""
+    import httpx as _httpx
+    headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
+
+    def _fetch_screener(tipo: str, count: int) -> list[str]:
+        try:
+            resp = _httpx.get(
+                "https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved",
+                params={"formatted": "true", "scrIds": tipo, "count": str(count)},
+                headers=headers,
+                timeout=10.0,
+            )
+            if resp.status_code != 200:
+                return []
+            quotes = (((resp.json() or {}).get("finance") or {}).get("result") or [{}])[0].get("quotes") or []
+            return [q["symbol"] for q in quotes if q.get("symbol")]
+        except Exception:
+            return []
+
+    # Parallel fetch of three screeners
+    with ThreadPoolExecutor(max_workers=3) as ex:
+        f_active = ex.submit(_fetch_screener, "most_actives", 8)
+        f_gainers = ex.submit(_fetch_screener, "day_gainers", 5)
+        f_losers = ex.submit(_fetch_screener, "day_losers", 5)
+        actives = f_active.result()
+        gainers = f_gainers.result()
+        losers = f_losers.result()
+
+    # Deduplicate while preserving order: actives first, then gainers, then losers
+    seen: set[str] = set()
+    tickers: list[str] = []
+    for t in actives + gainers + losers:
+        if t not in seen:
+            seen.add(t)
+            tickers.append(t)
+        if len(tickers) >= 16:
+            break
+
+    # Fall back to curated list if screener failed
+    if not tickers:
+        tickers = TICKERS_DESTACADOS
+
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        futuros = {ex.submit(_destacado_de_ticker, t): t for t in tickers}
+        resultados = {futuros[f]: f.result() for f in as_completed(futuros)}
+
+    return [resultados[t] for t in tickers if resultados.get(t)]
+
+
 @ttl_cache(seconds=60)
 def obtener_precios_destacados() -> list[dict]:
     # Fetch all tickers in parallel instead of one-by-one — this turns ~16

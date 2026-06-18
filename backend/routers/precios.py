@@ -17,6 +17,7 @@ from precios_utils import (
     obtener_precios_destacados,
     obtener_precios_indices,
     obtener_screener,
+    obtener_trending,
     obtener_sectores,
 )
 
@@ -67,6 +68,12 @@ def historial_escenario(
 @limiter.limit("30/minute")
 def precios_destacados(request: Request, current_user: User = Depends(get_current_user)):
     return obtener_precios_destacados()
+
+
+@router.get("/trending")
+@limiter.limit("20/minute")
+def trending(request: Request, current_user: User = Depends(get_current_user)):
+    return obtener_trending()
 
 
 @router.get("/explorador/{categoria}")
