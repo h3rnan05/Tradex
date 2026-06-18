@@ -96,28 +96,23 @@ export default function MercadosMundo({ compacto = false }: { compacto?: boolean
             htmlAltitude={0.015}
             htmlElement={(p: any) => {
               const el = document.createElement("div");
-              el.style.display = "flex";
-              el.style.alignItems = "center";
-              el.style.gap = "4px";
               el.style.pointerEvents = "none";
               el.style.fontFamily = "IBM Plex Mono, monospace";
               el.style.whiteSpace = "nowrap";
-              el.style.transform = "translate(8px, -10px)";
+              el.style.transform = "translate(6px, -8px)";
               el.innerHTML = `
                 <div style="
-                  background:#faf6ed;
-                  border:1px solid rgba(26,14,0,0.25);
-                  padding:3px 6px;
-                  font-size:10px;
-                  line-height:1.3;
+                  background:rgba(250,246,237,0.92);
+                  border:1px solid rgba(26,14,0,0.18);
+                  padding:2px 5px;
+                  font-size:8px;
+                  line-height:1.4;
                   color:#1a0e00;
-                  box-shadow:0 1px 3px rgba(0,0,0,0.15);
+                  box-shadow:0 1px 2px rgba(0,0,0,0.12);
+                  backdrop-filter:blur(2px);
                 ">
-                  <div style="font-weight:700;">${p.ciudad} · ${p.codigo}</div>
-                  <div style="color:${p.abierto ? "#007a2e" : "#cc1a1a"};font-weight:600;">
-                    ${p.abierto ? "Abierta" : "Cerrada"} · ${p.horaLocal}
-                  </div>
-                  <div style="color:rgba(26,14,0,0.55);">${p.descripcion}</div>
+                  <span style="font-weight:700;font-size:8px;">${p.ciudad}</span>
+                  <span style="color:${p.abierto ? "#007a2e" : "#cc1a1a"};font-weight:600;margin-left:4px;">${p.abierto ? "●" : "●"} ${p.horaLocal}</span>
                 </div>
               `;
               return el;
