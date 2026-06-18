@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     # malformed value can never crash app startup.
     allowed_origins: str = "http://localhost:3000"
     resend_api_key: str = ""
-    frontend_url: str = "http://localhost:3000"
+    frontend_url: str = "https://tradex-beryl.vercel.app"
     reset_token_expire_minutes: int = 60
 
     @property
