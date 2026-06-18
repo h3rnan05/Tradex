@@ -5,6 +5,7 @@ from escenarios_historicos import ESCENARIOS_HISTORICOS
 from limiter import limiter
 from models.user import User
 from precios_utils import (
+    normalizar_ticker,
     obtener_earnings_calendar,
     obtener_ficha_empresa,
     obtener_historial_precios,
@@ -105,7 +106,7 @@ def screener(
 @limiter.limit("60/minute")
 def precio_actual(request: Request, ticker: str, current_user: User = Depends(get_current_user)):
     precio = obtener_precio_actual(ticker)
-    return {"ticker": ticker.upper(), "precio": precio}
+    return {"ticker": normalizar_ticker(ticker), "precio": precio}
 
 
 @router.get("/{ticker}/historial")
@@ -117,14 +118,14 @@ def historial_precio(
     current_user: User = Depends(get_current_user),
 ):
     historial = obtener_historial_precios(ticker, dias=dias)
-    return {"ticker": ticker.upper(), "historial": historial}
+    return {"ticker": normalizar_ticker(ticker), "historial": historial}
 
 
 @router.get("/{ticker}/noticias")
 @limiter.limit("20/minute")
 def noticias_ticker(request: Request, ticker: str, current_user: User = Depends(get_current_user)):
     noticias = obtener_noticias(ticker)
-    return {"ticker": ticker.upper(), "noticias": noticias}
+    return {"ticker": normalizar_ticker(ticker), "noticias": noticias}
 
 
 @router.get("/{ticker}/ficha")
