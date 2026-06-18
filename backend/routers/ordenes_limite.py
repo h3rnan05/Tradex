@@ -109,6 +109,13 @@ def _procesar_ordenes_pendientes(db: Session, alumno: User) -> list[OrdenPendien
 
     if ejecutadas:
         db.commit()
+        try:
+            from insignias_engine import evaluar_y_otorgar_insignias, _otorgar
+            for op in ejecutadas:
+                _otorgar(db, alumno.id, op.grupo_id, "orden_limite_ejecutada")
+            db.commit()
+        except Exception:
+            pass
     return ejecutadas
 
 
@@ -228,6 +235,12 @@ def crear_alerta(payload: AlertaCreate, db: Session = Depends(get_db), alumno: U
     db.add(alerta)
     db.commit()
     db.refresh(alerta)
+    try:
+        from insignias_engine import _otorgar
+        if _otorgar(db, alumno.id, None, "alerta_puesta"):
+            db.commit()
+    except Exception:
+        pass
     return {
         "id": str(alerta.id),
         "ticker": alerta.ticker,

@@ -114,7 +114,7 @@ def comprar(payload: OrdenCreate, db: Session = Depends(get_db), alumno: User = 
     db.refresh(orden)
     try:
         from insignias_engine import evaluar_y_otorgar_insignias
-        evaluar_y_otorgar_insignias(db, alumno.id, payload.grupo_id)
+        evaluar_y_otorgar_insignias(db, alumno.id, payload.grupo_id, capital_inicial=float(grupo.capital_inicial))
     except Exception:
         pass
     return orden
@@ -174,7 +174,7 @@ def vender(payload: OrdenCreate, db: Session = Depends(get_db), alumno: User = D
     db.refresh(orden)
     try:
         from insignias_engine import evaluar_y_otorgar_insignias
-        evaluar_y_otorgar_insignias(db, alumno.id, payload.grupo_id)
+        evaluar_y_otorgar_insignias(db, alumno.id, payload.grupo_id, capital_inicial=float(grupo.capital_inicial))
     except Exception:
         pass
     return orden
