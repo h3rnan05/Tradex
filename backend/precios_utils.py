@@ -14,6 +14,24 @@ from config import settings
 
 _TICKER_RE = re.compile(r'^[A-Z0-9\.\^\=\-\+]{1,15}$')
 
+# Símbolos de criptomonedas conocidas. En Yahoo Finance la cripto se cotiza con
+# el sufijo -USD (BTC-USD). Si el usuario escribe el símbolo "pelado" (BTC),
+# resolvería a OTRO instrumento (un fondo distinto), así que lo normalizamos a
+# su par -USD para que "BTC" signifique Bitcoin de verdad.
+_CRYPTO_SYMBOLS = {
+    "BTC", "ETH", "SOL", "XRP", "DOGE", "ADA", "AVAX", "MATIC", "SHIB",
+    "LTC", "BCH", "DOT", "LINK", "UNI", "ATOM", "XLM", "ETC", "FIL",
+    "ICP", "NEAR", "APT", "ARB", "OP", "INJ", "TRX", "BNB", "ALGO", "XMR",
+}
+
+
+def normalizar_ticker(ticker: str) -> str:
+    """Convierte símbolos de cripto pelados (BTC) a su par -USD (BTC-USD)."""
+    t = ticker.upper().strip()
+    if t in _CRYPTO_SYMBOLS:
+        return f"{t}-USD"
+    return t
+
 # ── Simple in-memory TTL cache ────────────────────────────────────────────
 # Market data changes slowly relative to how often the UI requests it. Caching
 # responses for a few seconds/minutes turns repeated page loads from dozens of
@@ -42,7 +60,7 @@ def ttl_cache(seconds: int):
 
 
 def validar_ticker(ticker: str) -> str:
-    t = ticker.upper().strip()
+    t = normalizar_ticker(ticker)
     if not _TICKER_RE.match(t):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Ticker inválido: '{ticker}'")
     return t
@@ -143,7 +161,7 @@ def obtener_precio_actual(ticker: str) -> Decimal:
 
 @ttl_cache(seconds=60)
 def _obtener_precio_y_cambio(ticker: str) -> tuple[Decimal, float]:
-    ticker = ticker.upper().strip()
+    ticker = normalizar_ticker(ticker)
     resultado = _consultar_chart(ticker, dias=7)
 
     cierres = ((resultado.get("indicators") or {}).get("quote") or [{}])[0].get("close") or []
@@ -201,7 +219,7 @@ def _consultar_volumenes_eodhd(ticker: str, inicio: date, fin: date) -> dict[str
 
 @ttl_cache(seconds=300)
 def obtener_historial_precios(ticker: str, dias: int = 30) -> list[dict]:
-    ticker = ticker.upper().strip()
+    ticker = normalizar_ticker(ticker)
     resultado = _consultar_chart(ticker, dias=dias)
 
     timestamps = resultado.get("timestamp") or []
@@ -243,7 +261,7 @@ def obtener_historial_precios(ticker: str, dias: int = 30) -> list[dict]:
 
 
 def obtener_historial_precios_rango(ticker: str, fecha_inicio: date, fecha_fin: date) -> list[dict]:
-    ticker = ticker.upper().strip()
+    ticker = normalizar_ticker(ticker)
     resultado = _consultar_chart_rango(ticker, fecha_inicio, fecha_fin)
 
     timestamps = resultado.get("timestamp") or []
@@ -301,7 +319,7 @@ def _buscar_noticias_yahoo(query: str, cantidad: int) -> list[dict]:
 
 @ttl_cache(seconds=300)
 def obtener_noticias(ticker: str, cantidad: int = 6) -> list[dict]:
-    return _buscar_noticias_yahoo(ticker.upper().strip(), cantidad)
+    return _buscar_noticias_yahoo(normalizar_ticker(ticker), cantidad)
 
 
 @ttl_cache(seconds=300)
@@ -560,7 +578,7 @@ def _obtener_crumb_yf() -> tuple[str, dict]:
 
 @ttl_cache(seconds=600)
 def obtener_ficha_empresa(ticker: str) -> dict:
-    ticker = ticker.upper().strip()
+    ticker = normalizar_ticker(ticker)
     crumb, cookies = _obtener_crumb_yf()
     params = {
         "modules": "summaryDetail,financialData,defaultKeyStatistics,recommendationTrend",
