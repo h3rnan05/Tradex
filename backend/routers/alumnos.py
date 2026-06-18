@@ -14,6 +14,8 @@ from models.holding import Holding
 from models.membership import Membership
 from models.orden import Orden, TipoOrdenEnum
 from models.user import RolEnum, User
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 from precios_utils import obtener_historial_precios_rango, obtener_precio_actual
 from schemas.holding import HoldingConPrecio, PortafolioOut
 from schemas.orden import OrdenOut
@@ -49,12 +51,27 @@ def portafolio(
         Holding.alumno_id == alumno_id, Holding.grupo_id == membership.grupo_id
     ).all()
 
+    holdings_activos = [h for h in holdings if h.cantidad > 0]
+
+    # Fetch all prices in parallel
+    tickers_unicos = list({h.ticker for h in holdings_activos})
+    precios: dict[str, Decimal] = {}
+    if tickers_unicos:
+        with ThreadPoolExecutor(max_workers=min(8, len(tickers_unicos))) as ex:
+            futuros = {ex.submit(obtener_precio_actual, t): t for t in tickers_unicos}
+            for f in as_completed(futuros):
+                t = futuros[f]
+                try:
+                    precios[t] = f.result()
+                except Exception:
+                    pass
+
     holdings_con_precio = []
     valor_holdings = Decimal("0")
-    for h in holdings:
-        if h.cantidad == 0:
+    for h in holdings_activos:
+        precio_actual = precios.get(h.ticker)
+        if precio_actual is None:
             continue
-        precio_actual = obtener_precio_actual(h.ticker)
         valor_mercado = precio_actual * h.cantidad
         costo = h.precio_promedio * h.cantidad
         pnl = valor_mercado - costo
