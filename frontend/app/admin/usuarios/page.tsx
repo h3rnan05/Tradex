@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Navbar from "@/components/Navbar";
 import { api, ApiError } from "@/lib/api";
 import { useToast } from "@/components/Toast";
+import { useLanguage } from "@/lib/i18n";
 
 interface Usuario {
   id: string;
@@ -20,6 +21,7 @@ const ROLES = ["alumno", "maestro", "sponsor"];
 
 export default function AdminUsuarios() {
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [busqueda, setBusqueda] = useState("");
   const [filtrando, setFiltrando] = useState(false);
@@ -71,10 +73,10 @@ export default function AdminUsuarios() {
       <Navbar />
       <div className="mx-auto max-w-6xl p-4 md:p-6">
         <div className="mb-6 flex items-end justify-between gap-4">
-          <h1 className="text-2xl font-bold text-fg">Usuarios</h1>
+          <h1 className="text-2xl font-bold text-fg">{t("admin.users.title")}</h1>
           <input
             type="text"
-            placeholder="Buscar por nombre o email..."
+            placeholder={t("admin.users.searchPlaceholder")}
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
             className="w-64 border border-fg/20 bg-panel px-3 py-2 font-mono text-sm text-fg placeholder:text-fg/30"
@@ -88,7 +90,7 @@ export default function AdminUsuarios() {
             <table className="w-full border border-fg/10 bg-panel text-sm">
               <thead className="bg-fg/5">
                 <tr>
-                  {["Nombre", "Email", "Rol", "Escuela", "Estado", "Acciones"].map((h) => (
+                  {[t("common.name"), t("common.email"), t("common.role"), "Escuela", t("common.status"), t("common.actions")].map((h) => (
                     <th key={h} className="px-4 py-3 text-left font-mono text-[10px] uppercase tracking-wider text-fg/40">{h}</th>
                   ))}
                 </tr>

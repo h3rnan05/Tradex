@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { calcularEstadoMercado, MERCADOS } from "@/lib/mercados";
+import { useLanguage } from "@/lib/i18n";
 
 const Globe = dynamic(() => import("react-globe.gl"), { ssr: false });
 
@@ -18,6 +19,7 @@ interface PuntoMercado {
 }
 
 export default function MercadosMundo({ compacto = false }: { compacto?: boolean }) {
+  const { t } = useLanguage();
   const contenedorRef = useRef<HTMLDivElement>(null);
   const globoRef = useRef<any>(null);
   const [ahora, setAhora] = useState<Date | null>(null);
@@ -73,7 +75,7 @@ export default function MercadosMundo({ compacto = false }: { compacto?: boolean
       }`}
     >
       <p className="mb-2 font-mono text-[11px] font-semibold uppercase tracking-widest text-fg/40">
-        Mercados globales en vivo
+        {t("globe.title")}
       </p>
 
       <div ref={contenedorRef} className="relative w-full flex-1 overflow-hidden">
@@ -122,7 +124,7 @@ export default function MercadosMundo({ compacto = false }: { compacto?: boolean
       </div>
 
       <p className="mt-2 text-center font-mono text-[10px] text-fg/30">
-        Arrastra el globo para explorar · puntos verdes = abierto
+        {t("globe.drag")}
       </p>
     </div>
   );

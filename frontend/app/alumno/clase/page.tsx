@@ -147,7 +147,7 @@ export default function ClasePage() {
                   </div>
 
                   {cl.pausado && (
-                    <p className="mb-3 font-mono text-[10px] text-perdida uppercase tracking-wider">Participacion pausada</p>
+                    <p className="mb-3 font-mono text-[10px] text-perdida uppercase tracking-wider">{t("class.paused")}</p>
                   )}
 
                   <div className="grid grid-cols-3 gap-3 mb-4">
@@ -188,7 +188,7 @@ export default function ClasePage() {
                         onClick={() => setConfirmandoSalir(cl.grupo_id)}
                         className="border border-fg/20 px-3 py-1.5 font-mono text-[10px] text-fg/50 hover:border-perdida hover:text-perdida"
                       >
-                        {t("nav.logout")}
+                        {t("class.leaveGroup")}
                       </button>
                     )}
                   </div>

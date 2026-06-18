@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { api } from "@/lib/api";
+import { useLanguage } from "@/lib/i18n";
 
 interface Stats {
   total_usuarios: number;
@@ -26,6 +27,7 @@ interface Grupo {
 }
 
 export default function AdminDashboard() {
+  const { t } = useLanguage();
   const [stats, setStats] = useState<Stats | null>(null);
   const [grupos, setGrupos] = useState<Grupo[]>([]);
   const [sponsors, setSponsors] = useState<{id: string, nombre: string}[]>([]);
@@ -45,16 +47,16 @@ export default function AdminDashboard() {
     <main className="min-h-screen bg-canvas">
       <Navbar />
       <div className="mx-auto max-w-7xl p-4 md:p-6">
-        <h1 className="mb-6 text-2xl font-bold text-fg">Panel de Administración</h1>
+        <h1 className="mb-6 text-2xl font-bold text-fg">{t("admin.dashboard.title")}</h1>
 
         {/* Stats */}
         {stats && (
           <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
             {[
-              { label: "Usuarios", value: stats.total_usuarios },
-              { label: "Maestros", value: stats.total_maestros },
-              { label: "Alumnos", value: stats.total_alumnos },
-              { label: "Grupos", value: stats.total_grupos },
+              { label: t("admin.dashboard.users"), value: stats.total_usuarios },
+              { label: t("admin.dashboard.teachers"), value: stats.total_maestros },
+              { label: t("admin.dashboard.students"), value: stats.total_alumnos },
+              { label: t("admin.dashboard.groups"), value: stats.total_grupos },
               { label: "Operaciones", value: stats.total_operaciones },
               { label: "Participaciones", value: stats.total_participaciones },
             ].map((s) => (
@@ -72,7 +74,7 @@ export default function AdminDashboard() {
           <table className="w-full border border-fg/10 bg-panel text-sm">
             <thead className="bg-fg/5">
               <tr>
-                {["Grupo", "Maestro", "Capital", "Alumnos", "Inicio", "Cierre", "Patrocinador"].map((h) => (
+                {["Grupo", t("admin.teachers.title"), "Capital", t("admin.dashboard.students"), t("class.startDate"), t("class.endDate"), "Patrocinador"].map((h) => (
                   <th key={h} className="px-4 py-3 text-left font-mono text-[10px] uppercase tracking-wider text-fg/40">{h}</th>
                 ))}
               </tr>

@@ -3,8 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { api, ApiError } from "@/lib/api";
+import { useLanguage } from "@/lib/i18n";
 
 export default function ForgotPasswordPage() {
+  const { t } = useLanguage();
   const [email, setEmail] = useState("");
   const [enviado, setEnviado] = useState(false);
   const [cargando, setCargando] = useState(false);
@@ -18,7 +20,7 @@ export default function ForgotPasswordPage() {
       await api.post("/auth/forgot-password", { email });
       setEnviado(true);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "No se pudo conectar con el servidor");
+      setError(err instanceof ApiError ? err.message : t("login.error.noConnection"));
     } finally {
       setCargando(false);
     }
@@ -30,18 +32,18 @@ export default function ForgotPasswordPage() {
         <h1 className="mb-1 font-mono text-2xl font-bold uppercase tracking-widest text-fg">
           <span className="text-accent">■</span> Tradex
         </h1>
-        <p className="mb-6 text-sm text-fg/40">Recupera tu contraseña</p>
+        <p className="mb-6 text-sm text-fg/40">{t("forgot.title")}</p>
 
         {enviado ? (
           <div className="rounded-none border border-ganancia/30 bg-ganancia/5 p-4">
-            <p className="font-mono text-sm text-ganancia">
-              Si el correo está registrado, recibirás un enlace para restablecer tu contraseña en los próximos minutos.
-            </p>
+            <p className="font-mono text-sm font-bold text-ganancia">{t("forgot.successTitle")}</p>
+            <p className="mt-2 font-mono text-sm text-ganancia">{t("forgot.successDesc")}</p>
           </div>
         ) : (
           <form onSubmit={manejarSubmit} className="flex flex-col gap-4">
+            <p className="text-sm text-fg/60">{t("forgot.desc")}</p>
             <div>
-              <label className="mb-1 block text-sm font-medium text-fg/70">Correo</label>
+              <label className="mb-1 block text-sm font-medium text-fg/70">{t("forgot.email")}</label>
               <input
                 type="email"
                 required
@@ -58,13 +60,13 @@ export default function ForgotPasswordPage() {
               disabled={cargando}
               className="rounded-none bg-accent px-4 py-2 font-mono text-sm font-bold uppercase tracking-wide text-black hover:opacity-90 disabled:opacity-50"
             >
-              {cargando ? "Enviando..." : "Enviar enlace"}
+              {cargando ? t("forgot.sending") : t("forgot.submit")}
             </button>
           </form>
         )}
 
         <Link href="/login" className="mt-4 block text-center text-sm text-fg/40 hover:text-fg/70">
-          Volver al inicio de sesión
+          {t("forgot.backToLogin")}
         </Link>
       </div>
     </main>

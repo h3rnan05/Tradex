@@ -783,16 +783,16 @@ function OperarPageInterna() {
                     v != null ? `$${(v / 1e9).toFixed(1)}B` : null;
 
                   const statsAccion = [
-                    { label: "P/E", value: fmt(ficha.pe_ratio), hint: "Precio/Ganancia: cuántas veces el precio de la acción supera sus ganancias anuales. Un P/E alto puede indicar que el mercado espera mucho crecimiento futuro." },
-                    { label: "EPS", value: fmt(ficha.eps, "$"), hint: "Earnings Per Share (Ganancia por acción): cuánto dinero generó la empresa por cada acción emitida en el último año." },
-                    { label: "Beta", value: fmt(ficha.beta), hint: "Mide la volatilidad de la acción vs el mercado. Beta > 1 = más volátil que el mercado; Beta < 1 = más estable." },
-                    { label: "Cap. Mkt", value: fmtB(ficha.market_cap), hint: "Capitalización de mercado: valor total de la empresa según el precio actual de sus acciones (precio × acciones en circulación)." },
-                    { label: "P/E Fwd", value: fmt(ficha.forward_pe), hint: "P/E Forward: igual que el P/E pero usando las ganancias proyectadas para los próximos 12 meses en vez de las pasadas." },
-                    { label: "Objetivo", value: fmt(ficha.precio_objetivo, "$"), hint: "Precio objetivo promedio de los analistas de Wall Street para los próximos 12 meses." },
+                    { label: "P/E", value: fmt(ficha.pe_ratio), hint: lang === "en" ? "Price/Earnings: how many times the stock price exceeds annual earnings. A high P/E may indicate the market expects strong growth." : "Precio/Ganancia: cuántas veces el precio de la acción supera sus ganancias anuales. Un P/E alto puede indicar que el mercado espera mucho crecimiento futuro." },
+                    { label: "EPS", value: fmt(ficha.eps, "$"), hint: lang === "en" ? "Earnings Per Share: how much profit the company generated per share in the last year." : "Earnings Per Share (Ganancia por acción): cuánto dinero generó la empresa por cada acción emitida en el último año." },
+                    { label: "Beta", value: fmt(ficha.beta), hint: lang === "en" ? "Measures stock volatility vs. the market. Beta > 1 = more volatile; Beta < 1 = more stable." : "Mide la volatilidad de la acción vs el mercado. Beta > 1 = más volátil que el mercado; Beta < 1 = más estable." },
+                    { label: "Cap. Mkt", value: fmtB(ficha.market_cap), hint: lang === "en" ? "Market cap: total company value based on current stock price (price × shares outstanding)." : "Capitalización de mercado: valor total de la empresa según el precio actual de sus acciones (precio × acciones en circulación)." },
+                    { label: "P/E Fwd", value: fmt(ficha.forward_pe), hint: lang === "en" ? "Forward P/E: same as P/E but using projected earnings for the next 12 months." : "P/E Forward: igual que el P/E pero usando las ganancias proyectadas para los próximos 12 meses en vez de las pasadas." },
+                    { label: lang === "en" ? "Target" : "Objetivo", value: fmt(ficha.precio_objetivo, "$"), hint: lang === "en" ? "Average 12-month analyst price target from Wall Street." : "Precio objetivo promedio de los analistas de Wall Street para los próximos 12 meses." },
                   ];
                   const statsComun = [
-                    { label: "Máx 52s", value: fmt(ficha.max_52s, "$"), hint: "Precio máximo al que cotizó la acción en los últimos 52 semanas (1 año)." },
-                    { label: "Mín 52s", value: fmt(ficha.min_52s, "$"), hint: "Precio mínimo al que cotizó la acción en los últimos 52 semanas (1 año)." },
+                    { label: lang === "en" ? "52w Hi" : "Máx 52s", value: fmt(ficha.max_52s, "$"), hint: lang === "en" ? "Highest price in the last 52 weeks (1 year)." : "Precio máximo al que cotizó la acción en los últimos 52 semanas (1 año)." },
+                    { label: lang === "en" ? "52w Lo" : "Mín 52s", value: fmt(ficha.min_52s, "$"), hint: lang === "en" ? "Lowest price in the last 52 weeks (1 year)." : "Precio mínimo al que cotizó la acción en los últimos 52 semanas (1 año)." },
                   ];
                   const stats = esIndice
                     ? statsComun
@@ -834,8 +834,8 @@ function OperarPageInterna() {
                         <div className="mt-2 rounded-none border border-fg/10 bg-canvas px-3 py-2.5">
                           <div className="mb-1.5 flex items-center justify-between">
                             <p className="flex items-center font-mono text-[10px] uppercase tracking-widest text-fg/40">
-                              Consenso analistas · {total} analistas
-                              <Tooltip texto="Opinión de analistas profesionales de Wall Street sobre si conviene comprar, mantener o vender esta acción. No garantiza el desempeño futuro." />
+                              {lang === "en" ? `Analyst consensus · ${total} analysts` : `Consenso analistas · ${total} analistas`}
+                              <Tooltip texto={lang === "en" ? "Wall Street analyst consensus on whether to buy, hold, or sell. Does not guarantee future performance." : "Opinión de analistas profesionales de Wall Street sobre si conviene comprar, mantener o vender esta acción. No garantiza el desempeño futuro."} />
                             </p>
                             {rec && (
                               <span className={`font-mono text-[11px] font-bold uppercase ${
@@ -866,7 +866,7 @@ function OperarPageInterna() {
                 <div className="mb-4 grid grid-cols-3 gap-3">
                   <div className="rounded-none border border-fg/10 bg-canvas px-3 py-2">
                     <p className="flex items-center font-mono text-[10px] uppercase tracking-widest text-fg/40">
-                      Máx. 30d <Tooltip texto="Precio más alto registrado en los últimos 30 días." />
+                      {lang === "en" ? "30d Hi" : "Máx. 30d"} <Tooltip texto={lang === "en" ? "Highest price in the last 30 days." : "Precio más alto registrado en los últimos 30 días."} />
                     </p>
                     <p className="font-mono text-sm font-semibold tabular-nums text-fg">
                       {maximo !== null ? `$${maximo.toFixed(2)}` : "—"}
@@ -874,7 +874,7 @@ function OperarPageInterna() {
                   </div>
                   <div className="rounded-none border border-fg/10 bg-canvas px-3 py-2">
                     <p className="flex items-center font-mono text-[10px] uppercase tracking-widest text-fg/40">
-                      Mín. 30d <Tooltip texto="Precio más bajo registrado en los últimos 30 días." />
+                      {lang === "en" ? "30d Lo" : "Mín. 30d"} <Tooltip texto={lang === "en" ? "Lowest price in the last 30 days." : "Precio más bajo registrado en los últimos 30 días."} />
                     </p>
                     <p className="font-mono text-sm font-semibold tabular-nums text-fg">
                       {minimo !== null ? `$${minimo.toFixed(2)}` : "—"}
@@ -882,7 +882,7 @@ function OperarPageInterna() {
                   </div>
                   <div className="rounded-none border border-fg/10 bg-canvas px-3 py-2">
                     <p className="flex items-center font-mono text-[10px] uppercase tracking-widest text-fg/40">
-                      Apertura 30d <Tooltip texto="Precio al que cerró la acción hace 30 días, usado como referencia para calcular el cambio porcentual del período." />
+                      {lang === "en" ? "30d Open" : "Apertura 30d"} <Tooltip texto={lang === "en" ? "Price 30 days ago, used as reference to calculate the period's percentage change." : "Precio al que cerró la acción hace 30 días, usado como referencia para calcular el cambio porcentual del período."} />
                     </p>
                     <p className="font-mono text-sm font-semibold tabular-nums text-fg">
                       {precioInicial !== null ? `$${precioInicial.toFixed(2)}` : "—"}
@@ -964,8 +964,8 @@ function OperarPageInterna() {
                   {tipoOrden === "limite" && (
                     <div className="mb-3 rounded-none border border-accent/20 bg-accent/5 px-3 py-2">
                       <p className="font-mono text-[10px] text-fg/50">
-                        <Tooltip texto="Una orden límite se ejecuta automáticamente cuando el precio alcanza el nivel que defines. Compra límite: se ejecuta si el precio baja a tu precio. Venta límite: se ejecuta si el precio sube a tu precio." />
-                        {" "}Orden límite: se ejecuta cuando el precio toque tu nivel
+                        <Tooltip texto={lang === "en" ? "A limit order executes automatically when the price reaches your level. Buy limit: triggers if price falls to your price. Sell limit: triggers if price rises to your price." : "Una orden límite se ejecuta automáticamente cuando el precio alcanza el nivel que defines. Compra límite: se ejecuta si el precio baja a tu precio. Venta límite: se ejecuta si el precio sube a tu precio."} />
+                        {" "}{lang === "en" ? "Limit order: executes when the price hits your level" : "Orden límite: se ejecuta cuando el precio toque tu nivel"}
                       </p>
                     </div>
                   )}
@@ -1055,7 +1055,7 @@ function OperarPageInterna() {
                 <div className="mt-3 rounded-none border border-fg/10 bg-canvas p-4">
                   <p className="mb-3 flex items-center font-mono text-[11px] uppercase tracking-widest text-fg/40">
                     {t("trade.priceAlert")}
-                    <Tooltip texto="Te notifica (en esta página) cuando el precio de la acción suba o baje al nivel que defines. Útil para monitorear sin estar pendiente del precio todo el tiempo." />
+                    <Tooltip texto={lang === "en" ? "Notifies you (on this page) when the stock price reaches the level you set. Useful for monitoring without watching prices constantly." : "Te notifica (en esta página) cuando el precio de la acción suba o baje al nivel que defines. Útil para monitorear sin estar pendiente del precio todo el tiempo."} />
                   </p>
                   <div className="flex gap-2">
                     <select

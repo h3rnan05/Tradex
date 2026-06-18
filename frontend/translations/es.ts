@@ -287,6 +287,77 @@ export const es = {
   // ── Footer ─────────────────────────────────────────────────────
   "footer.disclaimer": "Simulador educativo. No constituye asesoría financiera.",
   "footer.rights":     "Todos los derechos reservados.",
+
+  // ── Globe / MercadosMundo ──────────────────────────────────────
+  "globe.title":       "Mercados globales en vivo",
+  "globe.drag":        "Arrastra para explorar · puntos verdes = abierto",
+
+  // ── Mercados extras ────────────────────────────────────────────
+  "markets.mostActives": "Más activos",
+  "markets.company":     "Empresa",
+  "markets.companies":   "empresa",
+  "markets.companiesPlural": "empresas",
+
+  // ── Historial extras ───────────────────────────────────────────
+  "history.commission": "Comisión",
+  "history.netTotal":   "Total neto",
+
+  // ── Clase extras ───────────────────────────────────────────────
+  "class.leaveGroup":   "Salir del grupo",
+  "class.paused":       "Participación pausada",
+
+  // ── Retos extras ───────────────────────────────────────────────
+  "challenges.desc":      "Compite contra tus compañeros usando un escenario histórico real, comprimido en el tiempo del reto.",
+  "challenges.scenario":  "Escenario",
+  "challenges.ends":      "Termina",
+
+  // ── Plantillas extras ──────────────────────────────────────────
+  "templates.desc":       "Elige una plantilla y se distribuirá tu capital disponible entre los activos sugeridos según los porcentajes definidos.",
+  "templates.bought":     "Compraste",
+  "templates.at":         "a",
+  "templates.commission": "comisión",
+
+  // ── Badge titles & descriptions ────────────────────────────────
+  "badge.primera_orden.titulo":            "Primera Orden",
+  "badge.primera_orden.desc":             "Ejecuta tu primera operación",
+  "badge.sin_miedo_a_vender.titulo":       "Sin Miedo a Vender",
+  "badge.sin_miedo_a_vender.desc":        "Ejecuta tu primera venta",
+  "badge.primera_ganancia.titulo":         "Primera Ganancia",
+  "badge.primera_ganancia.desc":          "Ten una posición en verde",
+  "badge.short_seller.titulo":             "Short Seller",
+  "badge.short_seller.desc":              "Abre tu primera posición en corto",
+  "badge.alerta_puesta.titulo":            "Vigilante",
+  "badge.alerta_puesta.desc":             "Configura tu primera alerta de precio",
+  "badge.operador_activo.titulo":          "Operador Activo",
+  "badge.operador_activo.desc":           "Realiza 10 o más operaciones",
+  "badge.portafolio_diversificado.titulo": "Diversificado",
+  "badge.portafolio_diversificado.desc":  "Ten 5 o más activos distintos",
+  "badge.explorador_mercados.titulo":      "Explorador",
+  "badge.explorador_mercados.desc":       "Opera en 3 categorías de activos distintas",
+  "badge.cazador_de_cripto.titulo":        "Hodler",
+  "badge.cazador_de_cripto.desc":         "Ten Bitcoin o Ethereum en cartera",
+  "badge.orden_limite_ejecutada.titulo":   "Precisión Quirúrgica",
+  "badge.orden_limite_ejecutada.desc":    "Ejecuta una orden límite automáticamente",
+  "badge.operador_veterano.titulo":        "Veterano",
+  "badge.operador_veterano.desc":         "Realiza 50 o más operaciones",
+  "badge.gran_cartera.titulo":             "Gran Cartera",
+  "badge.gran_cartera.desc":              "Ten 10 o más activos simultáneamente",
+  "badge.rentabilidad_10.titulo":          "Rentable",
+  "badge.rentabilidad_10.desc":           "Logra un rendimiento mayor al 10%",
+  "badge.diversificado_global.titulo":     "Diversificado Global",
+  "badge.diversificado_global.desc":      "Opera en 5 o más categorías de activos",
+  "badge.riesgo_calculado.titulo":         "Riesgo Calculado",
+  "badge.riesgo_calculado.desc":          "Ten posiciones largas Y cortas al mismo tiempo",
+  "badge.centenar.titulo":                 "El Centenar",
+  "badge.centenar.desc":                  "Realiza 100 o más operaciones",
+  "badge.rentabilidad_50.titulo":          "Genio Financiero",
+  "badge.rentabilidad_50.desc":           "Logra un rendimiento mayor al 50%",
+  "badge.maestro_del_mercado.titulo":      "Maestro del Mercado",
+  "badge.maestro_del_mercado.desc":       "Opera en las 6 categorías disponibles",
+  "badge.ballena.titulo":                  "Ballena",
+  "badge.ballena.desc":                   "Duplica tu capital inicial",
+  "badge.sin_rendirse.titulo":             "Constancia",
+  "badge.sin_rendirse.desc":              "Opera en 5 días distintos",
 } as const;
 
 export type TranslationKey = keyof typeof es;

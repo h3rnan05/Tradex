@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Navbar from "@/components/Navbar";
 import { api } from "@/lib/api";
+import { useLanguage } from "@/lib/i18n";
 
 interface Entry {
   posicion: number;
@@ -25,6 +26,7 @@ interface Maestro {
 }
 
 export default function AdminRanking() {
+  const { t } = useLanguage();
   const [entries, setEntries] = useState<Entry[]>([]);
   const [maestros, setMaestros] = useState<Maestro[]>([]);
   const [cargando, setCargando] = useState(false);
@@ -57,7 +59,7 @@ export default function AdminRanking() {
     <main className="min-h-screen bg-canvas">
       <Navbar />
       <div className="mx-auto max-w-7xl p-4 md:p-6">
-        <h1 className="mb-6 text-2xl font-bold text-fg">Ranking Global</h1>
+        <h1 className="mb-6 text-2xl font-bold text-fg">{t("admin.ranking.title")}</h1>
 
         {/* Filters */}
         <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -83,7 +85,7 @@ export default function AdminRanking() {
           onClick={cargar}
           className="mb-6 bg-accent px-5 py-2 font-mono text-[11px] font-bold uppercase tracking-wider text-black"
         >
-          {cargando ? "Buscando..." : "Filtrar"}
+          {cargando ? "Buscando..." : t("common.filter")}
         </button>
 
         {/* Table */}
@@ -91,7 +93,7 @@ export default function AdminRanking() {
           <table className="w-full border border-fg/10 bg-panel text-sm">
             <thead className="bg-fg/5">
               <tr>
-                {["#", "Alumno", "Escuela", "Ciudad", "Estado", "Maestro", "Grupo", "Valor", "Rendimiento", "Ops"].map((h) => (
+                {["#", t("ranking.student"), "Escuela", "Ciudad", t("common.status"), t("admin.teachers.title"), "Grupo", t("ranking.totalValue"), t("ranking.return"), "Ops"].map((h) => (
                   <th key={h} className="px-3 py-3 text-left font-mono text-[10px] uppercase tracking-wider text-fg/40">{h}</th>
                 ))}
               </tr>
@@ -120,7 +122,7 @@ export default function AdminRanking() {
                 );
               })}
               {entries.length === 0 && !cargando && (
-                <tr><td colSpan={10} className="px-4 py-8 text-center font-mono text-sm text-fg/30">Sin datos</td></tr>
+                <tr><td colSpan={10} className="px-4 py-8 text-center font-mono text-sm text-fg/30">{t("common.noData")}</td></tr>
               )}
             </tbody>
           </table>

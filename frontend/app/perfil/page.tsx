@@ -6,6 +6,7 @@ import Navbar from "@/components/Navbar";
 import { api, ApiError } from "@/lib/api";
 import { obtenerSesion, guardarSesion } from "@/lib/auth";
 import { useToast } from "@/components/Toast";
+import { useLanguage } from "@/lib/i18n";
 
 interface UserProfile {
   id: string;
@@ -20,6 +21,7 @@ interface UserProfile {
 export default function PerfilPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [perfil, setPerfil] = useState<UserProfile | null>(null);
   const [nombre, setNombre] = useState("");
   const [escuela, setEscuela] = useState("");
@@ -59,7 +61,7 @@ export default function PerfilPage() {
       setPerfil(actualizado);
       const sesion = obtenerSesion();
       if (sesion) guardarSesion({ ...sesion, nombre: actualizado.nombre });
-      toast("Perfil actualizado", "success");
+      toast(t("profile.success"), "success");
     } catch (err) {
       toast(err instanceof ApiError ? err.message : "Error al guardar", "error");
     } finally {
@@ -71,7 +73,7 @@ export default function PerfilPage() {
     <main className="min-h-screen bg-canvas">
       <Navbar />
       <div className="mx-auto max-w-lg p-6">
-        <h1 className="mb-6 text-2xl font-bold text-fg">Mi Perfil</h1>
+        <h1 className="mb-6 text-2xl font-bold text-fg">{t("profile.title")}</h1>
 
         {cargando ? (
           <div className="h-64 animate-pulse border border-fg/10 bg-panel" />
@@ -88,7 +90,7 @@ export default function PerfilPage() {
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium text-fg/70">Nombre</label>
+              <label className="mb-1 block text-sm font-medium text-fg/70">{t("profile.name")}</label>
               <input
                 type="text"
                 required
@@ -134,7 +136,7 @@ export default function PerfilPage() {
               disabled={guardando}
               className="mt-2 bg-accent px-4 py-2 font-mono text-sm font-bold uppercase tracking-wide text-black hover:opacity-90 disabled:opacity-50"
             >
-              {guardando ? "Guardando..." : "Guardar cambios"}
+              {guardando ? t("profile.saving") : t("profile.save")}
             </button>
           </form>
         ) : null}

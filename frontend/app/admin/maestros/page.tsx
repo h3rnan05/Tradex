@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Navbar from "@/components/Navbar";
 import { api } from "@/lib/api";
+import { useLanguage } from "@/lib/i18n";
 
 interface Maestro {
   id: string;
@@ -15,6 +16,7 @@ interface Maestro {
 }
 
 export default function AdminMaestros() {
+  const { t } = useLanguage();
   const [maestros, setMaestros] = useState<Maestro[]>([]);
 
   async function cargar() {
@@ -32,12 +34,12 @@ export default function AdminMaestros() {
     <main className="min-h-screen bg-canvas">
       <Navbar />
       <div className="mx-auto max-w-6xl p-4 md:p-6">
-        <h1 className="mb-6 text-2xl font-bold text-fg">Maestros</h1>
+        <h1 className="mb-6 text-2xl font-bold text-fg">{t("admin.teachers.title")}</h1>
         <div className="overflow-x-auto">
           <table className="w-full border border-fg/10 bg-panel text-sm">
             <thead className="bg-fg/5">
               <tr>
-                {["Nombre", "Email", "Escuela", "Ciudad", "Estado", ""].map((h) => (
+                {[t("common.name"), t("common.email"), "Escuela", "Ciudad", t("common.status"), ""].map((h) => (
                   <th key={h} className="px-4 py-3 text-left font-mono text-[10px] uppercase tracking-wider text-fg/40">{h}</th>
                 ))}
               </tr>

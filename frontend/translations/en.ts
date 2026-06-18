@@ -287,4 +287,75 @@ export const en = {
   // ── Footer ─────────────────────────────────────────────────────
   "footer.disclaimer": "Educational simulator. Does not constitute financial advice.",
   "footer.rights":     "All rights reserved.",
+
+  // ── Globe / MercadosMundo ──────────────────────────────────────
+  "globe.title":       "Live global markets",
+  "globe.drag":        "Drag to explore · green dots = open",
+
+  // ── Mercados extras ────────────────────────────────────────────
+  "markets.mostActives": "Most active",
+  "markets.company":     "Company",
+  "markets.companies":   "company",
+  "markets.companiesPlural": "companies",
+
+  // ── Historial extras ───────────────────────────────────────────
+  "history.commission": "Commission",
+  "history.netTotal":   "Net total",
+
+  // ── Clase extras ───────────────────────────────────────────────
+  "class.leaveGroup":   "Leave group",
+  "class.paused":       "Participation paused",
+
+  // ── Retos extras ───────────────────────────────────────────────
+  "challenges.desc":      "Compete against your classmates using a real historical scenario, compressed into the challenge timeframe.",
+  "challenges.scenario":  "Scenario",
+  "challenges.ends":      "Ends",
+
+  // ── Plantillas extras ──────────────────────────────────────────
+  "templates.desc":       "Choose a template and your available capital will be distributed among the suggested assets according to the defined percentages.",
+  "templates.bought":     "Bought",
+  "templates.at":         "at",
+  "templates.commission": "commission",
+
+  // ── Badge titles & descriptions ────────────────────────────────
+  "badge.primera_orden.titulo":            "First Order",
+  "badge.primera_orden.desc":             "Execute your first trade",
+  "badge.sin_miedo_a_vender.titulo":       "No Fear of Selling",
+  "badge.sin_miedo_a_vender.desc":        "Execute your first sell",
+  "badge.primera_ganancia.titulo":         "First Profit",
+  "badge.primera_ganancia.desc":          "Have a position in the green",
+  "badge.short_seller.titulo":             "Short Seller",
+  "badge.short_seller.desc":              "Open your first short position",
+  "badge.alerta_puesta.titulo":            "Watchman",
+  "badge.alerta_puesta.desc":             "Set up your first price alert",
+  "badge.operador_activo.titulo":          "Active Trader",
+  "badge.operador_activo.desc":           "Execute 10 or more trades",
+  "badge.portafolio_diversificado.titulo": "Diversified",
+  "badge.portafolio_diversificado.desc":  "Hold 5 or more different assets",
+  "badge.explorador_mercados.titulo":      "Explorer",
+  "badge.explorador_mercados.desc":       "Trade in 3 different asset categories",
+  "badge.cazador_de_cripto.titulo":        "Hodler",
+  "badge.cazador_de_cripto.desc":         "Hold Bitcoin or Ethereum in your portfolio",
+  "badge.orden_limite_ejecutada.titulo":   "Surgical Precision",
+  "badge.orden_limite_ejecutada.desc":    "Have a limit order execute automatically",
+  "badge.operador_veterano.titulo":        "Veteran",
+  "badge.operador_veterano.desc":         "Execute 50 or more trades",
+  "badge.gran_cartera.titulo":             "Big Portfolio",
+  "badge.gran_cartera.desc":              "Hold 10 or more assets simultaneously",
+  "badge.rentabilidad_10.titulo":          "Profitable",
+  "badge.rentabilidad_10.desc":           "Achieve a return greater than 10%",
+  "badge.diversificado_global.titulo":     "Global Diversified",
+  "badge.diversificado_global.desc":      "Trade in 5 or more asset categories",
+  "badge.riesgo_calculado.titulo":         "Calculated Risk",
+  "badge.riesgo_calculado.desc":          "Hold long AND short positions at the same time",
+  "badge.centenar.titulo":                 "The Hundred",
+  "badge.centenar.desc":                  "Execute 100 or more trades",
+  "badge.rentabilidad_50.titulo":          "Financial Genius",
+  "badge.rentabilidad_50.desc":           "Achieve a return greater than 50%",
+  "badge.maestro_del_mercado.titulo":      "Market Master",
+  "badge.maestro_del_mercado.desc":       "Trade in all 6 available categories",
+  "badge.ballena.titulo":                  "Whale",
+  "badge.ballena.desc":                   "Double your initial capital",
+  "badge.sin_rendirse.titulo":             "Consistency",
+  "badge.sin_rendirse.desc":              "Trade on 5 different days",
 } as const;

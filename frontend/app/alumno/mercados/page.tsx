@@ -6,6 +6,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import Tooltip from "@/components/Tooltip";
 import { api } from "@/lib/api";
+import { useLanguage } from "@/lib/i18n";
 
 interface Sector {
   sector: string;
@@ -30,12 +31,6 @@ interface EarningsItem {
 }
 
 type ScreenerTipo = "most_actives" | "day_gainers" | "day_losers";
-
-const SCREENER_TABS: { key: ScreenerTipo; label: string }[] = [
-  { key: "most_actives", label: "Más activos" },
-  { key: "day_gainers", label: "Mayores subidas" },
-  { key: "day_losers", label: "Mayores bajadas" },
-];
 
 function fmtPct(v: number | null): string {
   if (v == null) return "—";
@@ -79,6 +74,7 @@ function sectorBg(pct: number | null): string {
 
 export default function MercadosPage() {
   const router = useRouter();
+  const { t, lang } = useLanguage();
 
   const [sectores, setSectores] = useState<Sector[]>([]);
   const [screener, setScreener] = useState<ScreenerItem[]>([]);
@@ -87,6 +83,12 @@ export default function MercadosPage() {
   const [cargandoSectores, setCargandoSectores] = useState(true);
   const [cargandoScreener, setCargandoScreener] = useState(true);
   const [cargandoEarnings, setCargandoEarnings] = useState(true);
+
+  const SCREENER_TABS: { key: ScreenerTipo; label: string }[] = [
+    { key: "most_actives", label: t("markets.mostActives") },
+    { key: "day_gainers", label: t("markets.gainers") },
+    { key: "day_losers", label: t("markets.losers") },
+  ];
 
   useEffect(() => {
     api
@@ -123,18 +125,18 @@ export default function MercadosPage() {
     <main className="min-h-screen bg-canvas">
       <Navbar />
       <div className="mx-auto max-w-7xl p-4 md:p-6">
-        <h1 className="mb-6 text-2xl font-bold text-fg">Mercados</h1>
+        <h1 className="mb-6 text-2xl font-bold text-fg">{t("markets.title")}</h1>
 
         {/* ── Sector Heatmap ── */}
         <section className="mb-8">
           <p className="mb-3 flex items-center font-mono text-[11px] uppercase tracking-widest text-fg/40">
-            Distribución por Sector
-            <Tooltip texto="Muestra el rendimiento de cada sector del mercado hoy. Útil para identificar qué industrias están liderando o rezagadas." />
+            {t("markets.heatmap")}
+            <Tooltip texto={lang === "en" ? "Shows today's performance for each market sector. Useful for spotting leading or lagging industries." : "Muestra el rendimiento de cada sector del mercado hoy. Útil para identificar qué industrias están liderando o rezagadas."} />
           </p>
           {cargandoSectores ? (
-            <p className="border border-fg/10 bg-panel p-4 text-sm text-fg/40">Cargando sectores...</p>
+            <p className="border border-fg/10 bg-panel p-4 text-sm text-fg/40">{t("common.loading")}</p>
           ) : sectores.length === 0 ? (
-            <p className="border border-fg/10 bg-panel p-4 text-sm text-fg/40">No se pudieron cargar los sectores.</p>
+            <p className="border border-fg/10 bg-panel p-4 text-sm text-fg/40">{t("common.noData")}</p>
           ) : (
             <div className="grid grid-cols-3 gap-px bg-fg/20 border border-fg/20 sm:grid-cols-4">
               {sectores.map((s) => (
@@ -154,7 +156,7 @@ export default function MercadosPage() {
 
         {/* ── Screener ── */}
         <section className="mb-8">
-          <p className="mb-3 font-mono text-[11px] uppercase tracking-widest text-fg/40">Screener</p>
+          <p className="mb-3 font-mono text-[11px] uppercase tracking-widest text-fg/40">{t("markets.screener")}</p>
 
           {/* Tabs */}
           <div className="mb-3 flex border-b border-fg/10">
@@ -174,28 +176,28 @@ export default function MercadosPage() {
           </div>
 
           {cargandoScreener ? (
-            <p className="rounded-none border border-fg/10 bg-panel p-4 text-sm text-fg/40">Cargando...</p>
+            <p className="rounded-none border border-fg/10 bg-panel p-4 text-sm text-fg/40">{t("common.loading")}</p>
           ) : screener.length === 0 ? (
-            <p className="rounded-none border border-fg/10 bg-panel p-4 text-sm text-fg/40">Sin datos disponibles.</p>
+            <p className="rounded-none border border-fg/10 bg-panel p-4 text-sm text-fg/40">{t("common.noData")}</p>
           ) : (
             <div className="overflow-x-auto rounded-none border border-fg/10 bg-panel">
               <table className="w-full font-mono text-sm">
                 <thead>
                   <tr className="border-b border-fg/10 text-[10px] uppercase tracking-wider text-fg/40">
-                    <th className="px-3 py-2 text-left">Ticker</th>
-                    <th className="px-3 py-2 text-left">Empresa</th>
-                    <th className="px-3 py-2 text-right">Precio</th>
-                    <th className="px-3 py-2 text-right">Cambio %</th>
+                    <th className="px-3 py-2 text-left">{t("common.ticker")}</th>
+                    <th className="px-3 py-2 text-left">{t("markets.company")}</th>
+                    <th className="px-3 py-2 text-right">{t("common.price")}</th>
+                    <th className="px-3 py-2 text-right">{t("trade.change")} %</th>
                     <th className="px-3 py-2 text-right">
                       <span className="inline-flex items-center">
-                        Volumen
-                        <Tooltip texto="Número de acciones negociadas hoy. Volumen alto = mucho interés del mercado." />
+                        {t("trade.volume")}
+                        <Tooltip texto={lang === "en" ? "Number of shares traded today. High volume = strong market interest." : "Número de acciones negociadas hoy. Volumen alto = mucho interés del mercado."} />
                       </span>
                     </th>
                     <th className="px-3 py-2 text-right">
                       <span className="inline-flex items-center">
-                        Cap. Mkt
-                        <Tooltip texto="Valor total de la empresa en el mercado (precio × acciones en circulación)." />
+                        {t("trade.marketCap")}
+                        <Tooltip texto={lang === "en" ? "Total company value in the market (price × shares outstanding)." : "Valor total de la empresa en el mercado (precio × acciones en circulación)."} />
                       </span>
                     </th>
                   </tr>
@@ -229,20 +231,20 @@ export default function MercadosPage() {
         {/* ── Earnings Calendar ── */}
         <section>
           <p className="mb-3 flex items-center font-mono text-[11px] uppercase tracking-widest text-fg/40">
-            Calendario de Resultados
-            <Tooltip texto="Próximos reportes de ganancias corporativas. EPS (Earnings Per Share) = ganancia por acción. Si supera el estimado, el precio suele subir." />
+            {t("markets.earnings")}
+            <Tooltip texto={lang === "en" ? "Upcoming corporate earnings reports. EPS (Earnings Per Share) = profit per share. If it beats estimates, the stock price often rises." : "Próximos reportes de ganancias corporativas. EPS (Earnings Per Share) = ganancia por acción. Si supera el estimado, el precio suele subir."} />
           </p>
           {cargandoEarnings ? (
-            <p className="border border-fg/10 bg-panel p-4 text-sm text-fg/40">Cargando calendario...</p>
+            <p className="border border-fg/10 bg-panel p-4 text-sm text-fg/40">{t("common.loading")}</p>
           ) : fechasOrdenadas.length === 0 ? (
-            <p className="border border-fg/10 bg-panel p-4 text-sm text-fg/40">Sin reportes en los próximos 45 días para las empresas monitoreadas.</p>
+            <p className="border border-fg/10 bg-panel p-4 text-sm text-fg/40">{t("common.noData")}</p>
           ) : (
             <div className="flex flex-col gap-3">
               {fechasOrdenadas.map((fecha) => (
                 <div key={fecha} className="border border-fg/10 bg-panel">
                   <div className="border-b border-fg/10 bg-canvas px-4 py-2 flex items-center gap-3">
                     <span className="font-mono text-[11px] font-bold uppercase tracking-widest text-accent">
-                      {new Date(fecha + "T12:00:00Z").toLocaleDateString("es-MX", {
+                      {new Date(fecha + "T12:00:00Z").toLocaleDateString(lang === "en" ? "en-US" : "es-MX", {
                         weekday: "short",
                         day: "numeric",
                         month: "short",
@@ -250,7 +252,7 @@ export default function MercadosPage() {
                       }).toUpperCase()}
                     </span>
                     <span className="font-mono text-[10px] text-fg/30">
-                      {earningsByFecha[fecha].length} empresa{earningsByFecha[fecha].length !== 1 ? "s" : ""}
+                      {earningsByFecha[fecha].length} {earningsByFecha[fecha].length !== 1 ? t("markets.companiesPlural") : t("markets.companies")}
                     </span>
                   </div>
                   <div className="divide-y divide-fg/5">

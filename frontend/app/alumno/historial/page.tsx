@@ -72,8 +72,8 @@ export default function HistorialPage() {
                 {expandido === o.id && (
                   <div className="border-t border-fg/5 px-4 pb-3">
                     <div className="mt-2 flex gap-4 font-mono text-[11px] text-fg/50 mb-2">
-                      <span>Comisión: {formatoMoneda(o.comision)}</span>
-                      <span>Total neto: {formatoMoneda(Number(o.cantidad) * Number(o.precio_ejecucion))}</span>
+                      <span>{t("history.commission")}: {formatoMoneda(o.comision)}</span>
+                      <span>{t("history.netTotal")}: {formatoMoneda(Number(o.cantidad) * Number(o.precio_ejecucion))}</span>
                     </div>
                     <ComentariosMaestro ordenId={o.id} esMaestro={false} />
                   </div>

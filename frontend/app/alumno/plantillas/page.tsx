@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Navbar from "@/components/Navbar";
 import { Badge, Card, formatoMoneda } from "@/components/primitives";
 import { api, ApiError } from "@/lib/api";
+import { useLanguage } from "@/lib/i18n";
 
 interface ActivoPlantilla {
   ticker: string;
@@ -37,6 +38,7 @@ const TONOS: Record<string, "ganancia" | "neutral" | "perdida"> = {
 };
 
 export default function PlantillasPage() {
+  const { t } = useLanguage();
   const [plantillas, setPlantillas] = useState<Plantilla[] | null>(null);
   const [aplicando, setAplicando] = useState<string | null>(null);
   const [resultado, setResultado] = useState<AplicarRespuesta | null>(null);
@@ -67,16 +69,13 @@ export default function PlantillasPage() {
     <main className="min-h-screen bg-canvas">
       <Navbar />
       <div className="mx-auto max-w-4xl p-6">
-        <h1 className="mb-2 text-2xl font-bold text-fg">Portafolios por perfil de riesgo</h1>
-        <p className="mb-6 text-sm text-fg/40">
-          Elige una plantilla y se distribuirá tu capital disponible entre los activos sugeridos según los
-          porcentajes definidos.
-        </p>
+        <h1 className="mb-2 text-2xl font-bold text-fg">{t("templates.title")}</h1>
+        <p className="mb-6 text-sm text-fg/40">{t("templates.desc")}</p>
 
         {error && <p className="mb-4 text-sm text-perdida">{error}</p>}
 
         {!plantillas ? (
-          <p className="text-fg/40">Cargando...</p>
+          <p className="text-fg/40">{t("common.loading")}</p>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             {plantillas.map((p) => (
@@ -99,7 +98,7 @@ export default function PlantillasPage() {
                   disabled={aplicando !== null}
                   className="mt-auto rounded-none bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-ink/80 disabled:opacity-50"
                 >
-                  {aplicando === p.perfil_riesgo ? "Aplicando..." : "Aplicar plantilla"}
+                  {aplicando === p.perfil_riesgo ? t("templates.applying") : t("templates.apply")}
                 </button>
               </Card>
             ))}
@@ -108,12 +107,12 @@ export default function PlantillasPage() {
 
         {resultado && (
           <Card className="mt-6">
-            <h2 className="mb-3 text-lg font-semibold text-fg">Resultado</h2>
+            <h2 className="mb-3 text-lg font-semibold text-fg">{t("templates.success")}</h2>
             {resultado.ordenes.length > 0 && (
               <ul className="mb-3 flex flex-col gap-1 text-sm">
                 {resultado.ordenes.map((o) => (
                   <li key={o.id}>
-                    Compraste {o.cantidad} {o.ticker} a {formatoMoneda(o.precio_ejecucion)} (comisión:{" "}
+                    {t("templates.bought")} {o.cantidad} {o.ticker} {t("templates.at")} {formatoMoneda(o.precio_ejecucion)} ({t("templates.commission")}:{" "}
                     {formatoMoneda(o.comision)})
                   </li>
                 ))}

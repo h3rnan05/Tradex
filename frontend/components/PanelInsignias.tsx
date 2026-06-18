@@ -1,5 +1,7 @@
 "use client";
 
+import { useLanguage } from "@/lib/i18n";
+
 interface Insignia {
   codigo: string;
   otorgada_at: string;
@@ -50,7 +52,7 @@ const BADGES_DEF: BadgeDef[] = [
 
 const NIVEL_ORDEN: Nivel[] = ["facil", "medio", "dificil", "legendario"];
 
-function BadgeHex({ def, tiene, fecha }: { def: BadgeDef; tiene: boolean; fecha?: string }) {
+function BadgeHex({ def, tiene, fecha, t }: { def: BadgeDef; tiene: boolean; fecha?: string; t: (k: any) => string }) {
   const c = NIVEL_COLORES[def.nivel];
   return (
     <div className="flex flex-col items-center gap-1.5 text-center">
@@ -94,14 +96,14 @@ function BadgeHex({ def, tiene, fecha }: { def: BadgeDef; tiene: boolean; fecha?
       </div>
       <div>
         <p className={`font-mono text-[9px] font-bold uppercase tracking-wide leading-tight ${tiene ? "text-fg" : "text-fg/25"}`}>
-          {def.titulo}
+          {t(`badge.${def.codigo}.titulo` as any) || def.titulo}
         </p>
         {tiene && fecha ? (
           <p className="font-mono text-[8px] mt-0.5" style={{ color: c.text }}>
             {new Date(fecha).toLocaleDateString("es-MX", { day: "numeric", month: "short" })}
           </p>
         ) : (
-          <p className="font-mono text-[8px] text-fg/20 mt-0.5 leading-tight px-1">{def.desc}</p>
+          <p className="font-mono text-[8px] text-fg/20 mt-0.5 leading-tight px-1">{t(`badge.${def.codigo}.desc` as any) || def.desc}</p>
         )}
       </div>
     </div>
@@ -119,7 +121,15 @@ const NIVEL_ICONO: Record<string, string> = {
   ballena: "🐋", sin_rendirse: "🔥",
 };
 
+const NIVEL_TRANSLATION_KEY: Record<Nivel, "achievements.facil" | "achievements.medio" | "achievements.dificil" | "achievements.legendario"> = {
+  facil: "achievements.facil",
+  medio: "achievements.medio",
+  dificil: "achievements.dificil",
+  legendario: "achievements.legendario",
+};
+
 export default function PanelInsignias({ insignias }: { insignias: Insignia[] }) {
+  const { t } = useLanguage();
   const obtenidas = new Set(insignias.map((i) => i.codigo));
   const fechaMap = Object.fromEntries(insignias.map((i) => [i.codigo, i.otorgada_at]));
 
@@ -140,7 +150,7 @@ export default function PanelInsignias({ insignias }: { insignias: Insignia[] })
                 className="font-mono text-[10px] font-bold uppercase tracking-widest"
                 style={{ color: c.text }}
               >
-                {c.label}
+                {t(NIVEL_TRANSLATION_KEY[nivel])}
               </span>
               <span className="font-mono text-[10px] text-fg/30">
                 {obtenidas_nivel}/{badges.length}
@@ -153,6 +163,7 @@ export default function PanelInsignias({ insignias }: { insignias: Insignia[] })
                   def={b}
                   tiene={obtenidas.has(b.codigo)}
                   fecha={fechaMap[b.codigo]}
+                  t={t}
                 />
               ))}
             </div>

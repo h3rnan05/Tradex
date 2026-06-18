@@ -1,4 +1,9 @@
+"use client";
+
+import { useLanguage } from "@/lib/i18n";
+
 export default function Footer() {
+  const { t } = useLanguage();
   return (
     <footer className="mt-16 border-t border-fg/10 bg-canvas">
       <div className="mx-auto max-w-7xl px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-2">
@@ -7,10 +12,10 @@ export default function Footer() {
           <span className="font-mono text-[11px] font-bold uppercase tracking-widest text-accent">Tradex</span>
         </div>
         <p className="font-mono text-[10px] text-fg/30 text-center">
-          © {new Date().getFullYear()} Tradex. Todos los derechos reservados. Obra registrada ante INDAUTOR.
+          © {new Date().getFullYear()} Tradex. {t("footer.rights")} Obra registrada ante INDAUTOR.
         </p>
         <p className="font-mono text-[10px] text-fg/20">
-          Simulador educativo · No constituye asesoría financiera
+          {t("footer.disclaimer")}
         </p>
       </div>
     </footer>

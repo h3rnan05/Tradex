@@ -6,6 +6,7 @@ import Navbar from "@/components/Navbar";
 import { Card } from "@/components/primitives";
 import { api, ApiError } from "@/lib/api";
 import { obtenerSesion } from "@/lib/auth";
+import { useLanguage } from "@/lib/i18n";
 
 interface Portafolio {
   grupo_id: string;
@@ -21,6 +22,7 @@ interface Reto {
 }
 
 export default function RetosPage() {
+  const { t } = useLanguage();
   const [retos, setRetos] = useState<Reto[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,18 +45,16 @@ export default function RetosPage() {
     <main className="min-h-screen bg-canvas">
       <Navbar />
       <div className="mx-auto max-w-4xl p-6">
-        <h1 className="mb-2 text-2xl font-bold text-fg">Retos cronometrados</h1>
-        <p className="mb-6 text-sm text-fg/40">
-          Compite contra tus compañeros usando un escenario histórico real, comprimido en el tiempo del reto.
-        </p>
+        <h1 className="mb-2 text-2xl font-bold text-fg">{t("challenges.title")}</h1>
+        <p className="mb-6 text-sm text-fg/40">{t("challenges.desc")}</p>
 
         {error && <p className="mb-4 text-sm text-perdida">{error}</p>}
 
         {!retos ? (
-          <p className="text-fg/40">Cargando...</p>
+          <p className="text-fg/40">{t("common.loading")}</p>
         ) : retos.length === 0 ? (
           <Card>
-            <p className="text-fg/40">Tu maestro todavía no ha lanzado ningún reto.</p>
+            <p className="text-fg/40">{t("challenges.noRetos")}</p>
           </Card>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -68,12 +68,12 @@ export default function RetosPage() {
                         estaActivo(r) ? "text-ganancia" : "text-fg/40"
                       }`}
                     >
-                      {estaActivo(r) ? "En curso" : "Finalizado"}
+                      {estaActivo(r) ? t("class.active") : t("class.finished")}
                     </span>
                   </div>
-                  <p className="text-xs text-fg/40">Escenario: {r.escenario_id}</p>
+                  <p className="text-xs text-fg/40">{t("challenges.scenario")}: {r.escenario_id}</p>
                   <p className="text-xs text-fg/40">
-                    Termina: {new Date(r.fecha_fin).toLocaleString("es-MX")}
+                    {t("challenges.ends")}: {new Date(r.fecha_fin).toLocaleString("es-MX")}
                   </p>
                 </Card>
               </Link>

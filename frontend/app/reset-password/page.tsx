@@ -4,10 +4,12 @@ import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { api, ApiError } from "@/lib/api";
+import { useLanguage } from "@/lib/i18n";
 
 function ResetPasswordForm() {
   const router = useRouter();
   const params = useSearchParams();
+  const { t } = useLanguage();
   const token = params.get("token") ?? "";
 
   const [password, setPassword] = useState("");
@@ -17,13 +19,13 @@ function ResetPasswordForm() {
   const [listo, setListo] = useState(false);
 
   useEffect(() => {
-    if (!token) setError("Token inválido o faltante.");
+    if (!token) setError(t("reset.error.noToken"));
   }, [token]);
 
   async function manejarSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (password !== confirmacion) {
-      setError("Las contraseñas no coinciden.");
+      setError(t("reset.error.mismatch"));
       return;
     }
     setError(null);
@@ -33,7 +35,7 @@ function ResetPasswordForm() {
       setListo(true);
       setTimeout(() => router.push("/login"), 2500);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "No se pudo conectar con el servidor");
+      setError(err instanceof ApiError ? err.message : t("login.error.noConnection"));
     } finally {
       setCargando(false);
     }
@@ -45,18 +47,17 @@ function ResetPasswordForm() {
         <h1 className="mb-1 font-mono text-2xl font-bold uppercase tracking-widest text-fg">
           <span className="text-accent">■</span> Tradex
         </h1>
-        <p className="mb-6 text-sm text-fg/40">Nueva contraseña</p>
+        <p className="mb-6 text-sm text-fg/40">{t("reset.title")}</p>
 
         {listo ? (
           <div className="border border-ganancia/30 bg-ganancia/5 p-4">
-            <p className="font-mono text-sm text-ganancia">
-              ¡Contraseña actualizada! Redirigiendo al inicio de sesión…
-            </p>
+            <p className="font-mono text-sm font-bold text-ganancia">{t("reset.successTitle")}</p>
+            <p className="mt-2 font-mono text-sm text-ganancia">{t("reset.successDesc")}</p>
           </div>
         ) : (
           <form onSubmit={manejarSubmit} className="flex flex-col gap-4">
             <div>
-              <label className="mb-1 block text-sm font-medium text-fg/70">Nueva contraseña</label>
+              <label className="mb-1 block text-sm font-medium text-fg/70">{t("reset.newPassword")}</label>
               <input
                 type="password"
                 required
@@ -67,7 +68,7 @@ function ResetPasswordForm() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-fg/70">Confirmar contraseña</label>
+              <label className="mb-1 block text-sm font-medium text-fg/70">{t("reset.confirmPassword")}</label>
               <input
                 type="password"
                 required
@@ -85,13 +86,13 @@ function ResetPasswordForm() {
               disabled={cargando || !token}
               className="rounded-none bg-accent px-4 py-2 font-mono text-sm font-bold uppercase tracking-wide text-black hover:opacity-90 disabled:opacity-50"
             >
-              {cargando ? "Guardando..." : "Cambiar contraseña"}
+              {cargando ? t("reset.saving") : t("reset.submit")}
             </button>
           </form>
         )}
 
         <Link href="/login" className="mt-4 block text-center text-sm text-fg/40 hover:text-fg/70">
-          Volver al inicio de sesión
+          {t("reset.goToLogin")}
         </Link>
       </div>
     </main>
