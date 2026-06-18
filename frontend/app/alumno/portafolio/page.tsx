@@ -116,15 +116,17 @@ export default function PortafolioPage() {
     );
   }
 
+  const holdings = portafolio.holdings ?? [];
+
   const distribucion = [
     { nombre: "Efectivo", valor: Number(portafolio.capital_disponible) },
-    ...portafolio.holdings.map((h) => ({ nombre: h.ticker, valor: Number(h.valor_mercado) })),
+    ...holdings.map((h) => ({ nombre: h.ticker, valor: Number(h.valor_mercado) })),
   ].filter((d) => d.valor > 0);
 
-  const ganadoras = [...portafolio.holdings]
+  const ganadoras = [...holdings]
     .filter((h) => Number(h.pnl) > 0)
     .sort((a, b) => Number(b.pnl_porcentaje) - Number(a.pnl_porcentaje));
-  const perdedoras = [...portafolio.holdings]
+  const perdedoras = [...holdings]
     .filter((h) => Number(h.pnl) < 0)
     .sort((a, b) => Number(a.pnl_porcentaje) - Number(b.pnl_porcentaje));
 
@@ -263,7 +265,7 @@ export default function PortafolioPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {portafolio.holdings.map((h) => (
+                  {holdings.map((h) => (
                     <tr key={h.id} className="border-t border-fg/5 hover:bg-fg/5">
                       <td className="px-4 py-3 font-mono font-bold text-fg">{h.ticker}</td>
                       <td className="px-4 py-3 font-mono tabular-nums text-fg/70">{Number(h.cantidad).toFixed(4)}</td>
@@ -288,7 +290,7 @@ export default function PortafolioPage() {
                       </td>
                     </tr>
                   ))}
-                  {portafolio.holdings.length === 0 && (
+                  {holdings.length === 0 && (
                     <tr>
                       <td colSpan={7} className="px-4 py-6 text-center text-sm text-fg/40">
                         Aún no tienes posiciones abiertas.{" "}

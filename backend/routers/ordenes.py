@@ -106,6 +106,8 @@ def comprar(payload: OrdenCreate, db: Session = Depends(get_db), alumno: User = 
     if membership.pausado:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tu participación está pausada")
     grupo = db.query(Grupo).filter(Grupo.id == payload.grupo_id).first()
+    if not grupo:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Grupo no encontrado")
 
     orden = ejecutar_compra(db, alumno, membership, grupo, payload.ticker, payload.cantidad)
     db.commit()
@@ -127,6 +129,8 @@ def vender(payload: OrdenCreate, db: Session = Depends(get_db), alumno: User = D
     if membership.pausado:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tu participación está pausada")
     grupo = db.query(Grupo).filter(Grupo.id == payload.grupo_id).first()
+    if not grupo:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Grupo no encontrado")
     ticker = validar_ticker(payload.ticker)
 
     # Lock both rows to prevent concurrent sells from going negative

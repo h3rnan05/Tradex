@@ -11,10 +11,10 @@ const STORAGE_KEY = "tradex_token";
 const SESSION_KEY = "tradex_session";
 
 export function guardarSesion(sesion: Sesion) {
+  if (typeof window === "undefined") return;
   localStorage.setItem(STORAGE_KEY, sesion.token);
   const serialized = JSON.stringify(sesion);
   localStorage.setItem(SESSION_KEY, serialized);
-  // Also write a cookie so Next.js middleware can do coarse role checks
   document.cookie = `tradex_session=${encodeURIComponent(serialized)}; path=/; SameSite=Strict`;
 }
 
