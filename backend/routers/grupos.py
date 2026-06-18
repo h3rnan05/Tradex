@@ -59,6 +59,48 @@ def listar_grupos(db: Session = Depends(get_db), maestro: User = Depends(require
     return db.query(Grupo).filter(Grupo.maestro_id == maestro.id).all()
 
 
+class UnirseRequest(BaseModel):
+    codigo: str
+
+
+@router.post("/unirse", response_model=MembershipOut, status_code=status.HTTP_201_CREATED)
+def unirse_por_codigo(
+    payload: UnirseRequest,
+    db: Session = Depends(get_db),
+    alumno: User = Depends(get_current_user),
+):
+    if alumno.rol != RolEnum.alumno:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Solo los alumnos pueden unirse por código")
+
+    grupo = db.query(Grupo).filter(Grupo.codigo == payload.codigo.upper().strip()).first()
+    if not grupo:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Código de grupo inválido")
+
+    existente = db.query(Membership).filter(
+        Membership.grupo_id == grupo.id, Membership.alumno_id == alumno.id
+    ).first()
+    if existente:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Ya perteneces a este grupo")
+
+    if grupo.max_alumnos is not None:
+        total_actual = db.query(Membership).filter(Membership.grupo_id == grupo.id).count()
+        if total_actual >= grupo.max_alumnos:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"El grupo ya alcanzó el límite de {grupo.max_alumnos} alumnos",
+            )
+
+    membership = Membership(
+        grupo_id=grupo.id,
+        alumno_id=alumno.id,
+        capital_disponible=grupo.capital_inicial,
+    )
+    db.add(membership)
+    db.commit()
+    db.refresh(membership)
+    return membership
+
+
 @router.get("/{grupo_id}", response_model=GrupoDetalle)
 def detalle_grupo(grupo_id: str, db: Session = Depends(get_db), maestro: User = Depends(require_maestro)):
     grupo = (
@@ -326,45 +368,3 @@ def regenerar_codigo(
     db.commit()
     db.refresh(grupo)
     return grupo
-
-
-class UnirseRequest(BaseModel):
-    codigo: str
-
-
-@router.post("/unirse", response_model=MembershipOut, status_code=status.HTTP_201_CREATED)
-def unirse_por_codigo(
-    payload: UnirseRequest,
-    db: Session = Depends(get_db),
-    alumno: User = Depends(get_current_user),
-):
-    if alumno.rol != RolEnum.alumno:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Solo los alumnos pueden unirse por código")
-
-    grupo = db.query(Grupo).filter(Grupo.codigo == payload.codigo.upper().strip()).first()
-    if not grupo:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Código de grupo inválido")
-
-    existente = db.query(Membership).filter(
-        Membership.grupo_id == grupo.id, Membership.alumno_id == alumno.id
-    ).first()
-    if existente:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Ya perteneces a este grupo")
-
-    if grupo.max_alumnos is not None:
-        total_actual = db.query(Membership).filter(Membership.grupo_id == grupo.id).count()
-        if total_actual >= grupo.max_alumnos:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"El grupo ya alcanzó el límite de {grupo.max_alumnos} alumnos",
-            )
-
-    membership = Membership(
-        grupo_id=grupo.id,
-        alumno_id=alumno.id,
-        capital_disponible=grupo.capital_inicial,
-    )
-    db.add(membership)
-    db.commit()
-    db.refresh(membership)
-    return membership

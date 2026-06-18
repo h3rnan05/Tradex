@@ -66,7 +66,7 @@ def ejecutar_compra(db: Session, alumno: User, membership: Membership, grupo: Gr
     holding = (
         db.query(Holding)
         .with_for_update()
-        .filter(Holding.alumno_id == alumno.id, Holding.grupo_id == membership.grupo_id, Holding.ticker == ticker)
+        .filter(Holding.alumno_id == alumno.id, Holding.grupo_id == membership.grupo_id, Holding.ticker == ticker, Holding.es_corto == False)
         .first()
     )
 
@@ -137,7 +137,7 @@ def vender(payload: OrdenCreate, db: Session = Depends(get_db), alumno: User = D
     holding = (
         db.query(Holding)
         .with_for_update()
-        .filter(Holding.alumno_id == alumno.id, Holding.grupo_id == payload.grupo_id, Holding.ticker == ticker)
+        .filter(Holding.alumno_id == alumno.id, Holding.grupo_id == payload.grupo_id, Holding.ticker == ticker, Holding.es_corto == False)
         .first()
     )
     membership = (
