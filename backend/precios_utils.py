@@ -371,6 +371,74 @@ def obtener_precios_indices() -> list[dict]:
     return [resultados[ind["ticker"]] for ind in INDICES_MERCADO if resultados.get(ind["ticker"])]
 
 
+# Listas curadas para el explorador de mercados en la pestaña Operar.
+# Cada categoría coincide con los tipos de activo que el maestro puede habilitar
+# (acciones, indices, commodities, crypto).
+EXPLORADOR_CATEGORIAS: dict[str, list[dict]] = {
+    "acciones": [
+        {"ticker": "AAPL", "nombre": "Apple"},
+        {"ticker": "MSFT", "nombre": "Microsoft"},
+        {"ticker": "GOOGL", "nombre": "Alphabet"},
+        {"ticker": "AMZN", "nombre": "Amazon"},
+        {"ticker": "NVDA", "nombre": "NVIDIA"},
+        {"ticker": "TSLA", "nombre": "Tesla"},
+        {"ticker": "META", "nombre": "Meta"},
+        {"ticker": "NFLX", "nombre": "Netflix"},
+        {"ticker": "JPM", "nombre": "JPMorgan"},
+        {"ticker": "DIS", "nombre": "Disney"},
+        {"ticker": "KO", "nombre": "Coca-Cola"},
+        {"ticker": "NKE", "nombre": "Nike"},
+    ],
+    "indices": [
+        {"ticker": "SPY", "nombre": "S&P 500 ETF"},
+        {"ticker": "QQQ", "nombre": "Nasdaq 100 ETF"},
+        {"ticker": "DIA", "nombre": "Dow Jones ETF"},
+        {"ticker": "IWM", "nombre": "Russell 2000 ETF"},
+        {"ticker": "VOO", "nombre": "Vanguard S&P 500"},
+        {"ticker": "VTI", "nombre": "Vanguard Total Market"},
+        {"ticker": "EFA", "nombre": "Mercados Desarrollados"},
+        {"ticker": "EEM", "nombre": "Mercados Emergentes"},
+    ],
+    "commodities": [
+        {"ticker": "GLD", "nombre": "Oro"},
+        {"ticker": "SLV", "nombre": "Plata"},
+        {"ticker": "USO", "nombre": "Petróleo"},
+        {"ticker": "UNG", "nombre": "Gas Natural"},
+        {"ticker": "DBA", "nombre": "Agricultura"},
+        {"ticker": "DBC", "nombre": "Commodities Mix"},
+        {"ticker": "PPLT", "nombre": "Platino"},
+        {"ticker": "PALL", "nombre": "Paladio"},
+    ],
+    "crypto": [
+        {"ticker": "BTC-USD", "nombre": "Bitcoin"},
+        {"ticker": "ETH-USD", "nombre": "Ethereum"},
+        {"ticker": "SOL-USD", "nombre": "Solana"},
+        {"ticker": "XRP-USD", "nombre": "XRP"},
+        {"ticker": "DOGE-USD", "nombre": "Dogecoin"},
+        {"ticker": "ADA-USD", "nombre": "Cardano"},
+        {"ticker": "AVAX-USD", "nombre": "Avalanche"},
+        {"ticker": "LINK-USD", "nombre": "Chainlink"},
+    ],
+}
+
+
+@ttl_cache(seconds=60)
+def obtener_explorador_categoria(categoria: str) -> list[dict]:
+    tickers = EXPLORADOR_CATEGORIAS.get(categoria)
+    if not tickers:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Categoría inválida: '{categoria}'",
+        )
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        futuros = {
+            executor.submit(_destacado_de_ticker, t["ticker"], t["nombre"]): t["ticker"]
+            for t in tickers
+        }
+        resultados = {futuros[f]: f.result() for f in as_completed(futuros)}
+    return [resultados[t["ticker"]] for t in tickers if resultados.get(t["ticker"])]
+
+
 _EARNINGS_WATCHLIST = [
     # Mega-cap tech
     "AAPL", "MSFT", "GOOGL", "GOOG", "AMZN", "NVDA", "META", "TSLA",

@@ -31,10 +31,18 @@ interface HistorialResponse {
 
 interface Destacado {
   ticker: string;
+  nombre?: string;
   precio: string;
   cambio_porcentaje: number;
   sparkline?: number[];
 }
+
+const CATEGORIAS_EXPLORADOR: { key: string; label: string }[] = [
+  { key: "acciones", label: "Acciones" },
+  { key: "indices", label: "ETFs/Índices" },
+  { key: "commodities", label: "Commodities" },
+  { key: "crypto", label: "Cripto" },
+];
 
 interface Noticia {
   titulo: string;
@@ -183,6 +191,9 @@ function OperarPageInterna() {
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [activosProximos, setActivosProximos] = useState<ActivoProximo[]>([]);
   const [activosDisponibles, setActivosDisponibles] = useState<string[]>([]);
+  const [catActiva, setCatActiva] = useState<string>("");
+  const [explorador, setExplorador] = useState<Record<string, Destacado[]>>({});
+  const [cargandoCat, setCargandoCat] = useState(false);
 
   useEffect(() => {
     api
@@ -211,6 +222,34 @@ function OperarPageInterna() {
         .catch(() => {});
     }
   }, []);
+
+  // Categorías que el alumno puede operar, en el orden del explorador
+  const categoriasVisibles = CATEGORIAS_EXPLORADOR.filter((c) =>
+    activosDisponibles.includes(c.key)
+  );
+
+  async function cargarCategoria(cat: string) {
+    if (explorador[cat]) return; // ya cargada
+    setCargandoCat(true);
+    try {
+      const data = await api.get<Destacado[]>(`/precios/explorador/${cat}`);
+      setExplorador((prev) => ({ ...prev, [cat]: data }));
+    } catch {
+      setExplorador((prev) => ({ ...prev, [cat]: [] }));
+    } finally {
+      setCargandoCat(false);
+    }
+  }
+
+  // Al conocer las categorías permitidas, selecciona la primera y cárgala
+  useEffect(() => {
+    if (categoriasVisibles.length > 0 && !catActiva) {
+      const primera = categoriasVisibles[0].key;
+      setCatActiva(primera);
+      cargarCategoria(primera);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activosDisponibles]);
 
   useEffect(() => {
     const tickerUrl = searchParams.get("t");
@@ -899,47 +938,76 @@ function OperarPageInterna() {
             )}
           </div>
 
-          {/* ── Columna derecha: Tendencias ── */}
+          {/* ── Columna derecha: Explorar mercados ── */}
           <div className="lg:col-span-3">
-            <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">Tendencias</p>
+            <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">Explorar mercados</p>
+
+            {categoriasVisibles.length > 1 && (
+              <div className="mb-3 flex flex-wrap gap-1">
+                {categoriasVisibles.map((c) => (
+                  <button
+                    key={c.key}
+                    onClick={() => {
+                      setCatActiva(c.key);
+                      cargarCategoria(c.key);
+                    }}
+                    className={`border px-2 py-1 font-mono text-[11px] uppercase tracking-wider transition-colors ${
+                      catActiva === c.key
+                        ? "border-accent bg-accent/10 text-accent"
+                        : "border-fg/15 bg-panel text-fg/50 hover:text-fg"
+                    }`}
+                  >
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
             <div className="flex flex-col gap-2">
-              {destacados.length === 0 && (
+              {(cargandoCat && !explorador[catActiva]) && (
                 <p className="rounded-none border border-fg/10 bg-panel p-3 text-sm text-fg/40">Cargando...</p>
               )}
-              {[...destacados]
-                .sort((a, b) => Math.abs(b.cambio_porcentaje) - Math.abs(a.cambio_porcentaje))
-                .map((d) => {
-                  const sube = d.cambio_porcentaje >= 0;
-                  const activo = ticker === d.ticker;
-                  const sparkData = (d.sparkline || []).map(Number);
-                  return (
-                    <button
-                      key={d.ticker}
-                      onClick={() => buscar(d.ticker)}
-                      className={`flex w-full items-center gap-2 rounded-none border px-3 py-3 text-left transition-colors ${
-                        activo ? "border-accent/40 bg-accent/5" : "border-fg/10 bg-panel hover:bg-fg/5"
+              {categoriasVisibles.length === 0 && (
+                <p className="rounded-none border border-fg/10 bg-panel p-3 text-sm text-fg/40">
+                  Tu grupo aún no tiene mercados habilitados.
+                </p>
+              )}
+              {(explorador[catActiva] || []).map((d) => {
+                const sube = d.cambio_porcentaje >= 0;
+                const activo = ticker === d.ticker;
+                const sparkData = (d.sparkline || []).map(Number);
+                return (
+                  <button
+                    key={d.ticker}
+                    onClick={() => buscar(d.ticker)}
+                    className={`flex w-full items-center gap-2 rounded-none border px-3 py-3 text-left transition-colors ${
+                      activo ? "border-accent/40 bg-accent/5" : "border-fg/10 bg-panel hover:bg-fg/5"
+                    }`}
+                  >
+                    <div className="flex min-w-0 flex-1 flex-col">
+                      <span className="truncate font-mono text-sm font-bold text-fg">
+                        {d.ticker.replace("-USD", "")}
+                      </span>
+                      {d.nombre && (
+                        <span className="truncate font-mono text-[10px] text-fg/40">{d.nombre}</span>
+                      )}
+                      <span className="font-mono text-xs tabular-nums text-fg/60">
+                        ${Number(d.precio).toFixed(2)}
+                      </span>
+                    </div>
+                    {sparkData.length > 1 && <Sparkline data={sparkData} subiendo={sube} />}
+                    <span
+                      className={`shrink-0 font-mono text-xs font-semibold tabular-nums ${
+                        sube ? "text-ganancia" : "text-perdida"
                       }`}
                     >
-                      <div className="flex min-w-0 flex-1 flex-col">
-                        <span className="font-mono text-sm font-bold text-fg">{d.ticker}</span>
-                        <span className="font-mono text-xs tabular-nums text-fg/60">
-                          ${Number(d.precio).toFixed(2)}
-                        </span>
-                      </div>
-                      {sparkData.length > 1 && <Sparkline data={sparkData} subiendo={sube} />}
-                      <span
-                        className={`shrink-0 font-mono text-xs font-semibold tabular-nums ${
-                          sube ? "text-ganancia" : "text-perdida"
-                        }`}
-                      >
-                        {sube ? "▲ +" : "▼ "}
-                        {d.cambio_porcentaje.toFixed(2)}%
-                      </span>
-                    </button>
-                  );
-                })}
+                      {sube ? "▲ +" : "▼ "}
+                      {d.cambio_porcentaje.toFixed(2)}%
+                    </span>
+                  </button>
+                );
+              })}
             </div>
-
           </div>
         </div>
       </div>
