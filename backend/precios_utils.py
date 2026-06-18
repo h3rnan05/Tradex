@@ -584,7 +584,7 @@ def _fetch_earnings_ticker(ticker: str, crumb: str, cookies: dict, hoy, fin) -> 
 @ttl_cache(seconds=900)
 def obtener_earnings_calendar() -> list[dict]:
     hoy = datetime.now(timezone.utc).date()
-    fin = hoy + timedelta(days=45)
+    fin = hoy + timedelta(days=5)
     crumb, cookies = _obtener_crumb_yf()
     resultados = []
     with ThreadPoolExecutor(max_workers=10) as executor:
