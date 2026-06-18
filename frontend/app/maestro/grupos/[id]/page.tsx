@@ -403,12 +403,20 @@ export default function DetalleGrupoPage() {
               <h2 className="font-mono text-[11px] uppercase tracking-widest text-fg/40">
                 Tablero de evaluación — {evaluacion.length} participantes
               </h2>
-              <button
-                onClick={() => { cargar(); cargarEvaluacion(); }}
-                className="border border-fg/20 px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-fg/50 hover:text-fg"
-              >
-                Actualizar
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => api.download(`/grupos/${params.id}/evaluacion/exportar`, `tradex_ranking.csv`).catch(() => alert("Error al exportar"))}
+                  className="border border-accent px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-accent hover:bg-accent hover:text-black"
+                >
+                  Exportar CSV
+                </button>
+                <button
+                  onClick={() => { cargar(); cargarEvaluacion(); }}
+                  className="border border-fg/20 px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-fg/50 hover:text-fg"
+                >
+                  Actualizar
+                </button>
+              </div>
             </div>
 
             {evaluacion.length === 0 ? (

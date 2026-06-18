@@ -1,7 +1,10 @@
 from collections import defaultdict
+import csv
+import io
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
@@ -294,6 +297,54 @@ def evaluacion_grupo(
     for i, e in enumerate(entradas):
         e.posicion = i + 1
     return entradas
+
+
+@router.get("/{grupo_id}/evaluacion/exportar")
+def exportar_evaluacion_csv(
+    grupo_id: str,
+    db: Session = Depends(get_db),
+    maestro: User = Depends(require_maestro),
+):
+    grupo = db.query(Grupo).filter(Grupo.id == grupo_id, Grupo.maestro_id == maestro.id).first()
+    if not grupo:
+        raise HTTPException(status_code=404, detail="Grupo no encontrado")
+
+    # Reuse the evaluacion logic
+    entradas = evaluacion_grupo(grupo_id, db, maestro)
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "Posición", "Nombre", "Escuela", "Ciudad", "Estado",
+        "Valor Total (USD)", "Capital Inicial (USD)", "Rendimiento (USD)",
+        "Rendimiento (%)", "Comisiones Pagadas (USD)", "# Operaciones",
+        "Activos en Cartera", "Días Activo", "Pausado"
+    ])
+    for e in entradas:
+        writer.writerow([
+            e.posicion,
+            e.nombre,
+            e.escuela or "",
+            e.ciudad or "",
+            e.estado or "",
+            f"{e.valor_total:.2f}",
+            f"{e.capital_inicial:.2f}",
+            f"{e.rendimiento:.2f}",
+            f"{e.rendimiento_porcentaje:.2f}",
+            f"{e.comisiones_pagadas:.2f}",
+            e.num_operaciones,
+            ", ".join(e.tickers),
+            e.dias_activo,
+            "Sí" if e.pausado else "No",
+        ])
+
+    output.seek(0)
+    nombre_archivo = f"tradex_{grupo.nombre.replace(' ', '_')}_ranking.csv"
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{nombre_archivo}"'},
+    )
 
 
 @router.get("/{grupo_id}/ranking", response_model=list[RankingEntry])
