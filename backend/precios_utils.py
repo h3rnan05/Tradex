@@ -2,9 +2,11 @@ import logging
 import re
 import threading
 import time
+import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
+from email.utils import parsedate_to_datetime
 from functools import wraps
 
 import httpx
@@ -297,6 +299,8 @@ def _buscar_noticias_yahoo(query: str, cantidad: int) -> list[dict]:
         return []
 
     noticias = (resp.json() or {}).get("news") or []
+    # Yahoo no garantiza orden: ordenar por fecha de publicación (recientes primero)
+    noticias.sort(key=lambda n: n.get("providerPublishTime") or 0, reverse=True)
     resultado = []
     for n in noticias[:cantidad]:
         publicado = n.get("providerPublishTime")
@@ -317,14 +321,81 @@ def _buscar_noticias_yahoo(query: str, cantidad: int) -> list[dict]:
     return resultado
 
 
-@ttl_cache(seconds=300)
+YF_RSS_URL = "https://feeds.finance.yahoo.com/rss/2.0/headline"
+
+# Cesta de tickers grandes para alimentar las noticias generales de mercado.
+_NOTICIAS_GENERALES_TICKERS = "AAPL,MSFT,GOOGL,AMZN,NVDA,TSLA,SPY"
+
+_IMG_RE = re.compile(r'<img[^>]+src="([^"]+)"', re.IGNORECASE)
+
+
+def _buscar_noticias_rss(symbols: str, cantidad: int) -> list[dict]:
+    """Lee el feed RSS de titulares de Yahoo Finance (recientes y ordenados por fecha)."""
+    headers = {"User-Agent": USER_AGENT, "Accept": "application/rss+xml, application/xml"}
+    params = {"s": symbols, "region": "US", "lang": "en-US"}
+    try:
+        resp = httpx.get(YF_RSS_URL, params=params, headers=headers, timeout=15.0)
+    except httpx.HTTPError:
+        logger.exception("Error de red consultando RSS de noticias para %s", symbols)
+        return []
+    if resp.status_code != 200:
+        logger.warning("yahoo rss status %s para %s", resp.status_code, symbols)
+        return []
+
+    try:
+        root = ET.fromstring(resp.content)
+    except ET.ParseError:
+        logger.warning("RSS de noticias mal formado para %s", symbols)
+        return []
+
+    resultado = []
+    for item in root.iterfind(".//item"):
+        titulo = item.findtext("title")
+        link = item.findtext("link")
+        fuente = item.findtext("source") or "Yahoo Finance"
+        pub = item.findtext("pubDate")
+        descripcion = item.findtext("description") or ""
+        fecha_iso = None
+        fecha_dt = None
+        if pub:
+            try:
+                fecha_dt = parsedate_to_datetime(pub)
+                fecha_iso = fecha_dt.astimezone(timezone.utc).isoformat()
+            except (TypeError, ValueError):
+                pass
+        img_match = _IMG_RE.search(descripcion)
+        resultado.append({
+            "titulo": titulo,
+            "fuente": fuente,
+            "link": link,
+            "fecha": fecha_iso,
+            "_orden": fecha_dt.timestamp() if fecha_dt else 0,
+            "imagen": img_match.group(1) if img_match else None,
+        })
+
+    # Más recientes primero
+    resultado.sort(key=lambda n: n["_orden"], reverse=True)
+    for n in resultado:
+        n.pop("_orden", None)
+    return resultado[:cantidad]
+
+
+@ttl_cache(seconds=180)
 def obtener_noticias(ticker: str, cantidad: int = 6) -> list[dict]:
-    return _buscar_noticias_yahoo(normalizar_ticker(ticker), cantidad)
+    ticker = normalizar_ticker(ticker)
+    noticias = _buscar_noticias_rss(ticker, cantidad)
+    if not noticias:
+        # Respaldo: endpoint de búsqueda
+        noticias = _buscar_noticias_yahoo(ticker, cantidad)
+    return noticias
 
 
-@ttl_cache(seconds=300)
+@ttl_cache(seconds=180)
 def obtener_noticias_generales(cantidad: int = 8) -> list[dict]:
-    return _buscar_noticias_yahoo("stock market", cantidad)
+    noticias = _buscar_noticias_rss(_NOTICIAS_GENERALES_TICKERS, cantidad)
+    if not noticias:
+        noticias = _buscar_noticias_yahoo("stock market", cantidad)
+    return noticias
 
 
 def _destacado_de_ticker(ticker: str, nombre: str | None = None) -> dict | None:
