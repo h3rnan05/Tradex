@@ -264,8 +264,10 @@ export const en = {
   "sponsor.selectGroup":     "Select group",
 
   // ── Errors / Not Found ─────────────────────────────────────────
-  "error.title":        "Something went wrong",
-  "error.retry":        "Try again",
+  "error.title":           "Something went wrong",
+  "error.retry":           "Try again",
+  "error.sessionNotFound": "Session not found",
+  "error.loadRanking":     "Error loading ranking",
   "notFound.title":     "Page not found",
   "notFound.desc":      "The page you are looking for does not exist or has been moved.",
   "notFound.goHome":    "Go home",
