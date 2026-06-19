@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Navbar from "@/components/Navbar";
 import { api } from "@/lib/api";
 import { useLanguage } from "@/lib/i18n";
+import Pagination from "@/components/Pagination";
 
 interface Entry {
   posicion: number;
@@ -31,6 +32,8 @@ export default function AdminRanking() {
   const [maestros, setMaestros] = useState<Maestro[]>([]);
   const [cargando, setCargando] = useState(false);
   const [filtros, setFiltros] = useState({ maestro_id: "", escuela: "", ciudad: "", estado: "" });
+  const [page, setPage] = useState(1);
+  const PER_PAGE = 25;
 
   async function cargar() {
     setCargando(true);
@@ -41,7 +44,7 @@ export default function AdminRanking() {
     if (filtros.estado) params.set("estado", filtros.estado);
     const qs = params.toString();
     api.get<Entry[]>(`/admin/ranking-global${qs ? "?" + qs : ""}`)
-      .then(setEntries)
+      .then((data) => { setEntries(data); setPage(1); })
       .catch(() => {})
       .finally(() => setCargando(false));
   }
@@ -68,7 +71,7 @@ export default function AdminRanking() {
             onChange={(e) => setFiltros({ ...filtros, maestro_id: e.target.value })}
             className="border border-fg/20 bg-panel px-3 py-2 font-mono text-xs text-fg outline-none focus:border-accent"
           >
-            <option value="">Todos los maestros</option>
+            <option value="">{t("admin.ranking.allTeachers")}</option>
             {maestros.map((m) => <option key={m.id} value={m.id}>{m.nombre}</option>)}
           </select>
           {["escuela", "ciudad", "estado"].map((f) => (
@@ -85,7 +88,7 @@ export default function AdminRanking() {
           onClick={cargar}
           className="mb-6 bg-accent px-5 py-2 font-mono text-[11px] font-bold uppercase tracking-wider text-black"
         >
-          {cargando ? "Buscando..." : t("common.filter")}
+          {cargando ? t("common.loading") : t("common.filter")}
         </button>
 
         {/* Table */}
@@ -99,7 +102,7 @@ export default function AdminRanking() {
               </tr>
             </thead>
             <tbody>
-              {entries.map((e) => {
+              {entries.slice((page - 1) * PER_PAGE, page * PER_PAGE).map((e) => {
                 const rend = Number(e.rendimiento_porcentaje);
                 return (
                   <tr key={`${e.alumno_id}-${e.grupo_nombre}`} className="border-t border-fg/5 hover:bg-fg/5">
@@ -127,7 +130,10 @@ export default function AdminRanking() {
             </tbody>
           </table>
         </div>
-        <p className="mt-3 font-mono text-[10px] text-fg/30">{entries.length} participantes encontrados</p>
+        <div className="flex items-center justify-between mt-2">
+          <p className="font-mono text-[10px] text-fg/30">{entries.length} {t("admin.ranking.found")}</p>
+          <Pagination page={page} totalPages={Math.max(1, Math.ceil(entries.length / PER_PAGE))} onPage={setPage} />
+        </div>
       </div>
     </main>
   );

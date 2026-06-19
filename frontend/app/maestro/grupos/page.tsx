@@ -6,6 +6,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { api, ApiError } from "@/lib/api";
 import { useLanguage } from "@/lib/i18n";
+import ErrorState from "@/components/ErrorState";
 
 interface Grupo {
   id: string;
@@ -257,7 +258,7 @@ export default function GruposPage() {
           </div>
         )}
 
-        {error && !mostrarForm && <p className="mb-4 text-sm text-perdida">{error}</p>}
+        {error && !mostrarForm && <ErrorState message={error} onRetry={cargarGrupos} />}
 
         {cargando ? (
           <div className="flex items-center gap-3 py-12 text-fg/40">

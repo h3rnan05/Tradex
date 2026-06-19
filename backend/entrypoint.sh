@@ -11,4 +11,9 @@ else
   echo "WARNING: 'alembic upgrade head' failed. Starting server anyway (schema may already be up to date)."
 fi
 
+if [ -n "$SEED_ADMIN_EMAIL" ] && [ -n "$SEED_ADMIN_PASSWORD" ]; then
+  echo "Seeding admin user..."
+  python seed_admin.py || echo "WARNING: seed_admin.py failed (non-fatal)."
+fi
+
 exec uvicorn main:app --host 0.0.0.0 --port "${PORT:-8000}"

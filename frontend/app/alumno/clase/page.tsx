@@ -41,7 +41,7 @@ export default function ClasePage() {
       const data = await api.get<MiClase[]>(`/alumnos/${sesion.userId}/grupos`);
       setClases(data);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Error al cargar");
+      setError(err instanceof ApiError ? err.message : t("class.loadError"));
     } finally {
       setCargando(false);
     }
@@ -56,11 +56,11 @@ export default function ClasePage() {
     setExitoUnirse(null);
     try {
       await api.post("/grupos/unirse", { codigo: codigo.trim().toUpperCase() });
-      setExitoUnirse("Te uniste al grupo correctamente!");
+      setExitoUnirse(t("class.joinSuccess"));
       setCodigo("");
       cargar();
     } catch (err) {
-      setErrorUnirse(err instanceof ApiError ? err.message : "Codigo invalido");
+      setErrorUnirse(err instanceof ApiError ? err.message : t("class.invalidCode"));
     } finally {
       setUniendose(false);
     }
@@ -73,7 +73,7 @@ export default function ClasePage() {
       setConfirmandoSalir(null);
       cargar();
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Error al salir");
+      setError(err instanceof ApiError ? err.message : t("class.leaveError"));
     }
   }
 

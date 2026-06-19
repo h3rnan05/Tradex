@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import TickerTape from "@/components/TickerTape";
+import BannerVerificacion from "@/components/BannerVerificacion";
 import { ToastProvider } from "@/components/Toast";
 import Notificaciones from "@/components/Notificaciones";
 import { LanguageProvider } from "@/lib/i18n";
@@ -24,6 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <LanguageProvider>
           <ToastProvider>
+            <BannerVerificacion />
             <TickerTape />
             {children}
             <Notificaciones />

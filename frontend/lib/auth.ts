@@ -5,6 +5,7 @@ export interface Sesion {
   userId: string;
   nombre: string;
   rol: Rol;
+  emailVerificado?: boolean;
 }
 
 const STORAGE_KEY = "tradex_token";

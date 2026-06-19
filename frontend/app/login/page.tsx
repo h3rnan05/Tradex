@@ -12,6 +12,7 @@ interface TokenResponse {
   user_id: string;
   nombre: string;
   rol: Rol;
+  email_verificado?: boolean;
 }
 
 export default function LoginPage() {
@@ -22,6 +23,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [nombre, setNombre] = useState("");
   const [codigoGrupo, setCodigoGrupo] = useState("");
+  const [esMaestro, setEsMaestro] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
 
@@ -34,7 +36,13 @@ export default function LoginPage() {
       const payload =
         modo === "login"
           ? { email, password }
-          : { email, password, nombre, ...(codigoGrupo.trim() ? { codigo_grupo: codigoGrupo.trim().toUpperCase() } : {}) };
+          : {
+              email,
+              password,
+              nombre,
+              es_maestro: esMaestro,
+              ...(!esMaestro && codigoGrupo.trim() ? { codigo_grupo: codigoGrupo.trim().toUpperCase() } : {}),
+            };
       const data = await api.post<TokenResponse>(ruta, payload);
 
       guardarSesion({
@@ -42,6 +50,7 @@ export default function LoginPage() {
         userId: data.user_id,
         nombre: data.nombre,
         rol: data.rol,
+        emailVerificado: data.email_verificado ?? false,
       });
       router.push("/dashboard");
     } catch (err) {
@@ -62,6 +71,28 @@ export default function LoginPage() {
         </p>
 
         <form onSubmit={manejarSubmit} className="flex flex-col gap-4">
+          {modo === "registro" && (
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-fg/70">{t("login.accountType")}</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEsMaestro(false)}
+                  className={`rounded-none border px-3 py-2 font-mono text-[11px] font-bold uppercase tracking-wider transition-colors ${!esMaestro ? "border-accent bg-accent text-black" : "border-fg/20 text-fg/50 hover:text-fg"}`}
+                >
+                  {t("login.iAmStudent")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEsMaestro(true)}
+                  className={`rounded-none border px-3 py-2 font-mono text-[11px] font-bold uppercase tracking-wider transition-colors ${esMaestro ? "border-accent bg-accent text-black" : "border-fg/20 text-fg/50 hover:text-fg"}`}
+                >
+                  {t("login.iAmTeacher")}
+                </button>
+              </div>
+            </div>
+          )}
+
           {modo === "registro" && (
             <div>
               <label className="mb-1 block text-sm font-medium text-fg/70">{t("login.name")}</label>
@@ -98,7 +129,7 @@ export default function LoginPage() {
             />
           </div>
 
-          {modo === "registro" && (
+          {modo === "registro" && !esMaestro && (
             <div>
               <label className="mb-1 block text-sm font-medium text-fg/70">
                 {t("login.groupCode")} <span className="text-fg/40">{t("login.groupCodeOptional")}</span>

@@ -10,6 +10,7 @@ import { Card, StatTile, formatoMoneda, formatoPorcentaje } from "@/components/p
 import { api, ApiError } from "@/lib/api";
 import { obtenerSesion } from "@/lib/auth";
 import { useLanguage } from "@/lib/i18n";
+import ErrorState from "@/components/ErrorState";
 
 interface HoldingConPrecio {
   id: string;
@@ -103,9 +104,11 @@ export default function PortafolioPage() {
     return (
       <main className="min-h-screen bg-canvas">
         <Navbar />
-        <p className="p-6 text-sm text-perdida">{error}</p>
+        <div className="mx-auto max-w-6xl p-6">
+          <ErrorState message={error} onRetry={() => { setError(null); cargar(); }} />
+        </div>
         <Footer />
-    </main>
+      </main>
     );
   }
 

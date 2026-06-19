@@ -5,7 +5,12 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import { api, ApiError } from "@/lib/api";
+import { useToast } from "@/components/Toast";
 import ComentariosMaestro from "@/components/ComentariosMaestro";
+import Pagination from "@/components/Pagination";
+import ErrorState from "@/components/ErrorState";
+import ConfirmModal from "@/components/ConfirmModal";
+import { useLanguage } from "@/lib/i18n";
 
 interface Membership {
   id: string;
@@ -89,11 +94,16 @@ const fmt = (v: string | number) =>
   Number(v).toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 });
 
 export default function DetalleGrupoPage() {
+  const { t } = useLanguage();
+  const { toast } = useToast();
   const params = useParams<{ id: string }>();
   const [grupo, setGrupo] = useState<GrupoDetalle | null>(null);
   const [evaluacion, setEvaluacion] = useState<EvaluacionEntry[]>([]);
   const [tab, setTab] = useState<"config" | "participantes">("participantes");
   const [error, setError] = useState<string | null>(null);
+  const [pendingPause, setPendingPause] = useState<{ membershipId: string; alumnoNombre: string; pausado: boolean } | null>(null);
+  const [pendingRegen, setPendingRegen] = useState(false);
+  const [exportando, setExportando] = useState(false);
 
   // Invitar
   const [emailInvitar, setEmailInvitar] = useState("");
@@ -110,6 +120,8 @@ export default function DetalleGrupoPage() {
   const [guardando, setGuardando] = useState(false);
   const [msgConfig, setMsgConfig] = useState<string | null>(null);
   const [ordenExpandida, setOrdenExpandida] = useState<string | null>(null);
+  const [pageOrdenes, setPageOrdenes] = useState(1);
+  const ORDENES_PER_PAGE = 30;
 
   async function cargar() {
     try {
@@ -181,20 +193,35 @@ export default function DetalleGrupoPage() {
     }
   }
 
-  async function togglePausar(membershipId: string) {
+  async function ejecutarPausar(membershipId: string) {
     try {
       await api.post(`/grupos/${params.id}/memberships/${membershipId}/pausar`, {});
       cargar();
       cargarEvaluacion();
     } catch {
       // silent
+    } finally {
+      setPendingPause(null);
+    }
+  }
+
+  async function ejecutarRegen() {
+    try {
+      const actualizado = await api.post<GrupoDetalle>(`/grupos/${grupo!.id}/regenerar-codigo`, {});
+      setGrupo(actualizado);
+    } catch {
+      // silent
+    } finally {
+      setPendingRegen(false);
     }
   }
 
   if (error) return (
     <main className="min-h-screen bg-canvas">
       <Navbar />
-      <p className="p-6 text-sm text-perdida">{error}</p>
+      <div className="mx-auto max-w-7xl p-6">
+        <ErrorState message={error} onRetry={() => { setError(null); cargar(); cargarEvaluacion(); }} />
+      </div>
     </main>
   );
   if (!grupo) return (
@@ -211,6 +238,22 @@ export default function DetalleGrupoPage() {
   return (
     <main className="min-h-screen bg-canvas">
       <Navbar />
+      <ConfirmModal
+        open={!!pendingPause}
+        title={pendingPause?.pausado ? t("admin.maestro.confirmResume") : t("admin.maestro.confirmPause")}
+        message={pendingPause?.alumnoNombre ?? ""}
+        danger={!pendingPause?.pausado}
+        onConfirm={() => pendingPause && ejecutarPausar(pendingPause.membershipId)}
+        onCancel={() => setPendingPause(null)}
+      />
+      <ConfirmModal
+        open={pendingRegen}
+        title={t("admin.maestro.confirmRegen")}
+        message=""
+        danger
+        onConfirm={ejecutarRegen}
+        onCancel={() => setPendingRegen(false)}
+      />
       <div className="mx-auto max-w-7xl p-6">
         {/* Header */}
         <div className="mb-6 flex items-center justify-between">
@@ -230,10 +273,7 @@ export default function DetalleGrupoPage() {
                 <span className="font-mono text-lg font-bold tracking-[0.3em] text-accent">{grupo.codigo}</span>
                 <button
                   type="button"
-                  onClick={async () => {
-                    const actualizado = await api.post<GrupoDetalle>(`/grupos/${grupo.id}/regenerar-codigo`, {});
-                    setGrupo(actualizado);
-                  }}
+                  onClick={() => setPendingRegen(true)}
                   className="border border-fg/20 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-fg/50 hover:text-fg"
                 >
                   Regenerar
@@ -407,10 +447,20 @@ export default function DetalleGrupoPage() {
               </h2>
               <div className="flex gap-2">
                 <button
-                  onClick={() => api.download(`/grupos/${params.id}/evaluacion/exportar`, `tradex_ranking.csv`).catch(() => alert("Error al exportar"))}
-                  className="border border-accent px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-accent hover:bg-accent hover:text-black"
+                  disabled={exportando}
+                  onClick={async () => {
+                    setExportando(true);
+                    try {
+                      await api.download(`/grupos/${params.id}/evaluacion/exportar`, `tradex_ranking_${grupo.nombre}.csv`);
+                    } catch {
+                      toast(t("maestro.groups.exportError"), "error");
+                    } finally {
+                      setExportando(false);
+                    }
+                  }}
+                  className="border border-accent px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-accent hover:bg-accent hover:text-black disabled:opacity-50"
                 >
-                  Exportar CSV
+                  {exportando ? t("common.loading") : t("maestro.groups.exportCsv")}
                 </button>
                 <button
                   onClick={() => { cargar(); cargarEvaluacion(); }}
@@ -474,7 +524,7 @@ export default function DetalleGrupoPage() {
                           <td className="px-3 py-3">
                             {m && (
                               <button
-                                onClick={() => togglePausar(m.id)}
+                                onClick={() => setPendingPause({ membershipId: m.id, alumnoNombre: e.nombre, pausado: e.pausado })}
                                 className={`px-2 py-1 font-mono text-[10px] font-bold uppercase transition-colors ${e.pausado ? "bg-ganancia/10 text-ganancia hover:bg-ganancia/20" : "bg-perdida/10 text-perdida hover:bg-perdida/20"}`}
                               >
                                 {e.pausado ? "Reanudar" : "Pausar"}
@@ -505,7 +555,7 @@ export default function DetalleGrupoPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {grupo.ordenes.slice(0, 30).map((o) => {
+                      {grupo.ordenes.slice((pageOrdenes - 1) * ORDENES_PER_PAGE, pageOrdenes * ORDENES_PER_PAGE).map((o) => {
                         const alumno = evaluacion.find((e) => e.alumno_id === o.alumno_id);
                         const abierta = ordenExpandida === o.id;
                         return (
@@ -542,6 +592,11 @@ export default function DetalleGrupoPage() {
                       })}
                     </tbody>
                   </table>
+                  <Pagination
+                    page={pageOrdenes}
+                    totalPages={Math.max(1, Math.ceil(grupo.ordenes.length / ORDENES_PER_PAGE))}
+                    onPage={setPageOrdenes}
+                  />
                 </div>
               </div>
             )}
