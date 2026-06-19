@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import { api, ApiError } from "@/lib/api";
+import { useToast } from "@/components/Toast";
 import ComentariosMaestro from "@/components/ComentariosMaestro";
 import Pagination from "@/components/Pagination";
 import ErrorState from "@/components/ErrorState";
@@ -94,6 +95,7 @@ const fmt = (v: string | number) =>
 
 export default function DetalleGrupoPage() {
   const { t } = useLanguage();
+  const { toast } = useToast();
   const params = useParams<{ id: string }>();
   const [grupo, setGrupo] = useState<GrupoDetalle | null>(null);
   const [evaluacion, setEvaluacion] = useState<EvaluacionEntry[]>([]);
@@ -101,6 +103,7 @@ export default function DetalleGrupoPage() {
   const [error, setError] = useState<string | null>(null);
   const [pendingPause, setPendingPause] = useState<{ membershipId: string; alumnoNombre: string; pausado: boolean } | null>(null);
   const [pendingRegen, setPendingRegen] = useState(false);
+  const [exportando, setExportando] = useState(false);
 
   // Invitar
   const [emailInvitar, setEmailInvitar] = useState("");
@@ -444,10 +447,20 @@ export default function DetalleGrupoPage() {
               </h2>
               <div className="flex gap-2">
                 <button
-                  onClick={() => api.download(`/grupos/${params.id}/evaluacion/exportar`, `tradex_ranking.csv`).catch(() => alert("Error al exportar"))}
-                  className="border border-accent px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-accent hover:bg-accent hover:text-black"
+                  disabled={exportando}
+                  onClick={async () => {
+                    setExportando(true);
+                    try {
+                      await api.download(`/grupos/${params.id}/evaluacion/exportar`, `tradex_ranking_${grupo.nombre}.csv`);
+                    } catch {
+                      toast(t("maestro.groups.exportError"), "error");
+                    } finally {
+                      setExportando(false);
+                    }
+                  }}
+                  className="border border-accent px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-accent hover:bg-accent hover:text-black disabled:opacity-50"
                 >
-                  Exportar CSV
+                  {exportando ? t("common.loading") : t("maestro.groups.exportCsv")}
                 </button>
                 <button
                   onClick={() => { cargar(); cargarEvaluacion(); }}

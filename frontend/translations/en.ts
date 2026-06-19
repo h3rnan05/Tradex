@@ -229,6 +229,8 @@ export const en = {
   // ── Maestro Groups ────────────────────────────────────────────
   "maestro.groups.title":       "My groups",
   "maestro.groups.create":      "Create group",
+  "maestro.groups.exportCsv":   "Export CSV",
+  "maestro.groups.exportError": "Error exporting file",
   "maestro.groups.active":      "Active",
   "maestro.groups.upcoming":    "Upcoming",
   "maestro.groups.finished":    "Finished",
