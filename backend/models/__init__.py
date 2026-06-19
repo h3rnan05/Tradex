@@ -7,6 +7,8 @@ from models.orden_pendiente import OrdenPendiente
 from models.alerta import Alerta
 from models.fase_activo import FaseActivo
 from models.reto import Reto, RetoParticipante, RetoHolding, RetoOrden
+from models.password_reset_token import PasswordResetToken
+from models.email_verification_token import EmailVerificationToken
 
 __all__ = [
     "User",
@@ -21,4 +23,6 @@ __all__ = [
     "RetoParticipante",
     "RetoHolding",
     "RetoOrden",
+    "PasswordResetToken",
+    "EmailVerificationToken",
 ]

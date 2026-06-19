@@ -27,4 +27,5 @@ class User(Base):
     ciudad = Column(String, nullable=True)
     estado = Column(String, nullable=True)
     suspendido = Column(Boolean, nullable=False, server_default="false", default=False)
+    email_verificado = Column(Boolean, nullable=False, server_default="false", default=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))

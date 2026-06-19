@@ -24,3 +24,4 @@ class TokenResponse(BaseModel):
     user_id: uuid.UUID
     nombre: str
     rol: RolEnum
+    email_verificado: bool = False

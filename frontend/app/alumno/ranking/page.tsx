@@ -49,7 +49,7 @@ export default function RankingPage() {
 
         {error && <ErrorState message={error} onRetry={cargar} />}
 
-        {!error && !ranking ? (
+        {error ? null : !ranking ? (
           <p className="text-fg/40">{t("common.loading")}</p>
         ) : (
           <Card className="overflow-hidden p-0">

@@ -275,6 +275,17 @@ export const en = {
   "sponsor.selectGroup":     "Select group",
 
   // ── Errors / Not Found ─────────────────────────────────────────
+  "verify.verifying":      "Verifying…",
+  "verify.successTitle":   "Email verified!",
+  "verify.successDesc":    "Your account is confirmed. You can now use Tradex normally.",
+  "verify.errorTitle":     "Could not verify",
+  "verify.error":          "The link is invalid or has expired.",
+  "verify.noToken":        "Verification link is missing.",
+  "verify.goToLogin":      "Go to sign in",
+  "verify.bannerText":     "Verify your email to secure your account.",
+  "verify.bannerResend":   "Resend email",
+  "verify.bannerSent":     "Email sent! Check your inbox.",
+
   "error.title":           "Something went wrong",
   "error.retry":           "Try again",
   "error.sessionNotFound": "Session not found",

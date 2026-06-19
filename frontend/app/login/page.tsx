@@ -12,6 +12,7 @@ interface TokenResponse {
   user_id: string;
   nombre: string;
   rol: Rol;
+  email_verificado?: boolean;
 }
 
 export default function LoginPage() {
@@ -49,6 +50,7 @@ export default function LoginPage() {
         userId: data.user_id,
         nombre: data.nombre,
         rol: data.rol,
+        emailVerificado: data.email_verificado ?? false,
       });
       router.push("/dashboard");
     } catch (err) {

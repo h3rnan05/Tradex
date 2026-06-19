@@ -61,6 +61,51 @@ def send_password_reset_email(to_email: str, nombre: str, reset_token: str) -> b
         return False
 
 
+def send_verification_email(to_email: str, nombre: str, verification_token: str) -> bool:
+    if not settings.resend_api_key:
+        logger.warning("RESEND_API_KEY not set — skipping verification email to %s", to_email)
+        return False
+
+    resend = _get_resend()
+    if not resend:
+        return False
+
+    verify_url = f"{settings.frontend_url}/verify-email?token={verification_token}"
+    html = f"""
+    <div style="font-family: monospace; max-width: 480px; margin: 0 auto; padding: 32px; background: #0f0f0f; color: #e5e5e5;">
+      <h1 style="color: #f59e0b; font-size: 20px; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 8px;">
+        &#9632; Tradex
+      </h1>
+      <p style="color: #999; font-size: 13px; margin-bottom: 24px;">Verificación de correo</p>
+      <p style="font-size: 14px; margin-bottom: 8px;">Hola {nombre},</p>
+      <p style="font-size: 14px; color: #999; margin-bottom: 24px;">
+        Confirma tu correo para activar tu cuenta. El enlace es válido por 24 horas.
+      </p>
+      <a href="{verify_url}"
+         style="display: inline-block; background: #f59e0b; color: #000; padding: 12px 24px;
+                font-family: monospace; font-size: 13px; font-weight: bold; text-transform: uppercase;
+                letter-spacing: 0.08em; text-decoration: none;">
+        VERIFICAR CORREO
+      </a>
+      <p style="font-size: 12px; color: #555; margin-top: 24px;">
+        Si no creaste esta cuenta, ignora este correo.
+      </p>
+    </div>
+    """
+
+    try:
+        resend.Emails.send({
+            "from": "Tradex <onboarding@resend.dev>",
+            "to": [to_email],
+            "subject": "Verifica tu correo — Tradex",
+            "html": html,
+        })
+        return True
+    except Exception as exc:
+        logger.error("Failed to send verification email to %s: %s", to_email, exc)
+        return False
+
+
 def send_welcome_email(to_email: str, nombre: str) -> bool:
     if not settings.resend_api_key:
         return False
