@@ -321,6 +321,8 @@ export const es = {
   "templates.commission": "comisión",
 
   // ── Admin ──────────────────────────────────────────────────────
+  "admin.ranking.allTeachers":     "Todos los maestros",
+  "admin.ranking.found":           "participantes encontrados",
   "admin.dashboard.trades":        "Operaciones",
   "admin.dashboard.enrollments":   "Participaciones",
   "admin.dashboard.allGroups":     "Todos los grupos",

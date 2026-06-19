@@ -5,6 +5,7 @@ import Navbar from "@/components/Navbar";
 import { api, ApiError } from "@/lib/api";
 import { useToast } from "@/components/Toast";
 import { useLanguage } from "@/lib/i18n";
+import Pagination from "@/components/Pagination";
 
 interface Usuario {
   id: string;
@@ -25,6 +26,8 @@ export default function AdminUsuarios() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [busqueda, setBusqueda] = useState("");
   const [filtrando, setFiltrando] = useState(false);
+  const [page, setPage] = useState(1);
+  const PER_PAGE = 20;
 
   async function cargar(q = "") {
     setFiltrando(true);
@@ -67,6 +70,8 @@ export default function AdminUsuarios() {
       u.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
       u.email.toLowerCase().includes(busqueda.toLowerCase())
   );
+  const totalPages = Math.max(1, Math.ceil(filtrados.length / PER_PAGE));
+  const pagina = filtrados.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
   return (
     <main className="min-h-screen bg-canvas">
@@ -78,7 +83,7 @@ export default function AdminUsuarios() {
             type="text"
             placeholder={t("admin.users.searchPlaceholder")}
             value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
+            onChange={(e) => { setBusqueda(e.target.value); setPage(1); }}
             className="w-64 border border-fg/20 bg-panel px-3 py-2 font-mono text-sm text-fg placeholder:text-fg/30"
           />
         </div>
@@ -96,7 +101,7 @@ export default function AdminUsuarios() {
                 </tr>
               </thead>
               <tbody>
-                {filtrados.map((u) => (
+                {pagina.map((u) => (
                   <tr key={u.id} className={`border-t border-fg/5 ${u.suspendido ? "opacity-40" : "hover:bg-fg/5"}`}>
                     <td className="px-4 py-3 font-mono font-semibold text-fg">
                       {u.nombre}
@@ -131,6 +136,10 @@ export default function AdminUsuarios() {
                 )}
               </tbody>
             </table>
+            <div className="flex items-center justify-between mt-2">
+              <span className="font-mono text-[10px] text-fg/30">{filtrados.length} usuarios</span>
+              <Pagination page={page} totalPages={totalPages} onPage={setPage} />
+            </div>
           </div>
         )}
       </div>

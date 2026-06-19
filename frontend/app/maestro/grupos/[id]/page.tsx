@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import { api, ApiError } from "@/lib/api";
 import ComentariosMaestro from "@/components/ComentariosMaestro";
+import Pagination from "@/components/Pagination";
 
 interface Membership {
   id: string;
@@ -110,6 +111,8 @@ export default function DetalleGrupoPage() {
   const [guardando, setGuardando] = useState(false);
   const [msgConfig, setMsgConfig] = useState<string | null>(null);
   const [ordenExpandida, setOrdenExpandida] = useState<string | null>(null);
+  const [pageOrdenes, setPageOrdenes] = useState(1);
+  const ORDENES_PER_PAGE = 30;
 
   async function cargar() {
     try {
@@ -505,7 +508,7 @@ export default function DetalleGrupoPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {grupo.ordenes.slice(0, 30).map((o) => {
+                      {grupo.ordenes.slice((pageOrdenes - 1) * ORDENES_PER_PAGE, pageOrdenes * ORDENES_PER_PAGE).map((o) => {
                         const alumno = evaluacion.find((e) => e.alumno_id === o.alumno_id);
                         const abierta = ordenExpandida === o.id;
                         return (
@@ -542,6 +545,11 @@ export default function DetalleGrupoPage() {
                       })}
                     </tbody>
                   </table>
+                  <Pagination
+                    page={pageOrdenes}
+                    totalPages={Math.max(1, Math.ceil(grupo.ordenes.length / ORDENES_PER_PAGE))}
+                    onPage={setPageOrdenes}
+                  />
                 </div>
               </div>
             )}
