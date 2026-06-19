@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { api, ApiError } from "@/lib/api";
@@ -13,6 +13,7 @@ function VerifyEmailContent() {
   const token = params.get("token") ?? "";
   const [estado, setEstado] = useState<"cargando" | "ok" | "error">("cargando");
   const [mensaje, setMensaje] = useState("");
+  const yaEnviado = useRef(false);
 
   useEffect(() => {
     if (!token) {
@@ -20,6 +21,8 @@ function VerifyEmailContent() {
       setMensaje(t("verify.noToken"));
       return;
     }
+    if (yaEnviado.current) return;
+    yaEnviado.current = true;
     api.post("/auth/verify-email", { token })
       .then(() => {
         setEstado("ok");
