@@ -250,10 +250,14 @@ def asignar_sponsor(
         raise HTTPException(status_code=404, detail="Grupo no encontrado")
 
     if sponsor_id:
-        sponsor = db.query(User).filter(User.id == sponsor_id, User.rol == RolEnum.sponsor).first()
+        try:
+            sponsor_uuid = uuid.UUID(sponsor_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="sponsor_id inválido")
+        sponsor = db.query(User).filter(User.id == sponsor_uuid, User.rol == RolEnum.sponsor).first()
         if not sponsor:
             raise HTTPException(status_code=404, detail="Patrocinador no encontrado")
-        grupo.sponsor_id = sponsor_id
+        grupo.sponsor_id = sponsor_uuid
     else:
         grupo.sponsor_id = None
 

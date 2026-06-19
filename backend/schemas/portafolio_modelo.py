@@ -1,3 +1,4 @@
+import uuid
 from decimal import Decimal
 
 from pydantic import BaseModel
@@ -19,6 +20,7 @@ class PlantillaPortafolioOut(BaseModel):
 
 class AplicarPlantillaRequest(BaseModel):
     perfil_riesgo: str
+    grupo_id: uuid.UUID | None = None
 
 
 class AplicarPlantillaResponse(BaseModel):

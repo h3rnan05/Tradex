@@ -43,7 +43,17 @@ def aplicar_plantilla(
     if payload.perfil_riesgo not in PERFILES_RIESGO_VALIDOS:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Perfil de riesgo invalido")
 
-    membership = db.query(Membership).filter(Membership.alumno_id == alumno.id).first()
+    q = db.query(Membership).filter(Membership.alumno_id == alumno.id)
+    if payload.grupo_id:
+        q = q.filter(Membership.grupo_id == payload.grupo_id)
+    else:
+        total = q.count()
+        if total > 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Perteneces a varios grupos. Especifica grupo_id en el cuerpo de la solicitud.",
+            )
+    membership = q.first()
     if not membership:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No perteneces a ningun grupo")
 

@@ -268,15 +268,40 @@ def mis_grupos(alumno_id: str, db: Session = Depends(get_db), current_user: User
         .filter(Membership.alumno_id == alumno_id)
         .all()
     )
+    if not memberships:
+        return []
+
+    grupo_ids = [m.grupo_id for m in memberships]
+    all_holdings = (
+        db.query(Holding)
+        .filter(Holding.alumno_id == alumno_id, Holding.grupo_id.in_(grupo_ids), Holding.cantidad > 0)
+        .all()
+    )
+
+    holdings_by_grupo: dict = defaultdict(list)
+    for h in all_holdings:
+        holdings_by_grupo[str(h.grupo_id)].append(h)
+
+    tickers = list({h.ticker for h in all_holdings})
+    precios: dict[str, Decimal] = {}
+    if tickers:
+        with ThreadPoolExecutor(max_workers=min(8, len(tickers))) as ex:
+            futuros = {ex.submit(obtener_precio_actual, t): t for t in tickers}
+            for f in as_completed(futuros):
+                t = futuros[f]
+                try:
+                    precios[t] = f.result()
+                except Exception:
+                    pass
+
     result = []
     for m in memberships:
         g = m.grupo
-        from sqlalchemy import text as _text
-        rows = db.execute(
-            _text("SELECT precio_promedio, cantidad FROM holdings WHERE alumno_id = :aid AND grupo_id = :gid"),
-            {"aid": str(alumno_id), "gid": str(g.id)},
-        ).fetchall()
-        valor_holdings = sum(Decimal(str(r.precio_promedio)) * Decimal(str(r.cantidad)) for r in rows if r.cantidad > 0)
+        holdings = holdings_by_grupo.get(str(m.grupo_id), [])
+        valor_holdings = sum(
+            precios.get(h.ticker, h.precio_promedio) * h.cantidad
+            for h in holdings
+        )
         valor_total = m.capital_disponible + valor_holdings
         result.append(MisGruposEntry(
             grupo_id=g.id,
