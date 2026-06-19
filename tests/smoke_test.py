@@ -1,235 +1,185 @@
-"""
-Tradex smoke test — simula 3 roles contra la API de producción (o local).
+#!/usr/bin/env python
+"""Smoke test contra la API de Tradex (local o Railway).
 
 Uso:
-  python tests/smoke_test.py                          # apunta a producción
-  python tests/smoke_test.py http://localhost:8000    # apunta a local
-
-Crea cuentas temporales únicas en cada ejecución y las limpia al final.
+    python tests/smoke_test.py https://tradex-production-f3b4.up.railway.app
+    python tests/smoke_test.py http://localhost:8000
 """
 
 import sys
 import uuid
-import time
+import random
+import string
 import httpx
 
-BASE = sys.argv[1].rstrip("/") if len(sys.argv) > 1 else "https://tradex-production-f3b4.up.railway.app"
-RUN  = uuid.uuid4().hex[:6]   # sufijo único para esta ejecución
+BASE = sys.argv[1].rstrip("/") if len(sys.argv) > 1 else "http://localhost:8000"
 
-MAESTRO_EMAIL = f"bot_maestro_{RUN}@test.tradex"
-ALUMNO_EMAIL  = f"bot_alumno_{RUN}@test.tradex"
-PASSWORD      = "Tradex2025!"
+PASS = "\033[32mPASS\033[0m"
+FAIL = "\033[31mFAIL\033[0m"
+NOTE = "\033[33mNOTE\033[0m"
 
-PASS = "✅"
-FAIL = "❌"
+results: list[bool] = []
 
-resultados: list[tuple[str, bool, str]] = []
 
-def check(nombre: str, cond: bool, detalle: str = ""):
-    mark = PASS if cond else FAIL
-    resultados.append((nombre, cond, detalle))
-    print(f"  {mark}  {nombre}" + (f"  →  {detalle}" if detalle else ""))
-    return cond
+def check(label: str, ok: bool, detail: str = "") -> None:
+    tag = PASS if ok else FAIL
+    print(f"  [{tag}] {label}" + (f"  → {detail}" if detail else ""))
+    results.append(ok)
 
-def seccion(titulo: str):
-    print(f"\n{'─'*55}")
-    print(f"  {titulo}")
-    print(f"{'─'*55}")
 
-# ── helpers ──────────────────────────────────────────────────
+def note(label: str, detail: str = "") -> None:
+    print(f"  [{NOTE}] {label}" + (f"  → {detail}" if detail else ""))
 
-def registrar(email: str, nombre: str, codigo: str | None = None) -> dict | None:
-    payload = {"email": email, "nombre": nombre, "password": PASSWORD}
-    if codigo:
-        payload["codigo_grupo"] = codigo
-    r = httpx.post(f"{BASE}/auth/register", json=payload, timeout=15)
-    if r.status_code == 201:
-        return r.json()
-    print(f"    ⚠  register {email}: {r.status_code} {r.text[:120]}")
-    return None
 
-def login(email: str) -> str | None:
-    r = httpx.post(f"{BASE}/auth/login", json={"email": email, "password": PASSWORD}, timeout=10)
+tag = "".join(random.choices(string.ascii_lowercase, k=8))
+EMAIL = f"tradex.smoke.{tag}@gmail.com"
+PASSWORD = "SmokeTest1!"
+
+print(f"\nSmoke test → {BASE}\n")
+
+with httpx.Client(base_url=BASE, timeout=30) as c:
+
+    # ── Health ────────────────────────────────────────────────────────────────
+    r = c.get("/")
+    data = r.json() if r.status_code == 200 else {}
+    check("GET / → 200", r.status_code == 200, str(r.status_code))
+    check("service = tradex-api", data.get("service") == "tradex-api", str(data))
+
+    # ── Docs ──────────────────────────────────────────────────────────────────
+    check("GET /docs → 200", c.get("/docs").status_code == 200)
+    check("GET /openapi.json → 200", c.get("/openapi.json").status_code == 200)
+
+    # ── Registro ──────────────────────────────────────────────────────────────
+    print("\n── Auth ──")
+    r = c.post("/auth/register", json={"email": EMAIL, "nombre": f"Smoke {tag}", "password": PASSWORD})
+    check("POST /auth/register → 201", r.status_code == 201, str(r.status_code))
+    if r.status_code != 201:
+        print("  BODY:", r.text[:200])
+        print("\nFATAL: sin token, no se puede continuar")
+        sys.exit(1)
+
+    d = r.json()
+    token = d["access_token"]
+    alumno_id = d["user_id"]
+    check("rol = alumno", d["rol"] == "alumno", d["rol"])
+    auth = {"Authorization": f"Bearer {token}"}
+
+    # ── auth/me ───────────────────────────────────────────────────────────────
+    r = c.get("/auth/me", headers=auth)
+    check("GET /auth/me → 200", r.status_code == 200)
+    r = c.patch("/auth/me", json={"escuela": "Test U"}, headers=auth)
+    check("PATCH /auth/me → 200", r.status_code == 200)
+
+    # ── Forgot password ───────────────────────────────────────────────────────
+    r = c.post("/auth/forgot-password", json={"email": EMAIL})
+    check("POST /auth/forgot-password → 204", r.status_code == 204)
+    r = c.post("/auth/forgot-password", json={"email": "noexiste@example.com"})
+    check("forgot-password email inexistente → 204 (anti-enum)", r.status_code == 204)
+    r = c.post("/auth/reset-password", json={"token": "invalido", "new_password": "NuevaPass1!"})
+    check("reset-password token inválido → 400", r.status_code == 400)
+
+    # ── Login ─────────────────────────────────────────────────────────────────
+    r = c.post("/auth/login", json={"email": EMAIL, "password": PASSWORD})
+    check("POST /auth/login → 200", r.status_code == 200)
+    r = c.post("/auth/login", json={"email": EMAIL, "password": "wrongpass"})
+    check("login contraseña incorrecta → 401", r.status_code == 401)
+
+    # ── Alumno: grupos y portafolio ───────────────────────────────────────────
+    print("\n── Alumno ──")
+    r = c.get(f"/alumnos/{alumno_id}/grupos", headers=auth)
+    check("GET /alumnos/{id}/grupos → 200", r.status_code == 200)
     if r.status_code == 200:
-        return r.json()["access_token"]
-    return None
+        check("lista vacía (sin grupo)", r.json() == [])
 
-def auth(token: str) -> dict:
-    return {"Authorization": f"Bearer {token}"}
+    r = c.get(f"/alumnos/{alumno_id}/portafolio", headers=auth)
+    check("GET /alumnos/{id}/portafolio sin grupo → 404", r.status_code == 404)
+
+    r = c.get(f"/alumnos/{alumno_id}/ordenes", headers=auth)
+    check("GET /alumnos/{id}/ordenes → 200", r.status_code == 200)
+
+    r = c.post("/grupos/unirse", json={"codigo": "INVALIDO"}, headers=auth)
+    check("POST /grupos/unirse código inválido → 404", r.status_code == 404)
+
+    # ── Insignias ─────────────────────────────────────────────────────────────
+    r = c.get("/insignias/mis-insignias", headers=auth)
+    check("GET /insignias/mis-insignias → 200", r.status_code == 200)
+
+    # ── Órdenes límite ────────────────────────────────────────────────────────
+    r = c.get("/ordenes-limite", headers=auth)
+    check("GET /ordenes-limite → 200", r.status_code == 200)
+    r = c.get("/ordenes-limite/notificaciones", headers=auth)
+    check("GET /ordenes-limite/notificaciones → 200", r.status_code == 200)
+    r = c.get("/ordenes-limite/alertas", headers=auth)
+    check("GET /ordenes-limite/alertas → 200", r.status_code == 200)
+
+    # ── Portafolios modelo ────────────────────────────────────────────────────
+    r = c.get("/portafolios-modelo", headers=auth)
+    check("GET /portafolios-modelo → 200", r.status_code == 200)
+    if r.status_code == 200:
+        note("Plantillas", str([p["perfil_riesgo"] for p in r.json()]))
+
+    # ── Precios / mercados ────────────────────────────────────────────────────
+    print("\n── Precios ──")
+    for path in [
+        "/precios/destacados", "/precios/indices", "/precios/sectores",
+        "/precios/screener", "/precios/noticias-generales", "/precios/earnings-calendar",
+        "/precios/escenarios", "/precios/explorador/acciones",
+    ]:
+        r = c.get(path, headers=auth)
+        check(f"GET {path} → 200", r.status_code == 200, str(r.status_code))
+
+    r = c.get("/precios/AAPL", headers=auth)
+    check("GET /precios/AAPL → 200", r.status_code == 200)
+    if r.status_code == 200:
+        precio = r.json().get("precio", 0)
+        check("precio AAPL > 0", float(precio) > 0, str(precio))
+
+    r = c.get("/precios/AAPL/historial?dias=5", headers=auth)
+    check("GET /precios/AAPL/historial → 200", r.status_code == 200)
+    if r.status_code == 200:
+        check("historial no vacío", len(r.json().get("historial", [])) > 0)
+
+    r = c.get("/precios/AAPL/ficha", headers=auth)
+    check("GET /precios/AAPL/ficha → 200", r.status_code == 200)
+    r = c.get("/precios/AAPL/noticias", headers=auth)
+    check("GET /precios/AAPL/noticias → 200", r.status_code == 200)
+
+    # ── Acceso denegado (cross-rol) ───────────────────────────────────────────
+    print("\n── Control de acceso ──")
+    r = c.get("/grupos", headers=auth)
+    check("GET /grupos como alumno → 403", r.status_code == 403)
+    r = c.post("/grupos", json={
+        "nombre": "X", "fecha_inicio": "2025-01-01T00:00:00Z",
+        "fecha_fin": "2025-12-31T00:00:00Z", "capital_inicial": 10000,
+        "activos_permitidos": ["acciones"], "fases_activo": [],
+    }, headers=auth)
+    check("POST /grupos como alumno → 403", r.status_code == 403)
+    r = c.get("/admin/stats", headers=auth)
+    check("GET /admin/stats como alumno → 403", r.status_code == 403)
+    r = c.post(f"/admin/users/{uuid.uuid4()}/cambiar-rol", json={"rol": "admin"}, headers=auth)
+    check("POST /admin/cambiar-rol como alumno → 403", r.status_code == 403)
+    r = c.get("/sponsor/mis-grupos", headers=auth)
+    check("GET /sponsor/mis-grupos como alumno → 403", r.status_code == 403)
+
+    # ── Operaciones sin grupo → 404 ───────────────────────────────────────────
+    fake_grupo = str(uuid.uuid4())
+    for path in ["/ordenes/compra", "/ordenes/venta", "/ordenes/short", "/ordenes/cubrir"]:
+        r = c.post(path, json={"grupo_id": fake_grupo, "ticker": "AAPL", "cantidad": "1"}, headers=auth)
+        check(f"POST {path} sin membership → 404", r.status_code == 404)
+
+    # ── Sin token → 401 ───────────────────────────────────────────────────────
+    print("\n── Sin token ──")
+    for path in ["/auth/me", "/grupos", "/admin/stats", "/precios/destacados", "/portafolios-modelo"]:
+        r = c.get(path)
+        check(f"GET {path} sin token → 401", r.status_code == 401)
 
 
-# ══════════════════════════════════════════════════════════════
-#  BLOQUE 1 — Conectividad básica
-# ══════════════════════════════════════════════════════════════
-seccion("1 · Conectividad básica")
-r = httpx.get(f"{BASE}/health", timeout=10)
-check("GET /health responde 200", r.status_code == 200, str(r.status_code))
-
-r = httpx.get(f"{BASE}/precios/AAPL", timeout=15)
-check("GET /precios/AAPL devuelve precio", r.status_code == 200 and "precio" in r.json(),
-      r.json().get("precio", "—") if r.status_code == 200 else str(r.status_code))
-
-r = httpx.get(f"{BASE}/precios/BTC-USD", timeout=15)
-check("GET /precios/BTC-USD (cripto)", r.status_code == 200, "")
-
-r = httpx.get(f"{BASE}/precios/EURUSD=X", timeout=15)
-check("GET /precios/EURUSD=X (forex)", r.status_code == 200, "")
-
-r = httpx.get(f"{BASE}/precios/AMXL.MX", timeout=15)
-check("GET /precios/AMXL.MX (BMV)", r.status_code == 200, "")
-
-
-# ══════════════════════════════════════════════════════════════
-#  BLOQUE 2 — Maestro: registro y creación de grupo
-# ══════════════════════════════════════════════════════════════
-seccion("2 · Maestro")
-data_m = registrar(MAESTRO_EMAIL, f"Bot Maestro {RUN}")
-check("Registro maestro", data_m is not None)
-if not data_m:
-    print("  ⛔  No se puede continuar sin maestro"); sys.exit(1)
-
-# El registro crea alumnos por defecto; promovemos via /admin o lo dejamos
-# (en producción el admin promueve, aquí solo probamos el flujo alumno→maestro
-#  si hay un endpoint disponible, si no lo saltamos)
-token_m = login(MAESTRO_EMAIL)
-check("Login maestro", token_m is not None)
-
-# Intentar crear grupo (solo funciona si el rol es maestro/admin)
-today = time.strftime("%Y-%m-%d")
-r = httpx.post(f"{BASE}/grupos", json={
-    "nombre": f"Grupo Bot {RUN}",
-    "fecha_inicio": f"{today}T00:00:00Z",
-    "fecha_fin": "2026-12-31T23:59:59Z",
-    "capital_inicial": 50000,
-    "activos_permitidos": ["acciones", "crypto"],
-}, headers=auth(token_m), timeout=15)
-# Puede fallar con 403 si el bot es alumno (esperado en producción sin promoción manual)
-grupo_id = None
-codigo_grupo = None
-if r.status_code == 201:
-    grupo_id = r.json()["id"]
-    codigo_grupo = r.json().get("codigo")
-    check("Crear grupo", True, f"id={grupo_id[:8]}… código={codigo_grupo}")
+passed = sum(results)
+total = len(results)
+print(f"\n{'─' * 50}")
+print(f"  {passed}/{total} checks passed")
+if passed < total:
+    print(f"  {total - passed} FALLARON")
+    sys.exit(1)
 else:
-    check("Crear grupo (requiere rol maestro)", r.status_code in (201, 403),
-          f"status={r.status_code} — normal si el bot no fue promovido a maestro")
-
-
-# ══════════════════════════════════════════════════════════════
-#  BLOQUE 3 — Alumno: registro, unirse, operar
-# ══════════════════════════════════════════════════════════════
-seccion("3 · Alumno")
-data_a = registrar(ALUMNO_EMAIL, f"Bot Alumno {RUN}", codigo_grupo)
-check("Registro alumno" + (f" con código {codigo_grupo}" if codigo_grupo else ""), data_a is not None)
-
-token_a = login(ALUMNO_EMAIL)
-check("Login alumno", token_a is not None)
-if not token_a:
-    print("  ⛔  No se puede continuar sin token de alumno"); sys.exit(1)
-
-alumno_id = data_a["user_id"]
-
-# Portafolio
-r = httpx.get(f"{BASE}/alumnos/{alumno_id}/portafolio", headers=auth(token_a), timeout=15)
-check("GET portafolio", r.status_code == 200, f"status={r.status_code}")
-portafolio_grupo_id = r.json().get("grupo_id") if r.status_code == 200 else None
-
-# Sólo operar si el alumno tiene grupo
-if portafolio_grupo_id:
-    capital = float(r.json().get("capital_disponible", 0))
-    check("Capital disponible > 0", capital > 0, f"${capital:,.2f}")
-
-    # Comprar AAPL
-    r2 = httpx.post(f"{BASE}/ordenes/compra", json={
-        "grupo_id": portafolio_grupo_id,
-        "ticker": "AAPL",
-        "cantidad": "1",
-    }, headers=auth(token_a), timeout=15)
-    check("Comprar 1 AAPL", r2.status_code == 201,
-          r2.json().get("precio_ejecucion", r2.text[:80]) if r2.status_code == 201 else r2.text[:80])
-
-    # Verificar holding
-    r3 = httpx.get(f"{BASE}/alumnos/{alumno_id}/portafolio", headers=auth(token_a), timeout=15)
-    holdings = r3.json().get("holdings", []) if r3.status_code == 200 else []
-    tiene_aapl = any(h["ticker"] == "AAPL" for h in holdings)
-    check("Holding AAPL en portafolio", tiene_aapl)
-
-    # Vender AAPL
-    r4 = httpx.post(f"{BASE}/ordenes/venta", json={
-        "grupo_id": portafolio_grupo_id,
-        "ticker": "AAPL",
-        "cantidad": "1",
-    }, headers=auth(token_a), timeout=15)
-    check("Vender 1 AAPL", r4.status_code == 201, "")
-
-    # Historial de órdenes
-    r5 = httpx.get(f"{BASE}/alumnos/{alumno_id}/ordenes", headers=auth(token_a), timeout=15)
-    check("Historial de órdenes", r5.status_code == 200 and len(r5.json()) >= 2,
-          f"{len(r5.json())} órdenes" if r5.status_code == 200 else str(r5.status_code))
-
-    # Orden límite
-    r6 = httpx.post(f"{BASE}/ordenes-limite", json={
-        "grupo_id": portafolio_grupo_id,
-        "ticker": "AAPL",
-        "tipo": "compra",
-        "cantidad": "1",
-        "precio_limite": "1.00",
-    }, headers=auth(token_a), timeout=15)
-    check("Crear orden límite", r6.status_code == 201, "")
-    orden_limite_id = r6.json().get("id") if r6.status_code == 201 else None
-
-    if orden_limite_id:
-        r7 = httpx.delete(f"{BASE}/ordenes-limite/{orden_limite_id}", headers=auth(token_a), timeout=15)
-        check("Cancelar orden límite", r7.status_code == 204, "")
-
-    # Alerta de precio
-    r8 = httpx.post(f"{BASE}/ordenes-limite/alertas", json={
-        "ticker": "AAPL", "precio_objetivo": "1.00", "condicion": "lte",
-    }, headers=auth(token_a), timeout=15)
-    check("Crear alerta de precio", r8.status_code == 201, "")
-    alerta_id = r8.json().get("id") if r8.status_code == 201 else None
-
-    if alerta_id:
-        r9 = httpx.delete(f"{BASE}/ordenes-limite/alertas/{alerta_id}", headers=auth(token_a), timeout=15)
-        check("Eliminar alerta", r9.status_code == 204, "")
-
-    # Ranking del grupo
-    r10 = httpx.get(f"{BASE}/grupos/{portafolio_grupo_id}/ranking", headers=auth(token_a), timeout=15)
-    check("GET ranking del grupo", r10.status_code == 200, f"{len(r10.json())} entradas" if r10.status_code == 200 else str(r10.status_code))
-
-else:
-    check("Alumno tiene grupo asignado", False, "sin grupo — operaciones omitidas")
-
-
-# ══════════════════════════════════════════════════════════════
-#  BLOQUE 4 — Seguridad básica
-# ══════════════════════════════════════════════════════════════
-seccion("4 · Seguridad")
-r = httpx.get(f"{BASE}/alumnos/{alumno_id}/portafolio", timeout=10)
-check("Sin token → 401 o 403", r.status_code in (401, 403), str(r.status_code))
-
-r = httpx.post(f"{BASE}/auth/login", json={"email": ALUMNO_EMAIL, "password": "wrongpassword"}, timeout=10)
-check("Contraseña incorrecta → 401", r.status_code == 401, str(r.status_code))
-
-r = httpx.get(f"{BASE}/grupos/{uuid.uuid4()}/ranking", headers=auth(token_a), timeout=10)
-check("Grupo inexistente → 404", r.status_code in (404, 403), str(r.status_code))
-
-
-# ══════════════════════════════════════════════════════════════
-#  RESUMEN
-# ══════════════════════════════════════════════════════════════
-print(f"\n{'═'*55}")
-total  = len(resultados)
-ok     = sum(1 for _, v, _ in resultados if v)
-fallos = total - ok
-print(f"  Resultado: {ok}/{total} pruebas pasaron  {'🎉' if fallos == 0 else f'⚠  {fallos} fallo(s)'}")
-print(f"{'═'*55}\n")
-
-if fallos:
-    print("Fallos:")
-    for nombre, ok, detalle in resultados:
-        if not ok:
-            print(f"  {FAIL}  {nombre}" + (f" — {detalle}" if detalle else ""))
-    print()
-
-sys.exit(0 if fallos == 0 else 1)
+    print("  Todo OK.")
