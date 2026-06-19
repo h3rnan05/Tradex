@@ -57,8 +57,8 @@ export default function AdminDashboard() {
               { label: t("admin.dashboard.teachers"), value: stats.total_maestros },
               { label: t("admin.dashboard.students"), value: stats.total_alumnos },
               { label: t("admin.dashboard.groups"), value: stats.total_grupos },
-              { label: "Operaciones", value: stats.total_operaciones },
-              { label: "Participaciones", value: stats.total_participaciones },
+              { label: t("admin.dashboard.trades"), value: stats.total_operaciones },
+              { label: t("admin.dashboard.enrollments"), value: stats.total_participaciones },
             ].map((s) => (
               <div key={s.label} className="border border-fg/10 bg-panel p-4 text-center">
                 <div className="font-mono text-2xl font-bold text-accent">{s.value.toLocaleString()}</div>
@@ -69,12 +69,12 @@ export default function AdminDashboard() {
         )}
 
         {/* Groups table */}
-        <h2 className="mb-3 font-mono text-[11px] uppercase tracking-widest text-fg/40">Todos los grupos</h2>
+        <h2 className="mb-3 font-mono text-[11px] uppercase tracking-widest text-fg/40">{t("admin.dashboard.allGroups")}</h2>
         <div className="overflow-x-auto">
           <table className="w-full border border-fg/10 bg-panel text-sm">
             <thead className="bg-fg/5">
               <tr>
-                {["Grupo", t("admin.teachers.title"), "Capital", t("admin.dashboard.students"), t("class.startDate"), t("class.endDate"), "Patrocinador"].map((h) => (
+                {[t("admin.dashboard.group"), t("admin.teachers.title"), t("admin.dashboard.capital"), t("admin.dashboard.students"), t("class.startDate"), t("class.endDate"), t("admin.dashboard.sponsor")].map((h) => (
                   <th key={h} className="px-4 py-3 text-left font-mono text-[10px] uppercase tracking-wider text-fg/40">{h}</th>
                 ))}
               </tr>
@@ -94,7 +94,7 @@ export default function AdminDashboard() {
                       onChange={(e) => asignarSponsor(g.id, e.target.value)}
                       className="bg-panel font-mono text-xs text-fg/70 border border-fg/20 px-2 py-1"
                     >
-                      <option value="">— Sin patrocinador —</option>
+                      <option value="">{t("admin.dashboard.noSponsor")}</option>
                       {sponsors.map((s) => (
                         <option key={s.id} value={s.id}>{s.nombre}</option>
                       ))}
@@ -103,7 +103,7 @@ export default function AdminDashboard() {
                 </tr>
               ))}
               {grupos.length === 0 && (
-                <tr><td colSpan={7} className="px-4 py-6 text-center font-mono text-sm text-fg/30">Sin grupos registrados</td></tr>
+                <tr><td colSpan={7} className="px-4 py-6 text-center font-mono text-sm text-fg/30">{t("admin.dashboard.noGroups")}</td></tr>
               )}
             </tbody>
           </table>

@@ -6,6 +6,7 @@ import Navbar from "@/components/Navbar";
 import TooltipInfo from "@/components/Tooltip";
 import { api, ApiError } from "@/lib/api";
 import { obtenerSesion } from "@/lib/auth";
+import { useLanguage } from "@/lib/i18n";
 
 interface PuntoValor { fecha: string; valor: number }
 interface Metricas { volatilidad_anualizada: number | null; sharpe_ratio: number | null; rendimiento_total_pct: number | null }
@@ -16,12 +17,6 @@ interface ComparadorData {
   modelo_nombre: string;
   metricas: { alumno: Metricas; sp500: Metricas; modelo: Metricas };
 }
-
-const MODELOS = [
-  { value: "conservador", label: "Conservador" },
-  { value: "moderado", label: "Moderado" },
-  { value: "agresivo", label: "Agresivo" },
-];
 
 function fmt(v: number | null, suffix = "%") {
   if (v == null) return "—";
@@ -36,12 +31,19 @@ function sharpeColor(v: number | null) {
 }
 
 export default function ComparadorPage() {
+  const { t } = useLanguage();
   const [grupoId, setGrupoId] = useState<string | null>(null);
   const [alumnoId, setAlumnoId] = useState<string | null>(null);
   const [modelo, setModelo] = useState("moderado");
   const [data, setData] = useState<ComparadorData | null>(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
+
+  const MODELOS = [
+    { value: "conservador", label: t("comparador.conservative") },
+    { value: "moderado", label: t("comparador.moderate") },
+    { value: "agresivo", label: t("comparador.aggressive") },
+  ];
 
   useEffect(() => {
     const sesion = obtenerSesion();
@@ -62,7 +64,6 @@ export default function ComparadorPage() {
       .finally(() => setCargando(false));
   }, [alumnoId, grupoId, modelo]);
 
-  // Merge series by fecha for chart
   const chartData = (() => {
     if (!data?.alumno.length) return [];
     const map: Record<string, Record<string, number>> = {};
@@ -73,9 +74,9 @@ export default function ComparadorPage() {
   })();
 
   const cols = [
-    { key: "alumno", label: "Mi portafolio", color: "#f59e0b" },
+    { key: "alumno", label: t("comparador.myPortfolio"), color: "#f59e0b" },
     { key: "sp500", label: "S&P 500", color: "#60a5fa" },
-    { key: "modelo", label: `Modelo ${modelo}`, color: "#a78bfa" },
+    { key: "modelo", label: `${t("comparador.modelLabel")} ${modelo}`, color: "#a78bfa" },
   ];
 
   return (
@@ -84,11 +85,11 @@ export default function ComparadorPage() {
       <div className="mx-auto max-w-6xl p-6">
         <div className="mb-6 flex items-end justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-fg">Comparador de Estrategias</h1>
-            <p className="mt-1 font-mono text-sm text-fg/50">Compara tu rendimiento vs el mercado y portafolios modelo</p>
+            <h1 className="text-2xl font-bold text-fg">{t("comparador.title")}</h1>
+            <p className="mt-1 font-mono text-sm text-fg/50">{t("comparador.subtitle")}</p>
           </div>
           <div className="flex items-center gap-2">
-            <span className="font-mono text-[11px] uppercase tracking-wider text-fg/40">Modelo:</span>
+            <span className="font-mono text-[11px] uppercase tracking-wider text-fg/40">{t("comparador.model")}</span>
             {MODELOS.map(m => (
               <button
                 key={m.value}
@@ -103,7 +104,7 @@ export default function ComparadorPage() {
 
         {!grupoId ? (
           <p className="border border-fg/10 bg-panel p-6 text-center font-mono text-sm text-fg/50">
-            Selecciona un grupo desde Portafolio para ver la comparación.
+            {t("comparador.selectGroup")}
           </p>
         ) : cargando ? (
           <div className="h-64 animate-pulse border border-fg/10 bg-panel" />
@@ -111,7 +112,6 @@ export default function ComparadorPage() {
           <p className="border border-perdida/30 bg-perdida/5 p-4 font-mono text-sm text-perdida">{error}</p>
         ) : data ? (
           <>
-            {/* Chart */}
             <div className="mb-6 border border-fg/10 bg-panel p-4">
               <ResponsiveContainer width="100%" height={320}>
                 <LineChart data={chartData}>
@@ -129,9 +129,8 @@ export default function ComparadorPage() {
               </ResponsiveContainer>
             </div>
 
-            {/* Metrics table */}
             <div className="grid grid-cols-3 gap-px bg-fg/10 border border-fg/10">
-              {cols.map((c, ci) => {
+              {cols.map((c) => {
                 const m = data.metricas[c.key as keyof typeof data.metricas] as Metricas;
                 return (
                   <div key={c.key} className="bg-panel p-5">
@@ -141,22 +140,22 @@ export default function ComparadorPage() {
                     </div>
                     <div className="space-y-3">
                       <div>
-                        <div className="font-mono text-[10px] uppercase tracking-widest text-fg/40">Rendimiento total</div>
+                        <div className="font-mono text-[10px] uppercase tracking-widest text-fg/40">{t("comparador.totalReturn")}</div>
                         <div className={`font-mono text-xl font-bold ${(m.rendimiento_total_pct ?? 0) >= 0 ? "text-ganancia" : "text-perdida"}`}>
                           {fmt(m.rendimiento_total_pct)}
                         </div>
                       </div>
                       <div>
                         <div className="flex items-center font-mono text-[10px] uppercase tracking-widest text-fg/40">
-                          Volatilidad anualizada
-                          <TooltipInfo texto="Mide qué tanto fluctúa el portafolio. Mayor volatilidad = mayor riesgo. Se expresa anualizado asumiendo 252 días de mercado." />
+                          {t("comparador.volatility")}
+                          <TooltipInfo texto={t("comparador.volatilityTip")} />
                         </div>
                         <div className="font-mono text-sm font-semibold text-fg">{fmt(m.volatilidad_anualizada)}</div>
                       </div>
                       <div>
                         <div className="flex items-center font-mono text-[10px] uppercase tracking-widest text-fg/40">
-                          Sharpe Ratio
-                          <TooltipInfo texto="Rendimiento obtenido por unidad de riesgo. &gt;1 = bueno, &gt;2 = excelente. Permite comparar carteras con distinto riesgo." />
+                          {t("comparador.sharpe")}
+                          <TooltipInfo texto={t("comparador.sharpeTip")} />
                         </div>
                         <div className={`font-mono text-sm font-semibold ${sharpeColor(m.sharpe_ratio)}`}>
                           {m.sharpe_ratio != null ? m.sharpe_ratio.toFixed(2) : "—"}

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { api } from "@/lib/api";
+import { useLanguage } from "@/lib/i18n";
 
 interface Grupo {
   id: string;
@@ -34,6 +35,7 @@ function fmt(v: number | string) {
 }
 
 export default function SponsorDashboard() {
+  const { t } = useLanguage();
   const [grupos, setGrupos] = useState<Grupo[]>([]);
   const [selectedGrupo, setSelectedGrupo] = useState<string | null>(null);
   const [ranking, setRanking] = useState<RankingEntry[]>([]);
@@ -61,14 +63,14 @@ export default function SponsorDashboard() {
     <main className="min-h-screen bg-canvas">
       <Navbar />
       <div className="mx-auto max-w-7xl p-4 md:p-6">
-        <h1 className="mb-2 text-2xl font-bold text-fg">Panel del Patrocinador</h1>
+        <h1 className="mb-2 text-2xl font-bold text-fg">{t("sponsor.title")}</h1>
         <p className="mb-6 font-mono text-sm text-fg/40">
-          Vista de solo lectura · {grupos.length} grupo{grupos.length !== 1 ? "s" : ""} patrocinado{grupos.length !== 1 ? "s" : ""}
+          {t("sponsor.subtitle")} · {grupos.length} {grupos.length !== 1 ? t("sponsor.groupPlural") : t("sponsor.groupSingular")}
         </p>
 
         {grupos.length === 0 ? (
           <div className="border border-fg/10 bg-panel p-8 text-center">
-            <p className="font-mono text-sm text-fg/40">Aún no tienes grupos asignados. Contacta al administrador.</p>
+            <p className="font-mono text-sm text-fg/40">{t("sponsor.noGroups")}</p>
           </div>
         ) : (
           <>
@@ -89,12 +91,12 @@ export default function SponsorDashboard() {
             {grupoActual && (
               <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
                 {[
-                  { label: "Grupo", value: grupoActual.nombre },
-                  { label: "Maestro", value: grupoActual.maestro_nombre ?? "—" },
-                  { label: "Capital", value: fmt(grupoActual.capital_inicial) },
-                  { label: "Alumnos", value: String(grupoActual.num_alumnos) },
-                  { label: "Operaciones", value: String(grupoActual.num_operaciones) },
-                  { label: "Mercados", value: grupoActual.activos_permitidos.join(", ") },
+                  { label: t("sponsor.group"), value: grupoActual.nombre },
+                  { label: t("sponsor.teacher"), value: grupoActual.maestro_nombre ?? "—" },
+                  { label: t("sponsor.capital"), value: fmt(grupoActual.capital_inicial) },
+                  { label: t("sponsor.students"), value: String(grupoActual.num_alumnos) },
+                  { label: t("sponsor.trades"), value: String(grupoActual.num_operaciones) },
+                  { label: t("sponsor.markets"), value: grupoActual.activos_permitidos.join(", ") },
                 ].map((s) => (
                   <div key={s.label} className="border border-fg/10 bg-panel p-3">
                     <div className="font-mono text-xs font-bold text-fg">{s.value}</div>
@@ -104,15 +106,15 @@ export default function SponsorDashboard() {
               </div>
             )}
 
-            <h2 className="mb-3 font-mono text-[11px] uppercase tracking-widest text-fg/40">Ranking de participantes</h2>
+            <h2 className="mb-3 font-mono text-[11px] uppercase tracking-widest text-fg/40">{t("sponsor.ranking")}</h2>
             {cargandoRanking ? (
-              <div className="border border-fg/10 bg-panel p-8 text-center font-mono text-sm text-fg/30">Cargando...</div>
+              <div className="border border-fg/10 bg-panel p-8 text-center font-mono text-sm text-fg/30">{t("sponsor.loading")}</div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full border border-fg/10 bg-panel text-sm">
                   <thead className="bg-fg/5">
                     <tr>
-                      {["#", "Nombre", "Escuela", "Ciudad", "Estado", "Valor portafolio", "Rendimiento", "Ops"].map((h) => (
+                      {["#", t("common.name"), t("profile.school"), t("profile.city"), t("profile.state"), t("sponsor.portfolioValue"), t("sponsor.return"), t("sponsor.ops")].map((h) => (
                         <th key={h} className="px-3 py-3 text-left font-mono text-[10px] uppercase tracking-wider text-fg/40">{h}</th>
                       ))}
                     </tr>
@@ -125,7 +127,7 @@ export default function SponsorDashboard() {
                           <td className="px-3 py-3 font-mono text-xs font-bold text-fg/50">#{e.posicion}</td>
                           <td className="px-3 py-3">
                             <span className="font-mono text-sm font-semibold text-fg">{e.nombre}</span>
-                            {e.pausado && <span className="ml-2 font-mono text-[9px] uppercase text-perdida">Pausado</span>}
+                            {e.pausado && <span className="ml-2 font-mono text-[9px] uppercase text-perdida">{t("sponsor.paused")}</span>}
                           </td>
                           <td className="px-3 py-3 font-mono text-xs text-fg/60">{e.escuela ?? "—"}</td>
                           <td className="px-3 py-3 font-mono text-xs text-fg/60">{e.ciudad ?? "—"}</td>
@@ -139,7 +141,7 @@ export default function SponsorDashboard() {
                       );
                     })}
                     {ranking.length === 0 && (
-                      <tr><td colSpan={8} className="px-4 py-6 text-center font-mono text-sm text-fg/30">Sin participantes aún</td></tr>
+                      <tr><td colSpan={8} className="px-4 py-6 text-center font-mono text-sm text-fg/30">{t("sponsor.noParticipants")}</td></tr>
                     )}
                   </tbody>
                 </table>
