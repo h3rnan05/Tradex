@@ -43,7 +43,7 @@ export default function AdminUsuarios() {
       const maestros = await api.get<Usuario[]>("/admin/maestros");
       setUsuarios([...data, ...maestros].sort((a, b) => a.nombre.localeCompare(b.nombre)));
     } catch {
-      toast("Error al cargar usuarios", "error");
+      toast(t("admin.users.loadError"), "error");
     } finally {
       setFiltrando(false);
     }
@@ -143,7 +143,7 @@ export default function AdminUsuarios() {
                         className="border border-fg/20 bg-canvas px-2 py-1 font-mono text-xs text-fg"
                       >
                         {ROLES.map((r) => (
-                          <option key={r} value={r}>{r}</option>
+                          <option key={r} value={r}>{t(`admin.users.role.${r}` as Parameters<typeof t>[0])}</option>
                         ))}
                       </select>
                     </td>

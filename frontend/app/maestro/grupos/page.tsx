@@ -6,6 +6,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { api, ApiError } from "@/lib/api";
 import { useLanguage } from "@/lib/i18n";
+import type { TranslationKey } from "@/translations/es";
 import ErrorState from "@/components/ErrorState";
 
 interface Grupo {
@@ -22,17 +23,17 @@ interface Grupo {
   created_at: string;
 }
 
-const ACTIVOS_DISPONIBLES = [
-  { value: "acciones", label: "Acciones" },
-  { value: "indices", label: "Índices / ETFs" },
-  { value: "commodities", label: "Commodities" },
-  { value: "crypto", label: "Cripto" },
-  { value: "forex", label: "Divisas (Forex)" },
-  { value: "bolsa_mx", label: "Bolsa Mexicana (BMV)" },
+const ACTIVOS_DISPONIBLES: { value: string; labelKey: TranslationKey }[] = [
+  { value: "acciones", labelKey: "maestro.groups.assetAcciones" },
+  { value: "indices", labelKey: "maestro.groups.assetIndices" },
+  { value: "commodities", labelKey: "maestro.groups.assetCommodities" },
+  { value: "crypto", labelKey: "maestro.groups.assetCrypto" },
+  { value: "forex", labelKey: "maestro.groups.assetForex" },
+  { value: "bolsa_mx", labelKey: "maestro.groups.assetBolsaMx" },
 ];
 
-const ACTIVOS_LABEL: Record<string, string> = Object.fromEntries(
-  ACTIVOS_DISPONIBLES.map((a) => [a.value, a.label])
+const ACTIVOS_LABEL_KEY: Record<string, TranslationKey> = Object.fromEntries(
+  ACTIVOS_DISPONIBLES.map((a) => [a.value, a.labelKey])
 );
 
 function estadoGrupo(fechaInicio: string, fechaFin: string) {
@@ -50,13 +51,13 @@ const ESTADO_CLASE: Record<string, string> = {
   finalizado: "border-fg/20 bg-fg/5 text-fg/40",
 };
 
-function diasRestantes(fechaFin: string) {
+function diasRestantes(fechaFin: string, t: (k: TranslationKey) => string) {
   const diff = new Date(fechaFin).getTime() - Date.now();
   const dias = Math.ceil(diff / (1000 * 60 * 60 * 24));
   if (dias < 0) return null;
-  if (dias === 0) return "Termina hoy";
-  if (dias === 1) return "1 día restante";
-  return `${dias} días restantes`;
+  if (dias === 0) return t("maestro.groups.endsToday");
+  if (dias === 1) return t("maestro.groups.oneDayLeft");
+  return `${dias} ${t("maestro.groups.daysLeft")}`;
 }
 
 export default function GruposPage() {
@@ -89,7 +90,7 @@ export default function GruposPage() {
       const data = await api.get<Grupo[]>("/grupos");
       setGrupos(data);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Error al cargar los grupos");
+      setError(err instanceof ApiError ? err.message : t("maestro.groups.loadError"));
     } finally {
       setCargando(false);
     }
@@ -125,7 +126,7 @@ export default function GruposPage() {
       setMostrarForm(false);
       await cargarGrupos();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "No se pudo crear el grupo");
+      setError(err instanceof ApiError ? err.message : t("maestro.groups.createError"));
     } finally {
       setGuardando(false);
     }
@@ -172,7 +173,7 @@ export default function GruposPage() {
                     required
                     value={nombre}
                     onChange={(e) => setNombre(e.target.value)}
-                    placeholder="Ej. Finanzas 1A — Ene 2025"
+                    placeholder={t("maestro.groups.namePlaceholder")}
                     className="w-full rounded-none border border-fg/20 bg-canvas px-3 py-2.5 text-sm focus:border-accent focus:outline-none"
                   />
                 </div>
@@ -192,19 +193,19 @@ export default function GruposPage() {
                     className="w-full rounded-none border border-fg/20 bg-canvas px-3 py-2.5 font-mono text-sm focus:border-accent focus:outline-none" />
                 </div>
                 <div>
-                  <label className="mb-1.5 block font-mono text-[11px] uppercase tracking-widest text-fg/50">Máx. {t("maestro.groups.students")} <span className="normal-case text-fg/30">(opcional)</span></label>
+                  <label className="mb-1.5 block font-mono text-[11px] uppercase tracking-widest text-fg/50">{t("maestro.groups.maxStudents")} {t("maestro.groups.students")} <span className="normal-case text-fg/30">{t("maestro.groups.optional")}</span></label>
                   <input type="number" min="1" value={maxAlumnos} onChange={(e) => setMaxAlumnos(e.target.value)}
-                    placeholder="Sin límite"
+                    placeholder={t("maestro.groups.noLimit")}
                     className="w-full rounded-none border border-fg/20 bg-canvas px-3 py-2.5 text-sm focus:border-accent focus:outline-none" />
                 </div>
                 <div>
-                  <label className="mb-1.5 block font-mono text-[11px] uppercase tracking-widest text-fg/50">Límite por orden <span className="normal-case text-fg/30">(opcional)</span></label>
+                  <label className="mb-1.5 block font-mono text-[11px] uppercase tracking-widest text-fg/50">{t("maestro.groups.orderLimit")} <span className="normal-case text-fg/30">{t("maestro.groups.optional")}</span></label>
                   <input type="number" min="0" value={limiteOrden} onChange={(e) => setLimiteOrden(e.target.value)}
-                    placeholder="Sin límite"
+                    placeholder={t("maestro.groups.noLimit")}
                     className="w-full rounded-none border border-fg/20 bg-canvas px-3 py-2.5 text-sm focus:border-accent focus:outline-none" />
                 </div>
                 <div>
-                  <label className="mb-1.5 block font-mono text-[11px] uppercase tracking-widest text-fg/50">{t("maestro.groups.commission")} <span className="normal-case text-fg/30">(opcional)</span></label>
+                  <label className="mb-1.5 block font-mono text-[11px] uppercase tracking-widest text-fg/50">{t("maestro.groups.commission")} <span className="normal-case text-fg/30">{t("maestro.groups.optional")}</span></label>
                   <input type="number" min="0" step="0.01" value={comisionPorcentaje} onChange={(e) => setComisionPorcentaje(e.target.value)}
                     placeholder="0"
                     className="w-full rounded-none border border-fg/20 bg-canvas px-3 py-2.5 text-sm focus:border-accent focus:outline-none" />
@@ -224,11 +225,11 @@ export default function GruposPage() {
                               : "border-fg/15 bg-canvas text-fg/50 hover:border-fg/30"
                           }`}
                         >
-                          {activo.label}
+                          {t(activo.labelKey)}
                         </button>
                         {activosPermitidos.includes(activo.value) && (
                           <div className="mt-1 flex items-center gap-1.5 border border-t-0 border-accent/20 bg-accent/5 px-3 py-1.5">
-                            <span className="font-mono text-[10px] text-fg/40">Desbloquea:</span>
+                            <span className="font-mono text-[10px] text-fg/40">{t("maestro.groups.unlocks")}</span>
                             <input
                               type="date"
                               value={fechasActivacion[activo.value] ?? ""}
@@ -269,7 +270,7 @@ export default function GruposPage() {
           <div className="flex flex-col items-center justify-center rounded-none border border-dashed border-fg/20 py-20 text-center">
             <p className="font-mono text-4xl font-bold text-fg/10">TRADEX</p>
             <p className="mt-3 font-medium text-fg/50">{t("maestro.groups.noGroups")}</p>
-            <p className="mt-1 text-sm text-fg/30">Crea tu primer grupo para compartir el código con tus alumnos</p>
+            <p className="mt-1 text-sm text-fg/30">{t("maestro.groups.emptyHint")}</p>
             <button
               onClick={() => setMostrarForm(true)}
               className="mt-6 rounded-none bg-accent px-5 py-2.5 font-mono text-sm font-bold uppercase tracking-wide text-black hover:opacity-90"
@@ -304,7 +305,7 @@ function GrupoSeccion({ titulo, grupos }: { titulo: string; grupos: Grupo[] }) {
 function GrupoCard({ grupo: g }: { grupo: Grupo }) {
   const { t } = useLanguage();
   const estado = estadoGrupo(g.fecha_inicio, g.fecha_fin);
-  const restantes = diasRestantes(g.fecha_fin);
+  const restantes = diasRestantes(g.fecha_fin, t);
 
   const estadoLabel =
     estado === "activo"
@@ -341,7 +342,7 @@ function GrupoCard({ grupo: g }: { grupo: Grupo }) {
         <div className="bg-panel px-4 py-3">
           <p className="font-mono text-[9px] uppercase tracking-widest text-fg/40">{t("maestro.groups.students")}</p>
           <p className="mt-0.5 font-mono text-sm font-bold text-fg">
-            {g.max_alumnos ? `Máx. ${g.max_alumnos}` : "Ilimitado"}
+            {g.max_alumnos ? `${t("maestro.groups.maxStudents")} ${g.max_alumnos}` : t("maestro.groups.unlimited")}
           </p>
         </div>
         <div className="bg-panel px-4 py-3">
@@ -364,12 +365,12 @@ function GrupoCard({ grupo: g }: { grupo: Grupo }) {
           <div className="flex flex-wrap gap-1">
             {g.activos_permitidos.map((tipo) => (
               <span key={tipo} className="rounded-full border border-fg/10 bg-fg/5 px-2 py-0.5 font-mono text-[10px] text-fg/60">
-                {ACTIVOS_LABEL[tipo] ?? tipo}
+                {ACTIVOS_LABEL_KEY[tipo] ? t(ACTIVOS_LABEL_KEY[tipo]) : tipo}
               </span>
             ))}
           </div>
         ) : (
-          <p className="font-mono text-[11px] text-fg/30">Sin mercados configurados</p>
+          <p className="font-mono text-[11px] text-fg/30">{t("maestro.groups.noMarkets")}</p>
         )}
       </div>
 
@@ -382,7 +383,7 @@ function GrupoCard({ grupo: g }: { grupo: Grupo }) {
           href={`/maestro/grupos/${g.id}`}
           className="rounded-none bg-ink px-4 py-1.5 font-mono text-[11px] font-bold uppercase tracking-wide text-white opacity-80 transition-opacity hover:opacity-100 group-hover:opacity-100"
         >
-          Ver detalle →
+          {t("maestro.groups.viewDetail")}
         </Link>
       </div>
     </div>

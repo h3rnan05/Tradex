@@ -44,7 +44,7 @@ export default function PerfilPage() {
         setCiudad(data.ciudad ?? "");
         setEstado(data.estado ?? "");
       })
-      .catch(() => toast("No se pudo cargar el perfil", "error"))
+      .catch(() => toast(t("profile.loadError"), "error"))
       .finally(() => setCargando(false));
   }, [router, toast]);
 
@@ -63,7 +63,7 @@ export default function PerfilPage() {
       if (sesion) guardarSesion({ ...sesion, nombre: actualizado.nombre });
       toast(t("profile.success"), "success");
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Error al guardar", "error");
+      toast(err instanceof ApiError ? err.message : t("maestro.detail.saveError"), "error");
     } finally {
       setGuardando(false);
     }
@@ -101,7 +101,7 @@ export default function PerfilPage() {
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium text-fg/70">Escuela</label>
+              <label className="mb-1 block text-sm font-medium text-fg/70">{t("profile.school")}</label>
               <input
                 type="text"
                 value={escuela}
@@ -112,7 +112,7 @@ export default function PerfilPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="mb-1 block text-sm font-medium text-fg/70">Ciudad</label>
+                <label className="mb-1 block text-sm font-medium text-fg/70">{t("profile.city")}</label>
                 <input
                   type="text"
                   value={ciudad}
@@ -121,7 +121,7 @@ export default function PerfilPage() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-fg/70">Estado</label>
+                <label className="mb-1 block text-sm font-medium text-fg/70">{t("profile.state")}</label>
                 <input
                   type="text"
                   value={estado}

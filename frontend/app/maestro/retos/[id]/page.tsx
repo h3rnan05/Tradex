@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import { Badge, Card, formatoMoneda, formatoPorcentaje } from "@/components/primitives";
 import { api, ApiError } from "@/lib/api";
+import { useLanguage } from "@/lib/i18n";
 
 interface RankingEntry {
   alumno_id: string;
@@ -15,6 +16,7 @@ interface RankingEntry {
 
 export default function RankingRetoPage() {
   const params = useParams<{ id: string }>();
+  const { t } = useLanguage();
   const [ranking, setRanking] = useState<RankingEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,7 +25,7 @@ export default function RankingRetoPage() {
       const data = await api.get<RankingEntry[]>(`/retos/${params.id}/ranking`);
       setRanking(data);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Error al cargar el ranking");
+      setError(err instanceof ApiError ? err.message : t("error.loadRanking"));
     }
   }
 
@@ -37,21 +39,21 @@ export default function RankingRetoPage() {
     <main className="min-h-screen bg-canvas">
       <Navbar />
       <div className="mx-auto max-w-3xl p-6">
-        <h1 className="mb-6 text-2xl font-bold text-fg">Ranking del reto</h1>
+        <h1 className="mb-6 text-2xl font-bold text-fg">{t("challenge.ranking")}</h1>
 
         {error && <p className="mb-4 text-sm text-perdida">{error}</p>}
 
         {!ranking ? (
-          <p className="text-fg/40">Cargando...</p>
+          <p className="text-fg/40">{t("challenge.loading")}</p>
         ) : (
           <Card className="overflow-hidden p-0">
             <table className="w-full text-sm">
               <thead className="bg-fg/5 text-left text-fg/60">
                 <tr>
                   <th className="px-4 py-3">#</th>
-                  <th className="px-4 py-3">Alumno</th>
-                  <th className="px-4 py-3">Valor total</th>
-                  <th className="px-4 py-3">Rendimiento</th>
+                  <th className="px-4 py-3">{t("challenge.student")}</th>
+                  <th className="px-4 py-3">{t("challenge.totalValue")}</th>
+                  <th className="px-4 py-3">{t("challenge.return")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -70,7 +72,7 @@ export default function RankingRetoPage() {
                 {ranking.length === 0 && (
                   <tr>
                     <td colSpan={4} className="px-4 py-3 text-fg/40">
-                      Nadie ha participado todavía.
+                      {t("challenge.noParticipants")}
                     </td>
                   </tr>
                 )}

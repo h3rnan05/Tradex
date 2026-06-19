@@ -74,10 +74,10 @@ export default function AdminRanking() {
             <option value="">{t("admin.ranking.allTeachers")}</option>
             {maestros.map((m) => <option key={m.id} value={m.id}>{m.nombre}</option>)}
           </select>
-          {["escuela", "ciudad", "estado"].map((f) => (
+          {(["escuela", "ciudad", "estado"] as const).map((f) => (
             <input
               key={f}
-              placeholder={f.charAt(0).toUpperCase() + f.slice(1)}
+              placeholder={t(`profile.${f === "escuela" ? "school" : f === "ciudad" ? "city" : "state"}` as Parameters<typeof t>[0])}
               value={filtros[f as keyof typeof filtros]}
               onChange={(e) => setFiltros({ ...filtros, [f]: e.target.value })}
               className="border border-fg/20 bg-panel px-3 py-2 font-mono text-xs text-fg placeholder-fg/30 outline-none focus:border-accent"
@@ -96,8 +96,8 @@ export default function AdminRanking() {
           <table className="w-full border border-fg/10 bg-panel text-sm">
             <thead className="bg-fg/5">
               <tr>
-                {["#", t("ranking.student"), "Escuela", "Ciudad", t("common.status"), t("admin.teachers.title"), "Grupo", t("ranking.totalValue"), t("ranking.return"), "Ops"].map((h) => (
-                  <th key={h} className="px-3 py-3 text-left font-mono text-[10px] uppercase tracking-wider text-fg/40">{h}</th>
+                {["#", t("ranking.student"), t("profile.school"), t("profile.city"), t("profile.state"), t("admin.teachers.title"), t("admin.dashboard.group"), t("ranking.totalValue"), t("ranking.return"), t("sponsor.ops")].map((h, idx) => (
+                  <th key={idx} className="px-3 py-3 text-left font-mono text-[10px] uppercase tracking-wider text-fg/40">{h}</th>
                 ))}
               </tr>
             </thead>

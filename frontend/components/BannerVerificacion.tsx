@@ -29,7 +29,8 @@ export default function BannerVerificacion() {
       await api.post("/auth/resend-verification", {});
       setEnviado(true);
     } catch {
-      // silencioso
+      // Si falla el reenvío no marcamos como enviado para evitar un falso positivo
+      setEnviado(false);
     } finally {
       setEnviando(false);
     }
