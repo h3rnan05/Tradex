@@ -24,9 +24,9 @@ export default function Pagination({ page, totalPages, onPage }: Props) {
           acc.push(p);
           return acc;
         }, [])
-        .map((p, i) =>
+        .map((p, i, arr) =>
           p === "…" ? (
-            <span key={`ellipsis-${i}`} className="px-2 text-fg/30">…</span>
+            <span key={`ellipsis-before-${arr[i + 1]}`} className="px-2 text-fg/30">…</span>
           ) : (
             <button
               key={p}
