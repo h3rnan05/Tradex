@@ -538,7 +538,7 @@ function OperarPageInterna() {
     <main className="min-h-screen bg-canvas">
       <Navbar />
       <div className="mx-auto max-w-7xl p-4 md:p-6">
-        <h1 className="mb-4 text-2xl font-bold text-fg">Operar</h1>
+        <h1 className="mb-4 text-2xl font-bold text-fg">{t("trade.title")}</h1>
 
         {activosProximos.length > 0 && (
           <Card className="mb-4 border-accent/30 bg-accent/5">
@@ -1072,7 +1072,7 @@ function OperarPageInterna() {
                       step="0.01"
                       value={precioAlerta}
                       onChange={(e) => setPrecioAlerta(e.target.value)}
-                      placeholder="Precio"
+                      placeholder={t("trade.price")}
                       className="flex-1 rounded-none border border-fg/20 bg-panel px-3 py-2 font-mono text-sm"
                     />
                     <button

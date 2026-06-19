@@ -28,11 +28,13 @@ def register(request: Request, payload: RegisterRequest, db: Session = Depends(g
     if existente:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El correo ya esta registrado")
 
+    rol = RolEnum.maestro if payload.es_maestro else RolEnum.alumno
+
     user = User(
         email=payload.email,
         nombre=payload.nombre,
         hashed_password=hash_password(payload.password),
-        rol=RolEnum.alumno,
+        rol=rol,
     )
     db.add(user)
     db.flush()
