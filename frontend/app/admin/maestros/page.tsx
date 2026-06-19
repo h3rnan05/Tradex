@@ -39,7 +39,7 @@ export default function AdminMaestros() {
           <table className="w-full border border-fg/10 bg-panel text-sm">
             <thead className="bg-fg/5">
               <tr>
-                {[t("common.name"), t("common.email"), "Escuela", "Ciudad", t("common.status"), ""].map((h) => (
+                {[t("common.name"), t("common.email"), t("profile.school"), t("profile.city"), t("common.status"), ""].map((h) => (
                   <th key={h} className="px-4 py-3 text-left font-mono text-[10px] uppercase tracking-wider text-fg/40">{h}</th>
                 ))}
               </tr>
@@ -49,7 +49,7 @@ export default function AdminMaestros() {
                 <tr key={m.id} className={`border-t border-fg/5 ${m.suspendido ? "opacity-40" : "hover:bg-fg/5"}`}>
                   <td className="px-4 py-3 font-mono font-semibold text-fg">
                     {m.nombre}
-                    {m.suspendido && <span className="ml-2 font-mono text-[9px] uppercase text-perdida bg-perdida/10 px-1.5 py-0.5">Suspendido</span>}
+                    {m.suspendido && <span className="ml-2 font-mono text-[9px] uppercase text-perdida bg-perdida/10 px-1.5 py-0.5">{t("admin.users.suspended")}</span>}
                   </td>
                   <td className="px-4 py-3 font-mono text-xs text-fg/60">{m.email}</td>
                   <td className="px-4 py-3 font-mono text-xs text-fg/60">{m.escuela ?? "—"}</td>
@@ -60,13 +60,13 @@ export default function AdminMaestros() {
                       onClick={() => toggleSuspender(m.id)}
                       className={`px-3 py-1 font-mono text-[10px] font-bold uppercase transition-colors ${m.suspendido ? "bg-ganancia/10 text-ganancia hover:bg-ganancia/20" : "bg-perdida/10 text-perdida hover:bg-perdida/20"}`}
                     >
-                      {m.suspendido ? "Reactivar" : "Suspender"}
+                      {m.suspendido ? t("admin.users.reactivate") : t("admin.users.suspend")}
                     </button>
                   </td>
                 </tr>
               ))}
               {maestros.length === 0 && (
-                <tr><td colSpan={6} className="px-4 py-6 text-center font-mono text-sm text-fg/30">Sin maestros registrados</td></tr>
+                <tr><td colSpan={6} className="px-4 py-6 text-center font-mono text-sm text-fg/30">{t("admin.teachers.noneRegistered")}</td></tr>
               )}
             </tbody>
           </table>

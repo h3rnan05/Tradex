@@ -308,20 +308,20 @@ function OperarPageInterna() {
 
   // Categorías que el alumno puede operar, en el orden del explorador
   const CAT_LABELS_I18N: Record<string, string> = {
-    acciones: lang === "en" ? "Stocks" : "Acciones",
-    indices: lang === "en" ? "ETFs/Indices" : "ETFs/Índices",
-    commodities: lang === "en" ? "Commodities" : "Commodities",
-    crypto: lang === "en" ? "Crypto" : "Cripto",
-    forex: lang === "en" ? "Forex" : "Divisas",
-    bolsa_mx: lang === "en" ? "Mexico" : "Bolsa MX",
+    acciones: t("trade.catAcciones"),
+    indices: t("trade.catIndices"),
+    commodities: t("trade.catCommodities"),
+    crypto: t("trade.catCrypto"),
+    forex: t("trade.catForex"),
+    bolsa_mx: t("trade.catBolsaMx"),
   };
   const CAT_TAG_I18N: Record<string, string> = {
-    acciones: lang === "en" ? "Stock" : "Acción",
-    indices: lang === "en" ? "ETF/Index" : "ETF/Índice",
-    commodities: lang === "en" ? "Commodity" : "Commodity",
-    crypto: lang === "en" ? "Crypto" : "Cripto",
-    forex: lang === "en" ? "Forex" : "Divisa",
-    bolsa_mx: lang === "en" ? "Mexico" : "Bolsa MX",
+    acciones: t("trade.tagAcciones"),
+    indices: t("trade.tagIndices"),
+    commodities: t("trade.tagCommodities"),
+    crypto: t("trade.tagCrypto"),
+    forex: t("trade.tagForex"),
+    bolsa_mx: t("trade.tagBolsaMx"),
   };
 
   const categoriasVisibles = CATEGORIAS_EXPLORADOR.filter((c) =>
@@ -390,7 +390,7 @@ function OperarPageInterna() {
       // Load company stats in background (non-blocking)
       api.get<FichaEmpresa>(`/precios/${tickerNormalizado}/ficha`).then(setFicha).catch(() => {});
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "No se pudo obtener el precio");
+      setError(err instanceof ApiError ? err.message : t("trade.errorPrice"));
     } finally {
       setBuscando(false);
     }
@@ -405,10 +405,10 @@ function OperarPageInterna() {
     setError(null);
     setMensaje(null);
     const sesion = obtenerSesion();
-    if (!sesion) { setError("Tu sesión expiró"); return; }
-    if (!grupoId) { setError("No tienes grupo asignado"); return; }
-    if (!Number(cantidad) || Number(cantidad) <= 0) { setError("Ingresa una cantidad válida"); return; }
-    if (!Number(precioLimite) || Number(precioLimite) <= 0) { setError("Ingresa un precio límite válido"); return; }
+    if (!sesion) { setError(t("trade.errorSession")); return; }
+    if (!grupoId) { setError(t("trade.errorNoGroup")); return; }
+    if (!Number(cantidad) || Number(cantidad) <= 0) { setError(t("trade.errorQuantity")); return; }
+    if (!Number(precioLimite) || Number(precioLimite) <= 0) { setError(t("trade.errorLimitPrice")); return; }
     setOperando(true);
     try {
       await api.post("/ordenes-limite", {
@@ -418,12 +418,12 @@ function OperarPageInterna() {
         cantidad,
         precio_limite: precioLimite,
       });
-      setMensaje(`Orden límite de ${tipo} creada: ${cantidad} ${ticker} @ $${Number(precioLimite).toFixed(2)}`);
+      setMensaje(`${t(tipo === "compra" ? "trade.limitBuyCreated" : "trade.limitSellCreated")}: ${cantidad} ${ticker} @ $${Number(precioLimite).toFixed(2)}`);
       setPrecioLimite("");
       const updated = await api.get<OrdenPendiente[]>("/ordenes-limite").catch(() => []);
       setOrdenesPendientes(updated);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "No se pudo crear la orden límite");
+      setError(err instanceof ApiError ? err.message : t("trade.errorCreateLimit"));
     } finally {
       setOperando(false);
     }
@@ -438,7 +438,7 @@ function OperarPageInterna() {
 
   async function crearAlerta() {
     setError(null);
-    if (!Number(precioAlerta) || Number(precioAlerta) <= 0) { setError("Ingresa un precio de alerta válido"); return; }
+    if (!Number(precioAlerta) || Number(precioAlerta) <= 0) { setError(t("trade.errorAlertPrice")); return; }
     try {
       const nueva = await api.post<Alerta>("/ordenes-limite/alertas", {
         ticker: ticker.trim().toUpperCase(),
@@ -447,9 +447,9 @@ function OperarPageInterna() {
       });
       setAlertas((prev) => [nueva, ...prev]);
       setPrecioAlerta("");
-      setMensaje(`Alerta creada: ${ticker} ${condicionAlerta === "lte" ? "≤" : "≥"} $${Number(precioAlerta).toFixed(2)}`);
+      setMensaje(`${t("trade.alertCreated")}: ${ticker} ${condicionAlerta === "lte" ? "≤" : "≥"} $${Number(precioAlerta).toFixed(2)}`);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "No se pudo crear la alerta");
+      setError(err instanceof ApiError ? err.message : t("trade.errorCreateAlert"));
     }
   }
 
@@ -465,10 +465,10 @@ function OperarPageInterna() {
     setMensaje(null);
 
     const sesion = obtenerSesion();
-    if (!sesion) { setError("Tu sesión expiró, vuelve a iniciar sesión"); return; }
-    if (!grupoId) { setError("No tienes grupo asignado"); return; }
+    if (!sesion) { setError(t("trade.errorSessionExpired")); return; }
+    if (!grupoId) { setError(t("trade.errorNoGroup")); return; }
     const cantidadNum = Number(cantidad);
-    if (!cantidadNum || cantidadNum <= 0) { setError("Ingresa una cantidad válida"); return; }
+    if (!cantidadNum || cantidadNum <= 0) { setError(t("trade.errorQuantity")); return; }
 
     setOperando(true);
     try {
@@ -478,7 +478,7 @@ function OperarPageInterna() {
         cantidad,
       });
       setMensaje(
-        `${tipo === "compra" ? "Compra" : "Venta"} ejecutada: ${orden.cantidad} ${orden.ticker} a $${Number(orden.precio_ejecucion).toFixed(2)}`
+        `${t(tipo === "compra" ? "trade.buyDone" : "trade.sellDone")}: ${orden.cantidad} ${orden.ticker} ${t("templates.at")} $${Number(orden.precio_ejecucion).toFixed(2)}`
       );
       const p2 = await api.get<Portafolio>(`/alumnos/${sesion.userId}/portafolio`).catch(() => null);
       if (p2) {
@@ -486,7 +486,7 @@ function OperarPageInterna() {
         setCapitalDisponible(p2.capital_disponible);
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "No se pudo ejecutar la orden");
+      setError(err instanceof ApiError ? err.message : t("trade.errorExecuteOrder"));
     } finally {
       setOperando(false);
     }
@@ -497,10 +497,10 @@ function OperarPageInterna() {
     setMensaje(null);
 
     const sesion = obtenerSesion();
-    if (!sesion) { setError("Tu sesión expiró, vuelve a iniciar sesión"); return; }
-    if (!grupoId) { setError("No tienes grupo asignado"); return; }
+    if (!sesion) { setError(t("trade.errorSessionExpired")); return; }
+    if (!grupoId) { setError(t("trade.errorNoGroup")); return; }
     const cantidadNum = Number(cantidad);
-    if (!cantidadNum || cantidadNum <= 0) { setError("Ingresa una cantidad válida"); return; }
+    if (!cantidadNum || cantidadNum <= 0) { setError(t("trade.errorQuantity")); return; }
 
     setOperando(true);
     try {
@@ -510,7 +510,7 @@ function OperarPageInterna() {
         cantidad,
       });
       setMensaje(
-        `${endpoint === "short" ? "Posicion corta abierta" : "Corto cubierto"}: ${orden.cantidad} ${orden.ticker} a $${Number(orden.precio_ejecucion).toFixed(2)}`
+        `${t(endpoint === "short" ? "trade.shortOpened" : "trade.shortCovered")}: ${orden.cantidad} ${orden.ticker} ${t("templates.at")} $${Number(orden.precio_ejecucion).toFixed(2)}`
       );
       const p2 = await api.get<Portafolio>(`/alumnos/${sesion.userId}/portafolio`).catch(() => null);
       if (p2) {
@@ -518,7 +518,7 @@ function OperarPageInterna() {
         setCapitalDisponible(p2.capital_disponible);
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "No se pudo ejecutar la orden");
+      setError(err instanceof ApiError ? err.message : t("trade.errorExecuteOrder"));
     } finally {
       setOperando(false);
     }
@@ -543,11 +543,11 @@ function OperarPageInterna() {
         {activosProximos.length > 0 && (
           <Card className="mb-4 border-accent/30 bg-accent/5">
             <p className="text-sm text-fg/70">
-              Algunos tipos de activos de tu grupo aún no están disponibles:{" "}
+              {t("trade.upcomingAssets")}{" "}
               {activosProximos
                 .map(
                   (a) =>
-                    `${a.tipo_activo} (desde el ${new Date(a.fecha_activacion).toLocaleDateString("es-MX")})`
+                    `${a.tipo_activo} (${t("trade.fromDate")} ${new Date(a.fecha_activacion).toLocaleDateString(lang === "en" ? "en-US" : "es-MX")})`
                 )
                 .join(" · ")}
             </p>
@@ -559,7 +559,7 @@ function OperarPageInterna() {
           className="mb-4 flex items-end gap-3 rounded-none border border-fg/10 bg-panel p-4 shadow-sm"
         >
           <div className="relative flex-1">
-            <label className="mb-1 block text-sm font-medium text-fg/70">Ticker</label>
+            <label className="mb-1 block text-sm font-medium text-fg/70">{t("common.ticker")}</label>
             <input
               required
               value={ticker}
@@ -569,7 +569,7 @@ function OperarPageInterna() {
               }}
               onFocus={() => setSugerenciasAbiertas(true)}
               onBlur={() => setTimeout(() => setSugerenciasAbiertas(false), 150)}
-              placeholder={lang === "en" ? "Search by symbol or name (e.g. AAPL, Bitcoin, Gold)" : "Busca por símbolo o nombre (ej. AAPL, Bitcoin, Oro)"}
+              placeholder={t("trade.searchSymbolPlaceholder")}
               className="w-full rounded-none border border-fg/20 bg-canvas px-3 py-2 font-mono text-sm uppercase"
             />
 
@@ -606,7 +606,7 @@ function OperarPageInterna() {
             disabled={buscando}
             className="rounded-none bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-ink/80 disabled:opacity-50"
           >
-            {buscando ? (lang === "en" ? "Searching..." : "Buscando...") : t("trade.searchButton")}
+            {buscando ? t("trade.searching") : t("trade.searchButton")}
           </button>
         </form>
 
@@ -616,20 +616,20 @@ function OperarPageInterna() {
 
           {/* ── Columna izquierda: Mi cartera ── */}
           <div className="lg:col-span-3">
-            <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">{lang === "en" ? "My Portfolio" : "Mi cartera"}</p>
+            <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">{t("trade.myPortfolio")}</p>
 
             {capitalDisponible !== null && (
               <div className="mb-2 rounded-none border border-fg/10 bg-panel px-3 py-2">
                 <p className="font-mono text-[10px] uppercase tracking-widest text-fg/40">{t("trade.availableCapital")}</p>
                 <p className="font-mono text-base font-bold tabular-nums text-fg">
-                  ${Number(capitalDisponible).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  ${Number(capitalDisponible).toLocaleString(lang === "en" ? "en-US" : "es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
               </div>
             )}
 
             {holdings.length === 0 ? (
               <div className="rounded-none border border-fg/10 bg-panel p-4">
-                <p className="text-sm text-fg/40">{lang === "en" ? "No open positions." : "No tienes posiciones abiertas."}</p>
+                <p className="text-sm text-fg/40">{t("portfolio.noPositions")}</p>
               </div>
             ) : (
               <div className="flex flex-col gap-2">
@@ -653,7 +653,7 @@ function OperarPageInterna() {
                       </div>
                       <div className="mt-1 flex items-center justify-between">
                         <span className="font-mono text-xs tabular-nums text-fg/50">
-                          {Number(h.cantidad).toFixed(4)} acc
+                          {Number(h.cantidad).toFixed(4)} {t("trade.sharesShort")}
                         </span>
                         <span className="font-mono text-xs tabular-nums text-fg/70">
                           ${Number(h.valor_mercado).toFixed(2)}
@@ -677,7 +677,7 @@ function OperarPageInterna() {
               /* Landing: noticias generales */
               <div>
                 <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">
-                  {lang === "en" ? "News · Markets" : "Noticias · Mercados"}
+                  {t("trade.newsMarkets")}
                 </p>
                 {noticiasGenerales.length === 0 ? (
                   <Card><p className="text-sm text-fg/40">{t("common.loading")}</p></Card>
@@ -707,7 +707,7 @@ function OperarPageInterna() {
                             {noticiasGenerales[0].fuente && <Badge>{noticiasGenerales[0].fuente}</Badge>}
                             {noticiasGenerales[0].fecha && (
                               <span className="text-xs text-fg/40">
-                                {new Date(noticiasGenerales[0].fecha).toLocaleDateString("es-MX")}
+                                {new Date(noticiasGenerales[0].fecha).toLocaleDateString(lang === "en" ? "en-US" : "es-MX")}
                               </span>
                             )}
                           </div>
@@ -739,7 +739,7 @@ function OperarPageInterna() {
                                   {n.fuente && <span className="text-[10px] text-fg/40">{n.fuente}</span>}
                                   {n.fecha && (
                                     <span className="text-[10px] text-fg/30">
-                                      {new Date(n.fecha).toLocaleDateString("es-MX")}
+                                      {new Date(n.fecha).toLocaleDateString(lang === "en" ? "en-US" : "es-MX")}
                                     </span>
                                   )}
                                 </div>
@@ -783,16 +783,16 @@ function OperarPageInterna() {
                     v != null ? `$${(v / 1e9).toFixed(1)}B` : null;
 
                   const statsAccion = [
-                    { label: "P/E", value: fmt(ficha.pe_ratio), hint: lang === "en" ? "Price/Earnings: how many times the stock price exceeds annual earnings. A high P/E may indicate the market expects strong growth." : "Precio/Ganancia: cuántas veces el precio de la acción supera sus ganancias anuales. Un P/E alto puede indicar que el mercado espera mucho crecimiento futuro." },
-                    { label: "EPS", value: fmt(ficha.eps, "$"), hint: lang === "en" ? "Earnings Per Share: how much profit the company generated per share in the last year." : "Earnings Per Share (Ganancia por acción): cuánto dinero generó la empresa por cada acción emitida en el último año." },
-                    { label: "Beta", value: fmt(ficha.beta), hint: lang === "en" ? "Measures stock volatility vs. the market. Beta > 1 = more volatile; Beta < 1 = more stable." : "Mide la volatilidad de la acción vs el mercado. Beta > 1 = más volátil que el mercado; Beta < 1 = más estable." },
-                    { label: "Cap. Mkt", value: fmtB(ficha.market_cap), hint: lang === "en" ? "Market cap: total company value based on current stock price (price × shares outstanding)." : "Capitalización de mercado: valor total de la empresa según el precio actual de sus acciones (precio × acciones en circulación)." },
-                    { label: "P/E Fwd", value: fmt(ficha.forward_pe), hint: lang === "en" ? "Forward P/E: same as P/E but using projected earnings for the next 12 months." : "P/E Forward: igual que el P/E pero usando las ganancias proyectadas para los próximos 12 meses en vez de las pasadas." },
-                    { label: lang === "en" ? "Target" : "Objetivo", value: fmt(ficha.precio_objetivo, "$"), hint: lang === "en" ? "Average 12-month analyst price target from Wall Street." : "Precio objetivo promedio de los analistas de Wall Street para los próximos 12 meses." },
+                    { label: "P/E", value: fmt(ficha.pe_ratio), hint: t("trade.hintPe") },
+                    { label: "EPS", value: fmt(ficha.eps, "$"), hint: t("trade.hintEps") },
+                    { label: "Beta", value: fmt(ficha.beta), hint: t("trade.hintBeta") },
+                    { label: "Cap. Mkt", value: fmtB(ficha.market_cap), hint: t("trade.hintMarketCap") },
+                    { label: "P/E Fwd", value: fmt(ficha.forward_pe), hint: t("trade.hintForwardPe") },
+                    { label: t("trade.statTarget"), value: fmt(ficha.precio_objetivo, "$"), hint: t("trade.hintTarget") },
                   ];
                   const statsComun = [
-                    { label: lang === "en" ? "52w Hi" : "Máx 52s", value: fmt(ficha.max_52s, "$"), hint: lang === "en" ? "Highest price in the last 52 weeks (1 year)." : "Precio máximo al que cotizó la acción en los últimos 52 semanas (1 año)." },
-                    { label: lang === "en" ? "52w Lo" : "Mín 52s", value: fmt(ficha.min_52s, "$"), hint: lang === "en" ? "Lowest price in the last 52 weeks (1 year)." : "Precio mínimo al que cotizó la acción en los últimos 52 semanas (1 año)." },
+                    { label: t("trade.stat52wHi"), value: fmt(ficha.max_52s, "$"), hint: t("trade.hint52wHi") },
+                    { label: t("trade.stat52wLo"), value: fmt(ficha.min_52s, "$"), hint: t("trade.hint52wLo") },
                   ];
                   const stats = esIndice
                     ? statsComun
@@ -822,20 +822,17 @@ function OperarPageInterna() {
                       const total = a.strong_buy + a.buy + a.hold + a.sell + a.strong_sell;
                       if (total === 0) return null;
                       const pct = (n: number) => `${((n / total) * 100).toFixed(0)}%`;
-                      const recMap: Record<string, string> = lang === "en" ? {
-                        "strong_buy": "Strong Buy", "buy": "Buy",
-                        "hold": "Hold", "sell": "Sell", "strong_sell": "Strong Sell",
-                      } : {
-                        "strong_buy": "Compra fuerte", "buy": "Comprar",
-                        "hold": "Mantener", "sell": "Vender", "strong_sell": "Venta fuerte",
+                      const recMap: Record<string, string> = {
+                        "strong_buy": t("trade.recStrongBuy"), "buy": t("trade.recBuy"),
+                        "hold": t("trade.recHold"), "sell": t("trade.recSell"), "strong_sell": t("trade.recStrongSell"),
                       };
                       const rec = ficha.recomendacion ? (recMap[ficha.recomendacion] ?? ficha.recomendacion) : null;
                       return (
                         <div className="mt-2 rounded-none border border-fg/10 bg-canvas px-3 py-2.5">
                           <div className="mb-1.5 flex items-center justify-between">
                             <p className="flex items-center font-mono text-[10px] uppercase tracking-widest text-fg/40">
-                              {lang === "en" ? `Analyst consensus · ${total} analysts` : `Consenso analistas · ${total} analistas`}
-                              <Tooltip texto={lang === "en" ? "Wall Street analyst consensus on whether to buy, hold, or sell. Does not guarantee future performance." : "Opinión de analistas profesionales de Wall Street sobre si conviene comprar, mantener o vender esta acción. No garantiza el desempeño futuro."} />
+                              {`${t("trade.analystConsensus")} · ${total} ${t("trade.analystsLabel")}`}
+                              <Tooltip texto={t("trade.hintConsensus")} />
                             </p>
                             {rec && (
                               <span className={`font-mono text-[11px] font-bold uppercase ${
@@ -852,9 +849,9 @@ function OperarPageInterna() {
                             {a.strong_sell > 0 && <div style={{ width: pct(a.strong_sell) }} className="bg-perdida" />}
                           </div>
                           <div className="mt-1.5 flex justify-between font-mono text-[10px] text-fg/50">
-                            <span className="text-ganancia">▲ {a.strong_buy + a.buy} {lang === "en" ? "buy" : "comprar"}</span>
-                            <span>{a.hold} {lang === "en" ? "hold" : "mantener"}</span>
-                            <span className="text-perdida">▼ {a.sell + a.strong_sell} {lang === "en" ? "sell" : "vender"}</span>
+                            <span className="text-ganancia">▲ {a.strong_buy + a.buy} {t("trade.consensusBuy")}</span>
+                            <span>{a.hold} {t("trade.consensusHold")}</span>
+                            <span className="text-perdida">▼ {a.sell + a.strong_sell} {t("trade.consensusSell")}</span>
                           </div>
                         </div>
                       );
@@ -866,7 +863,7 @@ function OperarPageInterna() {
                 <div className="mb-4 grid grid-cols-3 gap-3">
                   <div className="rounded-none border border-fg/10 bg-canvas px-3 py-2">
                     <p className="flex items-center font-mono text-[10px] uppercase tracking-widest text-fg/40">
-                      {lang === "en" ? "30d Hi" : "Máx. 30d"} <Tooltip texto={lang === "en" ? "Highest price in the last 30 days." : "Precio más alto registrado en los últimos 30 días."} />
+                      {t("trade.stat30dHi")} <Tooltip texto={t("trade.hint30dHi")} />
                     </p>
                     <p className="font-mono text-sm font-semibold tabular-nums text-fg">
                       {maximo !== null ? `$${maximo.toFixed(2)}` : "—"}
@@ -874,7 +871,7 @@ function OperarPageInterna() {
                   </div>
                   <div className="rounded-none border border-fg/10 bg-canvas px-3 py-2">
                     <p className="flex items-center font-mono text-[10px] uppercase tracking-widest text-fg/40">
-                      {lang === "en" ? "30d Lo" : "Mín. 30d"} <Tooltip texto={lang === "en" ? "Lowest price in the last 30 days." : "Precio más bajo registrado en los últimos 30 días."} />
+                      {t("trade.stat30dLo")} <Tooltip texto={t("trade.hint30dLo")} />
                     </p>
                     <p className="font-mono text-sm font-semibold tabular-nums text-fg">
                       {minimo !== null ? `$${minimo.toFixed(2)}` : "—"}
@@ -882,7 +879,7 @@ function OperarPageInterna() {
                   </div>
                   <div className="rounded-none border border-fg/10 bg-canvas px-3 py-2">
                     <p className="flex items-center font-mono text-[10px] uppercase tracking-widest text-fg/40">
-                      {lang === "en" ? "30d Open" : "Apertura 30d"} <Tooltip texto={lang === "en" ? "Price 30 days ago, used as reference to calculate the period's percentage change." : "Precio al que cerró la acción hace 30 días, usado como referencia para calcular el cambio porcentual del período."} />
+                      {t("trade.stat30dOpen")} <Tooltip texto={t("trade.hint30dOpen")} />
                     </p>
                     <p className="font-mono text-sm font-semibold tabular-nums text-fg">
                       {precioInicial !== null ? `$${precioInicial.toFixed(2)}` : "—"}
@@ -907,7 +904,7 @@ function OperarPageInterna() {
                 {noticias.length > 0 && (
                   <div className="mb-4">
                     <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">
-                      Noticias · {ticker}
+                      {t("trade.news")} · {ticker}
                     </p>
                     <ul className="flex flex-col gap-3">
                       {noticias.map((n, i) => (
@@ -929,7 +926,7 @@ function OperarPageInterna() {
                               {n.fuente && <Badge>{n.fuente}</Badge>}
                               {n.fecha && (
                                 <span className="text-xs text-fg/40">
-                                  {new Date(n.fecha).toLocaleDateString("es-MX")}
+                                  {new Date(n.fecha).toLocaleDateString(lang === "en" ? "en-US" : "es-MX")}
                                 </span>
                               )}
                             </div>
@@ -944,7 +941,7 @@ function OperarPageInterna() {
                   {/* Order type toggle */}
                   <div className="mb-3 flex items-center justify-between">
                     <p className="font-mono text-[11px] uppercase tracking-widest text-fg/40">
-                      {lang === "en" ? "Place order" : "Enviar orden"}
+                      {t("trade.placeOrder")}
                     </p>
                     <div className="flex overflow-hidden rounded-none border border-fg/20">
                       {(["mercado", "limite"] as const).map((tipo) => (
@@ -964,8 +961,8 @@ function OperarPageInterna() {
                   {tipoOrden === "limite" && (
                     <div className="mb-3 rounded-none border border-accent/20 bg-accent/5 px-3 py-2">
                       <p className="font-mono text-[10px] text-fg/50">
-                        <Tooltip texto={lang === "en" ? "A limit order executes automatically when the price reaches your level. Buy limit: triggers if price falls to your price. Sell limit: triggers if price rises to your price." : "Una orden límite se ejecuta automáticamente cuando el precio alcanza el nivel que defines. Compra límite: se ejecuta si el precio baja a tu precio. Venta límite: se ejecuta si el precio sube a tu precio."} />
-                        {" "}{lang === "en" ? "Limit order: executes when the price hits your level" : "Orden límite: se ejecuta cuando el precio toque tu nivel"}
+                        <Tooltip texto={t("trade.hintLimitOrder")} />
+                        {" "}{t("trade.limitOrderInfo")}
                       </p>
                     </div>
                   )}
@@ -989,7 +986,7 @@ function OperarPageInterna() {
                         step="0.01"
                         value={precioLimite}
                         onChange={(e) => setPrecioLimite(e.target.value)}
-                        placeholder={precio ? `Actual: $${Number(precio).toFixed(2)}` : ""}
+                        placeholder={precio ? `${t("trade.currentLabel")}: $${Number(precio).toFixed(2)}` : ""}
                         className="mb-3 w-full rounded-none border border-fg/20 bg-panel px-3 py-2 font-mono text-sm"
                       />
                     </>
@@ -997,7 +994,7 @@ function OperarPageInterna() {
 
                   {tipoOrden === "mercado" && (
                     <p className="mb-3 text-sm text-fg/40">
-                      {lang === "en" ? "Estimated total:" : "Total estimado:"}{" "}
+                      {t("trade.estimatedTotal")}{" "}
                       <span className="font-mono font-semibold text-fg">
                         ${(Number(precio) * Number(cantidad || 0)).toFixed(2)}
                       </span>
@@ -1024,9 +1021,9 @@ function OperarPageInterna() {
                   {tipoOrden === "mercado" && (
                     <>
                       <div className="mt-3 border-t border-fg/10 pt-3">
-                        <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-fg/40">{lang === "en" ? "Short selling" : "Ventas en corto"}</p>
+                        <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-fg/40">{t("trade.shortSelling")}</p>
                         <p className="mb-2 text-xs text-fg/50">
-                          {lang === "en" ? "Borrow and sell shares expecting the price to fall. 100% held as collateral." : "Vendes acciones prestadas esperando que el precio baje. Se bloquea el 100% como colateral."}
+                          {t("trade.shortSellingDesc")}
                         </p>
                         <div className="flex gap-3">
                           <button
@@ -1034,14 +1031,14 @@ function OperarPageInterna() {
                             disabled={operando}
                             className="flex-1 rounded-none border border-perdida bg-perdida/10 px-4 py-2 text-sm font-medium text-perdida hover:bg-perdida/20 disabled:opacity-50"
                           >
-                            {lang === "en" ? "Short (borrow & sell)" : "Corto (vender prestado)"}
+                            {t("trade.shortAction")}
                           </button>
                           <button
                             onClick={() => ejecutarShort("cubrir")}
                             disabled={operando}
                             className="flex-1 rounded-none border border-ganancia bg-ganancia/10 px-4 py-2 text-sm font-medium text-ganancia hover:bg-ganancia/20 disabled:opacity-50"
                           >
-                            {lang === "en" ? "Cover short" : "Cubrir corto"}
+                            {t("trade.coverAction")}
                           </button>
                         </div>
                       </div>
@@ -1055,7 +1052,7 @@ function OperarPageInterna() {
                 <div className="mt-3 rounded-none border border-fg/10 bg-canvas p-4">
                   <p className="mb-3 flex items-center font-mono text-[11px] uppercase tracking-widest text-fg/40">
                     {t("trade.priceAlert")}
-                    <Tooltip texto={lang === "en" ? "Notifies you (on this page) when the stock price reaches the level you set. Useful for monitoring without watching prices constantly." : "Te notifica (en esta página) cuando el precio de la acción suba o baje al nivel que defines. Útil para monitorear sin estar pendiente del precio todo el tiempo."} />
+                    <Tooltip texto={t("trade.hintPriceAlert")} />
                   </p>
                   <div className="flex gap-2">
                     <select
@@ -1063,8 +1060,8 @@ function OperarPageInterna() {
                       onChange={(e) => setCondicionAlerta(e.target.value as "gte" | "lte")}
                       className="rounded-none border border-fg/20 bg-panel px-2 py-2 font-mono text-xs text-fg"
                     >
-                      <option value="lte">{lang === "en" ? "Falls to" : "Baja a"}</option>
-                      <option value="gte">{lang === "en" ? "Rises to" : "Sube a"}</option>
+                      <option value="lte">{t("trade.fallsTo")}</option>
+                      <option value="gte">{t("trade.risesTo")}</option>
                     </select>
                     <input
                       type="number"
@@ -1079,7 +1076,7 @@ function OperarPageInterna() {
                       onClick={crearAlerta}
                       className="rounded-none border border-fg/20 px-3 py-2 font-mono text-xs hover:bg-fg/5"
                     >
-                      {lang === "en" ? "+ Alert" : "+ Alertar"}
+                      {t("trade.addAlert")}
                     </button>
                   </div>
 
@@ -1089,7 +1086,7 @@ function OperarPageInterna() {
                         <li key={a.id} className={`flex items-center justify-between rounded-none border px-2 py-1 text-xs ${a.disparada ? "border-ganancia/30 bg-ganancia/5" : "border-fg/10"}`}>
                           <span className="font-mono text-fg/70">
                             {a.condicion === "lte" ? "≤" : "≥"} ${Number(a.precio_objetivo).toFixed(2)}
-                            {a.disparada && <span className="ml-2 text-ganancia">✓ Activada</span>}
+                            {a.disparada && <span className="ml-2 text-ganancia">✓ {t("trade.alertTriggered")}</span>}
                           </span>
                           <button onClick={() => eliminarAlerta(a.id)} className="text-fg/30 hover:text-perdida">✕</button>
                         </li>
@@ -1106,9 +1103,9 @@ function OperarPageInterna() {
                       {ordenesPendientes.filter((o) => o.estado === "pendiente").map((o) => (
                         <li key={o.id} className="flex items-center justify-between rounded-none border border-fg/10 px-2 py-1.5 text-xs">
                           <span className={`font-mono font-semibold ${o.tipo === "compra" ? "text-ganancia" : "text-perdida"}`}>
-                            {o.tipo.toUpperCase()}
+                            {t(o.tipo === "compra" ? "common.buy" : "common.sell").toUpperCase()}
                           </span>
-                          <span className="font-mono text-fg">{o.ticker} · {Number(o.cantidad).toFixed(4)} acc</span>
+                          <span className="font-mono text-fg">{o.ticker} · {Number(o.cantidad).toFixed(4)} {t("trade.sharesShort")}</span>
                           <span className="font-mono text-fg/60">@ ${Number(o.precio_limite).toFixed(2)}</span>
                           <button onClick={() => cancelarOrdenLimite(o.id)} className="text-fg/30 hover:text-perdida">✕</button>
                         </li>
@@ -1151,7 +1148,7 @@ function OperarPageInterna() {
               )}
               {categoriasVisibles.length === 0 && (
                 <p className="rounded-none border border-fg/10 bg-panel p-3 text-sm text-fg/40">
-                  {lang === "en" ? "Your group has no markets enabled yet." : "Tu grupo aún no tiene mercados habilitados."}
+                  {t("trade.noMarketsEnabled")}
                 </p>
               )}
               {(explorador[catActiva] || []).map((d) => {
