@@ -7,6 +7,7 @@ import Navbar from "@/components/Navbar";
 import { api, ApiError } from "@/lib/api";
 import ComentariosMaestro from "@/components/ComentariosMaestro";
 import Pagination from "@/components/Pagination";
+import ErrorState from "@/components/ErrorState";
 
 interface Membership {
   id: string;
@@ -197,7 +198,9 @@ export default function DetalleGrupoPage() {
   if (error) return (
     <main className="min-h-screen bg-canvas">
       <Navbar />
-      <p className="p-6 text-sm text-perdida">{error}</p>
+      <div className="mx-auto max-w-7xl p-6">
+        <ErrorState message={error} onRetry={() => { setError(null); cargar(); cargarEvaluacion(); }} />
+      </div>
     </main>
   );
   if (!grupo) return (
