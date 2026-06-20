@@ -5,6 +5,7 @@ export const es = {
   "nav.history":     "Historial",
   "nav.ranking":     "Ranking",
   "nav.markets":     "Mercados",
+  "nav.news":        "Diario",
   "nav.class":       "Clase",
   "nav.templates":   "Plantillas",
   "nav.challenges":  "Retos",
@@ -632,6 +633,25 @@ export const es = {
   "badge.ballena.desc":                   "Duplica tu capital inicial",
   "badge.sin_rendirse.titulo":             "Constancia",
   "badge.sin_rendirse.desc":              "Opera en 5 días distintos",
+
+  // ── Diario del Mercado (Tradex Times) ───────────────────────
+  "news.masthead":          "TRADEX TIMES",
+  "news.tagline":           "Todas las noticias del mercado al alcance de tu portafolio",
+  "news.edition":           "Edición del Inversionista",
+  "news.frontPage":         "Portada del Mercado",
+  "news.moversTitle":       "Cómo cerró el mercado hoy",
+  "news.gainers":           "Las que más subieron",
+  "news.losers":            "Las que más bajaron",
+  "news.yourPositions":     "Tus posiciones en las noticias",
+  "news.yourPositionsDesc": "Noticias de las acciones que tienes en tu portafolio",
+  "news.generalNews":       "Titulares del día",
+  "news.noHoldings":        "Aún no tienes posiciones. Compra acciones para ver sus noticias aquí.",
+  "news.noNews":            "Sin noticias disponibles por ahora.",
+  "news.readMore":          "Leer nota completa",
+  "news.tradeNow":          "Operar",
+  "news.loadError":         "No se pudo cargar el diario.",
+  "news.source":            "Fuente",
+  "news.today":             "Hoy",
 } as const;
 
 export type TranslationKey = keyof typeof es;
