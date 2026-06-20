@@ -15,6 +15,12 @@ class Settings(BaseSettings):
     # malformed value can never crash app startup.
     allowed_origins: str = "http://localhost:3000"
     resend_api_key: str = ""
+    # Remitente de los correos. Override con la variable EMAIL_FROM en Railway
+    # una vez que el dominio esté verificado en Resend, ej:
+    #   EMAIL_FROM="Tradex <noreply@trademx.lat>"
+    # El default (onboarding@resend.dev) solo entrega al dueño de la cuenta
+    # (modo prueba de Resend), por eso se debe cambiar tras verificar el dominio.
+    email_from: str = "Tradex <onboarding@resend.dev>"
     frontend_url: str = "https://tradex-beryl.vercel.app"
     reset_token_expire_minutes: int = 60
 
