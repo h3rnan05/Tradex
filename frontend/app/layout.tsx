@@ -7,8 +7,37 @@ import { LanguageProvider } from "@/lib/i18n";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Tradex — Simulador educativo de inversión",
-  description: "Plataforma educativa para practicar inversiones en grupo",
+  metadataBase: new URL("https://trademx.lat"),
+  title: {
+    default: "Tradex — Simulador educativo de inversión",
+    template: "%s · Tradex",
+  },
+  description:
+    "Tradex es una plataforma educativa para practicar inversiones en bolsa con capital virtual, en grupos guiados por tu maestro. Aprende a comprar y vender acciones sin riesgo.",
+  keywords: [
+    "simulador de inversión",
+    "simulador de bolsa",
+    "invertir en acciones",
+    "educación financiera",
+    "trading educativo",
+    "Tradex",
+  ],
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    title: "Tradex — Simulador educativo de inversión",
+    description:
+      "Practica comprar y vender acciones con capital virtual, en grupos guiados por tu maestro.",
+    url: "https://trademx.lat",
+    siteName: "Tradex",
+    locale: "es_MX",
+    type: "website",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
