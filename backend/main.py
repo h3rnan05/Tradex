@@ -37,9 +37,10 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_origins_list,
-    # Allow any Vercel deployment (production + preview URLs) without having to
-    # update an env var every time the deploy hash changes.
-    allow_origin_regex=r"https://.*\.vercel\.app",
+    # Allow any Vercel deployment (production + preview URLs) and the custom
+    # domain (root + any subdomain like www) without having to update an env
+    # var every time the deploy hash changes.
+    allow_origin_regex=r"https://(.*\.)?(vercel\.app|trademx\.lat)",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
