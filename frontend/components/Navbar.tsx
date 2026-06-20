@@ -46,7 +46,6 @@ export default function Navbar() {
           { href: "/alumno/historial", label: t("nav.history") },
           { href: "/alumno/ranking", label: t("nav.ranking") },
           { href: "/alumno/mercados", label: t("nav.markets") },
-          { href: "/alumno/diario", label: t("nav.news") },
           { href: "/alumno/clase", label: t("nav.class") },
           { href: "/alumno/plantillas", label: t("nav.templates") },
           { href: "/alumno/retos", label: t("nav.challenges") },
