@@ -37,7 +37,13 @@ function MiniSparkline({ data, subiendo }: { data: number[]; subiendo: boolean }
   );
 }
 
-export default function BarraIndices({ onSeleccionar }: { onSeleccionar?: (ticker: string) => void }) {
+export default function BarraIndices({
+  onSeleccionar,
+  variante = "terminal",
+}: {
+  onSeleccionar?: (ticker: string) => void;
+  variante?: "terminal" | "periodico";
+}) {
   const [indices, setIndices] = useState<Indice[]>([]);
   const router = useRouter();
 
@@ -56,6 +62,37 @@ export default function BarraIndices({ onSeleccionar }: { onSeleccionar?: (ticke
     } else {
       router.push(`/alumno/operar?t=${encodeURIComponent(ticker)}`);
     }
+  }
+
+  if (variante === "periodico") {
+    return (
+      <div className="overflow-x-auto">
+        <div className="flex min-w-max divide-x divide-[#1a1a1a]/20">
+          {indices.map((ind) => {
+            const sube = ind.cambio_porcentaje >= 0;
+            const sparkData = (ind.sparkline || []).map(Number);
+            return (
+              <button
+                key={ind.ticker}
+                onClick={() => handleClick(ind.ticker)}
+                className="flex items-center gap-2 px-3 py-2 transition-colors hover:bg-[#1a1a1a]/5"
+              >
+                <div className="min-w-0 text-left">
+                  <p className="font-serif text-[10px] font-bold uppercase tracking-wider text-[#1a1a1a]/60">{ind.nombre}</p>
+                  <p className="font-serif text-sm font-black tabular-nums text-[#1a1a1a]">
+                    {Number(ind.precio).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                  <p className={`font-mono text-[10px] font-bold tabular-nums ${sube ? "text-[#007a2e]" : "text-[#c0271a]"}`}>
+                    {sube ? "▲ +" : "▼ "}{ind.cambio_porcentaje.toFixed(2)}%
+                  </p>
+                </div>
+                {sparkData.length > 1 && <MiniSparkline data={sparkData} subiendo={sube} />}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
   }
 
   return (

@@ -636,7 +636,7 @@ export const es = {
 
   // ── Diario del Mercado (Tradex Times) ───────────────────────
   "news.masthead":          "TRADEX TIMES",
-  "news.tagline":           "Todas las noticias del mercado al alcance de tu portafolio",
+  "news.tagline":           "Money talks, we translate",
   "news.edition":           "Edición del Inversionista",
   "news.frontPage":         "Portada del Mercado",
   "news.moversTitle":       "Cómo cerró el mercado hoy",
