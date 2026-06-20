@@ -50,7 +50,7 @@ def send_password_reset_email(to_email: str, nombre: str, reset_token: str) -> b
 
     try:
         resend.Emails.send({
-            "from": "Tradex <onboarding@resend.dev>",
+            "from": settings.email_from,
             "to": [to_email],
             "subject": "Restablece tu contraseña — Tradex",
             "html": html,
@@ -95,7 +95,7 @@ def send_verification_email(to_email: str, nombre: str, verification_token: str)
 
     try:
         resend.Emails.send({
-            "from": "Tradex <onboarding@resend.dev>",
+            "from": settings.email_from,
             "to": [to_email],
             "subject": "Verifica tu correo — Tradex",
             "html": html,
@@ -136,7 +136,7 @@ def send_welcome_email(to_email: str, nombre: str) -> bool:
 
     try:
         resend.Emails.send({
-            "from": "Tradex <onboarding@resend.dev>",
+            "from": settings.email_from,
             "to": [to_email],
             "subject": "Bienvenido a Tradex",
             "html": html,
