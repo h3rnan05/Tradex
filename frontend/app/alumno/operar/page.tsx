@@ -658,6 +658,7 @@ function OperarPageInterna() {
 
         <BarraIndices onSeleccionar={buscar} />
 
+        {precio ? (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
 
           {/* ── Columna izquierda: Mi cartera ── */}
@@ -719,91 +720,6 @@ function OperarPageInterna() {
 
           {/* ── Columna central: Noticias / Gráfica ── */}
           <div className="lg:col-span-6">
-            {!precio ? (
-              /* Landing: Tradex Times (periódico del mercado) */
-              <div className="bg-[#f4f1ea] p-4 text-[#1a1a1a] sm:p-6">
-                {/* Masthead */}
-                <header className="border-b-4 border-double border-[#1a1a1a] pb-3 text-center">
-                  <div className="flex items-center justify-between font-serif text-[9px] uppercase tracking-wide text-[#1a1a1a]/70">
-                    <span>{t("news.edition")}</span>
-                    <span className="hidden sm:inline">{t("news.tagline")}</span>
-                    <span>$0.00</span>
-                  </div>
-                  <h1 className="mt-1 font-serif text-4xl font-black uppercase leading-none tracking-tight">
-                    {t("news.masthead")}
-                  </h1>
-                  <p className="mt-2 border-t border-[#1a1a1a]/30 pt-2 font-serif text-[10px] uppercase tracking-widest capitalize text-[#1a1a1a]/70">
-                    {hoy}
-                  </p>
-                </header>
-
-                {noticiasGenerales.length === 0 && destacados.length === 0 ? (
-                  <p className="py-12 text-center font-serif text-lg italic text-[#1a1a1a]/50">{t("common.loading")}</p>
-                ) : (
-                  <>
-                    {/* Movers */}
-                    <section className="mt-5 border-b-2 border-[#1a1a1a] pb-5">
-                      <h2 className="mb-3 text-center font-serif text-lg font-bold uppercase tracking-wide">
-                        {t("news.moversTitle")}
-                      </h2>
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <DiarioMovers titulo={t("news.gainers")} items={gainers} onSel={buscar} />
-                        <DiarioMovers titulo={t("news.losers")} items={losers} onSel={buscar} />
-                      </div>
-                    </section>
-
-                    {/* Tus posiciones en las noticias */}
-                    {noticiasPorTicker.length > 0 && (
-                      <section className="mt-6">
-                        <div className="border-y border-[#1a1a1a]/40 py-1 text-center">
-                          <h2 className="font-serif text-xl font-black uppercase tracking-tight">{t("news.yourPositions")}</h2>
-                          <p className="font-serif text-[10px] italic text-[#1a1a1a]/60">{t("news.yourPositionsDesc")}</p>
-                        </div>
-                        <div className="mt-4 space-y-5">
-                          {noticiasPorTicker.map((bloque) => (
-                            <div key={bloque.ticker} className="border-b border-[#1a1a1a]/20 pb-4">
-                              <div className="mb-2 flex items-center justify-between">
-                                <h3 className="font-serif text-xl font-black tracking-tight">{bloque.ticker}</h3>
-                                <button
-                                  onClick={() => buscar(bloque.ticker)}
-                                  className="bg-[#1a1a1a] px-3 py-1 font-serif text-[10px] font-bold uppercase tracking-widest text-[#f4f1ea] hover:bg-[#ff6600]"
-                                >
-                                  {t("news.tradeNow")} {bloque.ticker} →
-                                </button>
-                              </div>
-                              <div className="grid gap-3 sm:grid-cols-2">
-                                {bloque.noticias.slice(0, 2).map((n, i) => (
-                                  <DiarioArticulo key={`${bloque.ticker}-${i}`} noticia={n} fechaCorta={fechaCortaDiario} leerT={t("news.readMore")} />
-                                ))}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </section>
-                    )}
-
-                    {/* Titulares generales */}
-                    <section className="mt-6">
-                      <div className="border-y border-[#1a1a1a]/40 py-1 text-center">
-                        <h2 className="font-serif text-xl font-black uppercase tracking-tight">{t("news.generalNews")}</h2>
-                      </div>
-                      {noticiasGenerales.length === 0 ? (
-                        <p className="py-6 text-center font-serif italic text-[#1a1a1a]/50">{t("news.noNews")}</p>
-                      ) : (
-                        <div className="mt-4 columns-1 gap-5 sm:columns-2 [column-fill:_balance]">
-                          {noticiasGenerales.map((n, i) => (
-                            <div key={i} className="mb-5 break-inside-avoid">
-                              <DiarioArticulo noticia={n} fechaCorta={fechaCortaDiario} leerT={t("news.readMore")} grande />
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </section>
-                  </>
-                )}
-              </div>
-            ) : (
-              /* Ticker seleccionado: gráfica + orden */
               <Card>
                 <div className="mb-4 flex items-start justify-between">
                   <div>
@@ -1164,7 +1080,6 @@ function OperarPageInterna() {
                   </div>
                 )}
               </Card>
-            )}
           </div>
 
           {/* ── Columna derecha: Explorar mercados ── */}
@@ -1239,6 +1154,202 @@ function OperarPageInterna() {
             </div>
           </div>
         </div>
+        ) : (
+          /* ── Landing: portada completa Tradex Times ── */
+          <div className="border border-fg/15 bg-[#f4f1ea] p-4 text-[#1a1a1a] shadow-sm sm:p-7">
+            {/* Masthead a todo lo ancho */}
+            <header className="border-b-4 border-double border-[#1a1a1a] pb-3 text-center">
+              <div className="flex items-center justify-between font-serif text-[10px] uppercase tracking-wide text-[#1a1a1a]/70">
+                <span>{t("news.edition")}</span>
+                <span className="hidden sm:inline">{t("news.tagline")}</span>
+                <span className="capitalize">{hoy}</span>
+              </div>
+              <h1 className="mt-2 font-serif text-5xl font-black uppercase leading-none tracking-tight sm:text-7xl">
+                {t("news.masthead")}
+              </h1>
+            </header>
+
+            {noticiasGenerales.length === 0 && destacados.length === 0 ? (
+              <p className="py-16 text-center font-serif text-lg italic text-[#1a1a1a]/50">{t("common.loading")}</p>
+            ) : (
+              <div className="mt-5 grid grid-cols-1 gap-6 lg:grid-cols-12">
+
+                {/* Riel izquierdo: tu cartera */}
+                <aside className="lg:col-span-3 lg:border-r lg:border-[#1a1a1a]/25 lg:pr-5">
+                  <h2 className="border-b-2 border-[#1a1a1a] pb-1 font-serif text-sm font-black uppercase tracking-widest">
+                    {t("trade.myPortfolio")}
+                  </h2>
+                  {capitalDisponible !== null && (
+                    <div className="mt-3 border-b border-[#1a1a1a]/20 pb-3">
+                      <p className="font-serif text-[10px] uppercase tracking-widest text-[#1a1a1a]/60">{t("trade.availableCapital")}</p>
+                      <p className="font-serif text-2xl font-black tabular-nums">
+                        ${Number(capitalDisponible).toLocaleString(lang === "en" ? "en-US" : "es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </p>
+                    </div>
+                  )}
+                  {holdings.length === 0 ? (
+                    <p className="mt-3 font-serif text-sm italic text-[#1a1a1a]/50">{t("portfolio.noPositions")}</p>
+                  ) : (
+                    <ul className="mt-1 divide-y divide-[#1a1a1a]/15">
+                      {holdings.map((h) => {
+                        const pnlPct = Number(h.pnl_porcentaje);
+                        const gana = Number(h.pnl) >= 0;
+                        return (
+                          <li key={h.ticker}>
+                            <button onClick={() => buscar(h.ticker)} className="flex w-full items-center justify-between py-2 text-left hover:bg-[#1a1a1a]/5">
+                              <span className="flex flex-col">
+                                <span className="font-serif text-sm font-bold">{h.ticker}</span>
+                                <span className="font-mono text-[10px] text-[#1a1a1a]/55">${Number(h.valor_mercado).toFixed(2)}</span>
+                              </span>
+                              <span className={`font-mono text-xs font-bold ${gana ? "text-[#007a2e]" : "text-[#c0271a]"}`}>
+                                {gana ? "▲ +" : "▼ "}{pnlPct.toFixed(2)}%
+                              </span>
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </aside>
+
+                {/* Centro: editorial */}
+                <div className="lg:col-span-6 lg:border-r lg:border-[#1a1a1a]/25 lg:px-5">
+                  {/* Nota principal */}
+                  {noticiasGenerales[0] && (
+                    <a
+                      href={noticiasGenerales[0].link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group block border-b-2 border-[#1a1a1a] pb-5"
+                    >
+                      {noticiasGenerales[0].imagen && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={noticiasGenerales[0].imagen}
+                          alt=""
+                          className="mb-3 aspect-[16/9] w-full border border-[#1a1a1a]/20 object-cover grayscale transition group-hover:grayscale-0"
+                        />
+                      )}
+                      <h2 className="font-serif text-3xl font-black leading-tight tracking-tight group-hover:text-[#ff6600]">
+                        {noticiasGenerales[0].titulo}
+                      </h2>
+                      <p className="mt-2 font-serif text-[11px] uppercase tracking-wide text-[#1a1a1a]/55">
+                        {noticiasGenerales[0].fuente} · {fechaCortaDiario(noticiasGenerales[0].fecha)}
+                      </p>
+                    </a>
+                  )}
+
+                  {/* Movers */}
+                  <section className="mt-5 border-b-2 border-[#1a1a1a] pb-5">
+                    <h2 className="mb-3 text-center font-serif text-lg font-bold uppercase tracking-wide">{t("news.moversTitle")}</h2>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <DiarioMovers titulo={t("news.gainers")} items={gainers} onSel={buscar} />
+                      <DiarioMovers titulo={t("news.losers")} items={losers} onSel={buscar} />
+                    </div>
+                  </section>
+
+                  {/* Tus posiciones en las noticias */}
+                  {noticiasPorTicker.length > 0 && (
+                    <section className="mt-6">
+                      <div className="border-y border-[#1a1a1a]/40 py-1 text-center">
+                        <h2 className="font-serif text-xl font-black uppercase tracking-tight">{t("news.yourPositions")}</h2>
+                        <p className="font-serif text-[10px] italic text-[#1a1a1a]/60">{t("news.yourPositionsDesc")}</p>
+                      </div>
+                      <div className="mt-4 space-y-5">
+                        {noticiasPorTicker.map((bloque) => (
+                          <div key={bloque.ticker} className="border-b border-[#1a1a1a]/20 pb-4">
+                            <div className="mb-2 flex items-center justify-between">
+                              <h3 className="font-serif text-xl font-black tracking-tight">{bloque.ticker}</h3>
+                              <button
+                                onClick={() => buscar(bloque.ticker)}
+                                className="bg-[#1a1a1a] px-3 py-1 font-serif text-[10px] font-bold uppercase tracking-widest text-[#f4f1ea] hover:bg-[#ff6600]"
+                              >
+                                {t("news.tradeNow")} {bloque.ticker} →
+                              </button>
+                            </div>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              {bloque.noticias.slice(0, 2).map((n, i) => (
+                                <DiarioArticulo key={`${bloque.ticker}-${i}`} noticia={n} fechaCorta={fechaCortaDiario} leerT={t("news.readMore")} />
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
+                  {/* Más titulares */}
+                  {noticiasGenerales.length > 1 && (
+                    <section className="mt-6">
+                      <div className="border-y border-[#1a1a1a]/40 py-1 text-center">
+                        <h2 className="font-serif text-xl font-black uppercase tracking-tight">{t("news.generalNews")}</h2>
+                      </div>
+                      <div className="mt-4 columns-1 gap-5 sm:columns-2 [column-fill:_balance]">
+                        {noticiasGenerales.slice(1).map((n, i) => (
+                          <div key={i} className="mb-5 break-inside-avoid">
+                            <DiarioArticulo noticia={n} fechaCorta={fechaCortaDiario} leerT={t("news.readMore")} grande />
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                </div>
+
+                {/* Riel derecho: explorador de mercados */}
+                <aside className="lg:col-span-3">
+                  <h2 className="border-b-2 border-[#1a1a1a] pb-1 font-serif text-sm font-black uppercase tracking-widest">
+                    {t("trade.explorer")}
+                  </h2>
+                  {categoriasVisibles.length > 1 && (
+                    <div className="mt-3 flex flex-wrap gap-1">
+                      {categoriasVisibles.map((c) => (
+                        <button
+                          key={c.key}
+                          onClick={() => { setCatActiva(c.key); cargarCategoria(c.key); }}
+                          className={`border px-2 py-1 font-serif text-[10px] font-bold uppercase tracking-wider transition-colors ${
+                            catActiva === c.key
+                              ? "border-[#1a1a1a] bg-[#1a1a1a] text-[#f4f1ea]"
+                              : "border-[#1a1a1a]/30 text-[#1a1a1a]/60 hover:text-[#1a1a1a]"
+                          }`}
+                        >
+                          {CAT_LABELS_I18N[c.key] ?? c.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <ul className="mt-3 divide-y divide-[#1a1a1a]/15">
+                    {(cargandoCat && !explorador[catActiva]) && (
+                      <li className="py-2 font-serif text-sm italic text-[#1a1a1a]/50">{t("common.loading")}</li>
+                    )}
+                    {categoriasVisibles.length === 0 && (
+                      <li className="py-2 font-serif text-sm italic text-[#1a1a1a]/50">{t("trade.noMarketsEnabled")}</li>
+                    )}
+                    {(explorador[catActiva] || []).map((d) => {
+                      const sube = d.cambio_porcentaje >= 0;
+                      const sparkData = (d.sparkline || []).map(Number);
+                      return (
+                        <li key={d.ticker}>
+                          <button onClick={() => buscar(d.ticker)} className="flex w-full items-center gap-2 py-2 text-left hover:bg-[#1a1a1a]/5">
+                            <span className="flex min-w-0 flex-1 flex-col">
+                              <span className="truncate font-serif text-sm font-bold">
+                                {d.ticker.replace("-USD", "").replace("=X", "").replace(".MX", "")}
+                              </span>
+                              <span className="font-mono text-[10px] text-[#1a1a1a]/55">${Number(d.precio).toFixed(2)}</span>
+                            </span>
+                            {sparkData.length > 1 && <Sparkline data={sparkData} subiendo={sube} />}
+                            <span className={`shrink-0 font-mono text-xs font-bold ${sube ? "text-[#007a2e]" : "text-[#c0271a]"}`}>
+                              {sube ? "▲" : "▼"} {Math.abs(d.cambio_porcentaje).toFixed(2)}%
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </aside>
+              </div>
+            )}
+          </div>
+        )}
       </div>
       <Footer />
     </main>
