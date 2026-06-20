@@ -636,7 +636,7 @@ export const en = {
 
   // ── Market Times (Tradex Times) ─────────────────────────────
   "news.masthead":          "TRADEX TIMES",
-  "news.tagline":           "All the market news within reach of your portfolio",
+  "news.tagline":           "Money talks, we translate",
   "news.edition":           "Investor's Edition",
   "news.frontPage":         "Market Front Page",
   "news.moversTitle":       "How the market closed today",

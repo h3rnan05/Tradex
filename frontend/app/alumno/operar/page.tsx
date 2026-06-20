@@ -656,13 +656,22 @@ function OperarPageInterna() {
           </button>
         </form>
 
-        <BarraIndices onSeleccionar={buscar} />
-
         {precio ? (
+        <>
+        <BarraIndices onSeleccionar={buscar} />
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
 
           {/* ── Columna izquierda: Mi cartera ── */}
           <div className="lg:col-span-3">
+            {/* Botón volver al periódico */}
+            <button
+              onClick={() => { setPrecio(null); setTicker(""); setHistorial([]); setNoticias([]); setFicha(null); }}
+              className="mb-3 flex w-full items-center gap-2 border border-fg/15 bg-panel px-3 py-2 font-mono text-[11px] uppercase tracking-wider text-fg/50 hover:border-accent hover:text-accent transition-colors"
+            >
+              <span className="text-base leading-none">⌂</span>
+              {lang === "en" ? "Tradex Times" : "Tradex Times"}
+            </button>
+
             <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">{t("trade.myPortfolio")}</p>
 
             {capitalDisponible !== null && (
@@ -1154,11 +1163,12 @@ function OperarPageInterna() {
             </div>
           </div>
         </div>
+        </>
         ) : (
           /* ── Landing: portada completa Tradex Times ── */
           <div className="border border-fg/15 bg-[#f4f1ea] p-4 text-[#1a1a1a] shadow-sm sm:p-7">
             {/* Masthead a todo lo ancho */}
-            <header className="border-b-4 border-double border-[#1a1a1a] pb-3 text-center">
+            <header className="border-b-4 border-double border-[#1a1a1a] pb-0 text-center">
               <div className="flex items-center justify-between font-serif text-[10px] uppercase tracking-wide text-[#1a1a1a]/70">
                 <span>{t("news.edition")}</span>
                 <span className="hidden sm:inline">{t("news.tagline")}</span>
@@ -1167,6 +1177,10 @@ function OperarPageInterna() {
               <h1 className="mt-2 font-serif text-5xl font-black uppercase leading-none tracking-tight sm:text-7xl">
                 {t("news.masthead")}
               </h1>
+              {/* Barra de índices integrada debajo del título */}
+              <div className="mt-2 border-t border-[#1a1a1a]/25">
+                <BarraIndices onSeleccionar={buscar} variante="periodico" />
+              </div>
             </header>
 
             {noticiasGenerales.length === 0 && destacados.length === 0 ? (
