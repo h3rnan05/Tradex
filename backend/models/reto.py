@@ -19,7 +19,11 @@ class Reto(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     grupo_id = Column(UUID(as_uuid=True), ForeignKey("grupos.id"), nullable=False)
-    escenario_id = Column(String, nullable=False)
+    # Modo escenario histórico (precio_simulado) — opcional.
+    escenario_id = Column(String, nullable=True)
+    # Modo activos en vivo: tickers permitidos separados por coma. Si está
+    # presente, el reto usa precios reales y restringe a estos activos.
+    activos_permitidos = Column(String, nullable=True)
     nombre = Column(String, nullable=False)
     fecha_inicio = Column(DateTime(timezone=True), nullable=False)
     fecha_fin = Column(DateTime(timezone=True), nullable=False)

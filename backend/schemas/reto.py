@@ -2,23 +2,26 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from models.reto import TipoOrdenRetoEnum
 
 
 class RetoCreate(BaseModel):
-    escenario_id: str
     nombre: str
     fecha_inicio: datetime
     fecha_fin: datetime
     capital_inicial: Decimal
+    # Uno de los dos: escenario histórico o lista de activos en vivo.
+    escenario_id: str | None = None
+    activos_permitidos: list[str] | None = None
 
 
 class RetoOut(BaseModel):
     id: uuid.UUID
     grupo_id: uuid.UUID
-    escenario_id: str
+    escenario_id: str | None = None
+    activos_permitidos: list[str] | None = None
     nombre: str
     fecha_inicio: datetime
     fecha_fin: datetime
@@ -26,6 +29,14 @@ class RetoOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+    @field_validator("activos_permitidos", mode="before")
+    @classmethod
+    def _split_activos(cls, v):
+        # En la BD se guarda como string separado por comas.
+        if isinstance(v, str):
+            return [t for t in (x.strip() for x in v.split(",")) if t]
+        return v
 
 
 class RetoOrdenCreate(BaseModel):

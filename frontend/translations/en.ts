@@ -516,7 +516,24 @@ export const en = {
   // ── Retos extras ───────────────────────────────────────────────
   "challenges.desc":      "Compete against your classmates using a real historical scenario, compressed into the challenge timeframe.",
   "challenges.scenario":  "Scenario",
+  "challenges.assets":    "Assets",
   "challenges.ends":      "Ends",
+
+  // ── Teacher challenges ─────────────────────────────────────────
+  "maestro.detail.tabChallenges": "Challenges",
+  "maestro.retos.newChallenge":   "New challenge",
+  "maestro.retos.name":           "Challenge name",
+  "maestro.retos.namePlaceholder": "e.g. Asian markets Monday",
+  "maestro.retos.start":          "Start",
+  "maestro.retos.end":            "End",
+  "maestro.retos.capital":        "Virtual capital",
+  "maestro.retos.assets":         "Allowed assets",
+  "maestro.retos.assetsHint":     "Comma-separated tickers. Students can only trade these.",
+  "maestro.retos.create":         "Create challenge",
+  "maestro.retos.existing":       "Group challenges",
+  "maestro.retos.none":           "No challenges in this group yet.",
+  "maestro.retos.incomplete":     "Fill in name, dates and at least one asset.",
+  "maestro.retos.created":        "Challenge created.",
 
   // ── Plantillas extras ──────────────────────────────────────────
   "templates.desc":       "Choose a template and your available capital will be distributed among the suggested assets according to the defined percentages.",

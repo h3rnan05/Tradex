@@ -116,6 +116,11 @@ BADGES: dict[str, dict] = {
         "nivel": "legendario",
         "icono": "🔥",
     },
+    "campeon_reto": {
+        "descripcion": "Ganaste un reto del grupo",
+        "nivel": "legendario",
+        "icono": "🏅",
+    },
 }
 
 # Etiquetas de categoría por tipo de activo (para clasificar tickers)

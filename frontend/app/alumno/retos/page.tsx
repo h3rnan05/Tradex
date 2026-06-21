@@ -15,7 +15,8 @@ interface Portafolio {
 interface Reto {
   id: string;
   nombre: string;
-  escenario_id: string;
+  escenario_id: string | null;
+  activos_permitidos: string[] | null;
   fecha_inicio: string;
   fecha_fin: string;
   capital_inicial: string;
@@ -71,7 +72,13 @@ export default function RetosPage() {
                       {estaActivo(r) ? t("class.active") : t("class.finished")}
                     </span>
                   </div>
-                  <p className="text-xs text-fg/40">{t("challenges.scenario")}: {r.escenario_id}</p>
+                  {r.activos_permitidos && r.activos_permitidos.length > 0 ? (
+                    <p className="text-xs text-fg/40">
+                      {t("challenges.assets")}: {r.activos_permitidos.map((a) => a.replace("-USD", "").replace("=X", "").replace(".MX", "")).join(", ")}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-fg/40">{t("challenges.scenario")}: {r.escenario_id}</p>
+                  )}
                   <p className="text-xs text-fg/40">
                     {t("challenges.ends")}: {new Date(r.fecha_fin).toLocaleString("es-MX")}
                   </p>

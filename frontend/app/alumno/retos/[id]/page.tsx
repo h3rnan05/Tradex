@@ -10,7 +10,8 @@ import { useLanguage } from "@/lib/i18n";
 interface RetoOut {
   id: string;
   grupo_id: string;
-  escenario_id: string;
+  escenario_id: string | null;
+  activos_permitidos: string[] | null;
   nombre: string;
   fecha_inicio: string;
   fecha_fin: string;
@@ -88,12 +89,16 @@ export default function RetoTradingPage() {
   }, [params.id]);
 
   useEffect(() => {
-    if (!estado) return;
+    if (!estado || !estado.reto.escenario_id) return;
     api
       .get<Escenario[]>("/precios/escenarios")
       .then((lista) => setEscenario(lista.find((e) => e.id === estado.reto.escenario_id) ?? null))
       .catch(() => {});
   }, [estado?.reto.escenario_id]);
+
+  // Activos operables: en vivo (lista del reto) o sugeridos del escenario.
+  const activosReto = estado?.reto.activos_permitidos ?? [];
+  const tickersOperables = activosReto.length > 0 ? activosReto : (escenario?.tickers_sugeridos ?? []);
 
   async function operar(tipo: "comprar" | "vender") {
     if (!ticker) return;
@@ -129,7 +134,9 @@ export default function RetoTradingPage() {
       <div className="mx-auto max-w-5xl p-6">
         <h1 className="mb-1 text-2xl font-bold text-fg">{estado.reto.nombre}</h1>
         <p className="mb-6 text-sm text-fg/40">
-          {t("challenge.scenario")}: {escenario?.nombre ?? estado.reto.escenario_id}
+          {activosReto.length > 0
+            ? `${t("challenges.assets")}: ${activosReto.map((a) => a.replace("-USD", "").replace("=X", "").replace(".MX", "")).join(", ")}`
+            : `${t("challenge.scenario")}: ${escenario?.nombre ?? estado.reto.escenario_id}`}
           {" · "}
           {terminado ? t("challenge.finished") : `${t("challenge.progress")}: ${estado.progreso_porcentaje.toFixed(0)}%`}
         </p>
@@ -144,11 +151,11 @@ export default function RetoTradingPage() {
           />
         </div>
 
-        {!terminado && escenario && (
+        {!terminado && tickersOperables.length > 0 && (
           <Card className="mb-6">
             <p className="mb-3 font-mono text-[11px] uppercase tracking-widest text-fg/40">{t("challenge.trade")}</p>
             <div className="mb-3 flex flex-wrap gap-2">
-              {escenario.tickers_sugeridos.map((tk) => (
+              {tickersOperables.map((tk) => (
                 <button
                   key={tk}
                   onClick={() => setTicker(tk)}

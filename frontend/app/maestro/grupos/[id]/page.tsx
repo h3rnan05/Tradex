@@ -12,6 +12,7 @@ import ErrorState from "@/components/ErrorState";
 import ConfirmModal from "@/components/ConfirmModal";
 import ActivosCategoria from "@/components/ActivosCategoria";
 import PanelInsigniasMaestro from "@/components/PanelInsigniasMaestro";
+import PanelRetosMaestro from "@/components/PanelRetosMaestro";
 import { useLanguage } from "@/lib/i18n";
 import type { TranslationKey } from "@/translations/es";
 
@@ -102,7 +103,7 @@ export default function DetalleGrupoPage() {
   const params = useParams<{ id: string }>();
   const [grupo, setGrupo] = useState<GrupoDetalle | null>(null);
   const [evaluacion, setEvaluacion] = useState<EvaluacionEntry[]>([]);
-  const [tab, setTab] = useState<"config" | "participantes" | "insignias">("participantes");
+  const [tab, setTab] = useState<"config" | "participantes" | "insignias" | "retos">("participantes");
   const [error, setError] = useState<string | null>(null);
   const [pendingPause, setPendingPause] = useState<{ membershipId: string; alumnoNombre: string; pausado: boolean } | null>(null);
   const [pendingDelete, setPendingDelete] = useState<{ membershipId: string; alumnoNombre: string } | null>(null);
@@ -312,7 +313,7 @@ export default function DetalleGrupoPage() {
             )}
           </div>
           <div className="flex gap-1">
-            {(["participantes", "insignias", "config"] as const).map((tabKey) => (
+            {(["participantes", "insignias", "retos", "config"] as const).map((tabKey) => (
               <button
                 key={tabKey}
                 onClick={() => setTab(tabKey)}
@@ -322,6 +323,8 @@ export default function DetalleGrupoPage() {
                   ? t("maestro.detail.tabBoard")
                   : tabKey === "insignias"
                   ? t("maestro.detail.tabBadges")
+                  : tabKey === "retos"
+                  ? t("maestro.detail.tabChallenges")
                   : t("maestro.detail.tabConfig")}
               </button>
             ))}
@@ -474,6 +477,9 @@ export default function DetalleGrupoPage() {
             </div>
           </div>
         )}
+
+        {/* Tab: Retos */}
+        {tab === "retos" && <PanelRetosMaestro grupoId={params.id as string} />}
 
         {/* Tab: Insignias */}
         {tab === "insignias" && (

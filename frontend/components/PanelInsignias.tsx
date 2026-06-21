@@ -48,6 +48,7 @@ export const BADGES_DEF: BadgeDef[] = [
   { codigo: "maestro_del_mercado",      titulo: "Maestro del Mercado",   desc: "Opera en las 6 categorías disponibles",         nivel: "legendario" },
   { codigo: "ballena",                  titulo: "Ballena",               desc: "Duplica tu capital inicial",                    nivel: "legendario" },
   { codigo: "sin_rendirse",             titulo: "Constancia",            desc: "Opera en 5 días distintos",                     nivel: "legendario" },
+  { codigo: "campeon_reto",             titulo: "Campeón de Retos",      desc: "Gana un reto del grupo",                        nivel: "legendario" },
 ];
 
 export const NIVEL_ORDEN: Nivel[] = ["facil", "medio", "dificil", "legendario"];

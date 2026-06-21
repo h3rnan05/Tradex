@@ -516,7 +516,24 @@ export const es = {
   // ── Retos extras ───────────────────────────────────────────────
   "challenges.desc":      "Compite contra tus compañeros usando un escenario histórico real, comprimido en el tiempo del reto.",
   "challenges.scenario":  "Escenario",
+  "challenges.assets":    "Activos",
   "challenges.ends":      "Termina",
+
+  // ── Retos del maestro ──────────────────────────────────────────
+  "maestro.detail.tabChallenges": "Retos",
+  "maestro.retos.newChallenge":   "Nuevo reto",
+  "maestro.retos.name":           "Nombre del reto",
+  "maestro.retos.namePlaceholder": "Ej. Lunes de mercados asiáticos",
+  "maestro.retos.start":          "Inicio",
+  "maestro.retos.end":            "Fin",
+  "maestro.retos.capital":        "Capital virtual",
+  "maestro.retos.assets":         "Activos permitidos",
+  "maestro.retos.assetsHint":     "Tickers separados por coma. El alumno solo podrá operar estos activos.",
+  "maestro.retos.create":         "Crear reto",
+  "maestro.retos.existing":       "Retos del grupo",
+  "maestro.retos.none":           "Aún no hay retos en este grupo.",
+  "maestro.retos.incomplete":     "Completa nombre, fechas y al menos un activo.",
+  "maestro.retos.created":        "Reto creado.",
 
   // ── Plantillas extras ──────────────────────────────────────────
   "templates.desc":       "Elige una plantilla y se distribuirá tu capital disponible entre los activos sugeridos según los porcentajes definidos.",

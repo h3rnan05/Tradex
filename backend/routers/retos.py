@@ -7,10 +7,12 @@ from sqlalchemy.orm import Session, joinedload
 from auth_utils import get_current_user, require_alumno, require_maestro
 from database import get_db
 from escenarios_historicos import obtener_escenario, precio_simulado
+from insignias_engine import _otorgar
 from models.grupo import Grupo
 from models.membership import Membership
 from models.reto import Reto, RetoHolding, RetoOrden, RetoParticipante, TipoOrdenRetoEnum
 from models.user import RolEnum, User
+from precios_utils import normalizar_ticker, obtener_precio_actual
 from schemas.reto import (
     RetoCreate,
     RetoEstadoOut,
@@ -31,6 +33,20 @@ def _grupo_del_maestro(db: Session, grupo_id: str, maestro: User) -> Grupo:
     return grupo
 
 
+def _activos_lista(reto: Reto) -> list[str]:
+    if not reto.activos_permitidos:
+        return []
+    return [t for t in (x.strip() for x in reto.activos_permitidos.split(",")) if t]
+
+
+def _precio_reto(reto: Reto, ticker: str):
+    """Precio de un ticker para el reto: en vivo si es reto de activos,
+    simulado si es reto de escenario histórico."""
+    if reto.activos_permitidos:
+        return obtener_precio_actual(ticker)
+    return precio_simulado(ticker, reto.escenario_id, reto.fecha_inicio, reto.fecha_fin)
+
+
 def _participante(db: Session, reto_id: str, alumno: User) -> RetoParticipante:
     participante = db.query(RetoParticipante).filter(
         RetoParticipante.reto_id == reto_id, RetoParticipante.alumno_id == alumno.id
@@ -45,14 +61,27 @@ def crear_reto(
     grupo_id: str, payload: RetoCreate, db: Session = Depends(get_db), maestro: User = Depends(require_maestro)
 ):
     _grupo_del_maestro(db, grupo_id, maestro)
-    obtener_escenario(payload.escenario_id)
 
     if payload.fecha_fin <= payload.fecha_inicio:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La fecha de fin debe ser posterior al inicio")
 
+    activos_str = None
+    if payload.activos_permitidos:
+        # Reto de activos en vivo.
+        tickers = [normalizar_ticker(t) for t in payload.activos_permitidos if t.strip()]
+        if not tickers:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Debes indicar al menos un activo")
+        activos_str = ",".join(tickers)
+    elif payload.escenario_id:
+        # Reto de escenario histórico.
+        obtener_escenario(payload.escenario_id)
+    else:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Indica un escenario o una lista de activos")
+
     reto = Reto(
         grupo_id=grupo_id,
-        escenario_id=payload.escenario_id,
+        escenario_id=payload.escenario_id if not activos_str else None,
+        activos_permitidos=activos_str,
         nombre=payload.nombre,
         fecha_inicio=payload.fecha_inicio,
         fecha_fin=payload.fecha_fin,
@@ -96,7 +125,7 @@ def _calcular_estado(db: Session, reto: Reto, participante: RetoParticipante) ->
     for h in holdings:
         if h.cantidad == 0:
             continue
-        precio_actual = precio_simulado(h.ticker, reto.escenario_id, reto.fecha_inicio, reto.fecha_fin)
+        precio_actual = _precio_reto(reto, h.ticker)
         valor_mercado = precio_actual * h.cantidad
         valor_holdings += valor_mercado
         holdings_out.append(
@@ -152,8 +181,10 @@ def comprar_reto(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Este reto ya terminó")
 
     participante = _participante(db, reto_id, alumno)
-    ticker = payload.ticker.upper().strip()
-    precio = precio_simulado(ticker, reto.escenario_id, reto.fecha_inicio, reto.fecha_fin)
+    ticker = normalizar_ticker(payload.ticker) if reto.activos_permitidos else payload.ticker.upper().strip()
+    if reto.activos_permitidos and ticker not in _activos_lista(reto):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Este activo no está permitido en el reto")
+    precio = _precio_reto(reto, ticker)
     costo_total = precio * payload.cantidad
 
     if costo_total > participante.capital_disponible:
@@ -203,7 +234,7 @@ def vender_reto(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Este reto ya terminó")
 
     participante = _participante(db, reto_id, alumno)
-    ticker = payload.ticker.upper().strip()
+    ticker = normalizar_ticker(payload.ticker) if reto.activos_permitidos else payload.ticker.upper().strip()
 
     holding = db.query(RetoHolding).filter(
         RetoHolding.reto_id == reto_id, RetoHolding.alumno_id == alumno.id, RetoHolding.ticker == ticker
@@ -211,7 +242,7 @@ def vender_reto(
     if not holding or holding.cantidad < payload.cantidad:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No tienes suficientes acciones para vender")
 
-    precio = precio_simulado(ticker, reto.escenario_id, reto.fecha_inicio, reto.fecha_fin)
+    precio = _precio_reto(reto, ticker)
     monto_total = precio * payload.cantidad
 
     holding.cantidad -= payload.cantidad
@@ -262,4 +293,13 @@ def ranking_reto(reto_id: str, db: Session = Depends(get_db), current_user: User
         )
 
     entradas.sort(key=lambda e: e.valor_total, reverse=True)
+
+    # Al terminar el reto, otorga la insignia de campeón al primer lugar
+    # (siempre que haya operado algo, es decir que su valor difiera del capital).
+    if entradas and datetime.now(timezone.utc) >= reto.fecha_fin:
+        ganador = entradas[0]
+        if ganador.valor_total != reto.capital_inicial:
+            if _otorgar(db, ganador.alumno_id, reto.grupo_id, "campeon_reto"):
+                db.commit()
+
     return entradas
