@@ -8,6 +8,7 @@ import { api, ApiError } from "@/lib/api";
 import { useLanguage } from "@/lib/i18n";
 import type { TranslationKey } from "@/translations/es";
 import ErrorState from "@/components/ErrorState";
+import ActivosCategoria from "@/components/ActivosCategoria";
 
 interface Grupo {
   id: string;
@@ -227,6 +228,7 @@ export default function GruposPage() {
                         >
                           {t(activo.labelKey)}
                         </button>
+                        <ActivosCategoria categoria={activo.value} />
                         {activosPermitidos.includes(activo.value) && (
                           <div className="mt-1 flex items-center gap-1.5 border border-t-0 border-accent/20 bg-accent/5 px-3 py-1.5">
                             <span className="font-mono text-[10px] text-fg/40">{t("maestro.groups.unlocks")}</span>

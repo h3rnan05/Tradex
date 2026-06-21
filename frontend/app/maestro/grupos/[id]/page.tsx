@@ -10,6 +10,8 @@ import ComentariosMaestro from "@/components/ComentariosMaestro";
 import Pagination from "@/components/Pagination";
 import ErrorState from "@/components/ErrorState";
 import ConfirmModal from "@/components/ConfirmModal";
+import ActivosCategoria from "@/components/ActivosCategoria";
+import PanelInsigniasMaestro from "@/components/PanelInsigniasMaestro";
 import { useLanguage } from "@/lib/i18n";
 import type { TranslationKey } from "@/translations/es";
 
@@ -100,9 +102,10 @@ export default function DetalleGrupoPage() {
   const params = useParams<{ id: string }>();
   const [grupo, setGrupo] = useState<GrupoDetalle | null>(null);
   const [evaluacion, setEvaluacion] = useState<EvaluacionEntry[]>([]);
-  const [tab, setTab] = useState<"config" | "participantes">("participantes");
+  const [tab, setTab] = useState<"config" | "participantes" | "insignias">("participantes");
   const [error, setError] = useState<string | null>(null);
   const [pendingPause, setPendingPause] = useState<{ membershipId: string; alumnoNombre: string; pausado: boolean } | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<{ membershipId: string; alumnoNombre: string } | null>(null);
   const [pendingRegen, setPendingRegen] = useState(false);
   const [exportando, setExportando] = useState(false);
 
@@ -212,6 +215,18 @@ export default function DetalleGrupoPage() {
     }
   }
 
+  async function ejecutarEliminar(membershipId: string) {
+    try {
+      await api.delete(`/grupos/${params.id}/memberships/${membershipId}`);
+      cargar();
+      cargarEvaluacion();
+    } catch {
+      // silent
+    } finally {
+      setPendingDelete(null);
+    }
+  }
+
   async function ejecutarRegen() {
     try {
       const actualizado = await api.post<GrupoDetalle>(`/grupos/${grupo!.id}/regenerar-codigo`, {});
@@ -254,6 +269,14 @@ export default function DetalleGrupoPage() {
         onCancel={() => setPendingPause(null)}
       />
       <ConfirmModal
+        open={!!pendingDelete}
+        title={t("maestro.detail.confirmDelete")}
+        message={pendingDelete?.alumnoNombre ?? ""}
+        danger
+        onConfirm={() => pendingDelete && ejecutarEliminar(pendingDelete.membershipId)}
+        onCancel={() => setPendingDelete(null)}
+      />
+      <ConfirmModal
         open={pendingRegen}
         title={t("admin.maestro.confirmRegen")}
         message=""
@@ -289,13 +312,17 @@ export default function DetalleGrupoPage() {
             )}
           </div>
           <div className="flex gap-1">
-            {(["participantes", "config"] as const).map((tabKey) => (
+            {(["participantes", "insignias", "config"] as const).map((tabKey) => (
               <button
                 key={tabKey}
                 onClick={() => setTab(tabKey)}
                 className={`px-4 py-2 font-mono text-[11px] uppercase tracking-wider transition-colors ${tab === tabKey ? "bg-accent text-black" : "border border-fg/20 text-fg/60 hover:text-fg"}`}
               >
-                {tabKey === "participantes" ? t("maestro.detail.tabBoard") : t("maestro.detail.tabConfig")}
+                {tabKey === "participantes"
+                  ? t("maestro.detail.tabBoard")
+                  : tabKey === "insignias"
+                  ? t("maestro.detail.tabBadges")
+                  : t("maestro.detail.tabConfig")}
               </button>
             ))}
           </div>
@@ -334,20 +361,23 @@ export default function DetalleGrupoPage() {
 
               <div>
                 <label className="block font-mono text-[11px] uppercase tracking-wider text-fg/50 mb-2">{t("maestro.detail.allowedMarkets")}</label>
-                <div className="flex flex-wrap gap-2">
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2 md:grid-cols-3">
                   {MERCADOS.map((m) => (
-                    <label key={m.value} className="flex items-center gap-1.5 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={cfgMercados.includes(m.value)}
-                        onChange={(e) => {
-                          if (e.target.checked) setCfgMercados([...cfgMercados, m.value]);
-                          else setCfgMercados(cfgMercados.filter((x) => x !== m.value));
-                        }}
-                        className="accent-accent"
-                      />
-                      <span className="font-mono text-xs text-fg/70">{t(m.labelKey)}</span>
-                    </label>
+                    <div key={m.value}>
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={cfgMercados.includes(m.value)}
+                          onChange={(e) => {
+                            if (e.target.checked) setCfgMercados([...cfgMercados, m.value]);
+                            else setCfgMercados(cfgMercados.filter((x) => x !== m.value));
+                          }}
+                          className="accent-accent"
+                        />
+                        <span className="font-mono text-xs text-fg/70">{t(m.labelKey)}</span>
+                      </label>
+                      <ActivosCategoria categoria={m.value} />
+                    </div>
                   ))}
                 </div>
               </div>
@@ -445,6 +475,14 @@ export default function DetalleGrupoPage() {
           </div>
         )}
 
+        {/* Tab: Insignias */}
+        {tab === "insignias" && (
+          <PanelInsigniasMaestro
+            grupoId={params.id as string}
+            participantes={evaluacion.map((e) => ({ alumno_id: e.alumno_id, nombre: e.nombre }))}
+          />
+        )}
+
         {/* Tab: Participantes (Tablero de evaluación) */}
         {tab === "participantes" && (
           <div>
@@ -530,12 +568,20 @@ export default function DetalleGrupoPage() {
                           </td>
                           <td className="px-3 py-3">
                             {m && (
-                              <button
-                                onClick={() => setPendingPause({ membershipId: m.id, alumnoNombre: e.nombre, pausado: e.pausado })}
-                                className={`px-2 py-1 font-mono text-[10px] font-bold uppercase transition-colors ${e.pausado ? "bg-ganancia/10 text-ganancia hover:bg-ganancia/20" : "bg-perdida/10 text-perdida hover:bg-perdida/20"}`}
-                              >
-                                {e.pausado ? t("maestro.detail.resume") : t("maestro.detail.pause")}
-                              </button>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  onClick={() => setPendingPause({ membershipId: m.id, alumnoNombre: e.nombre, pausado: e.pausado })}
+                                  className={`px-2 py-1 font-mono text-[10px] font-bold uppercase transition-colors ${e.pausado ? "bg-ganancia/10 text-ganancia hover:bg-ganancia/20" : "bg-perdida/10 text-perdida hover:bg-perdida/20"}`}
+                                >
+                                  {e.pausado ? t("maestro.detail.resume") : t("maestro.detail.pause")}
+                                </button>
+                                <button
+                                  onClick={() => setPendingDelete({ membershipId: m.id, alumnoNombre: e.nombre })}
+                                  className="border border-perdida/30 px-2 py-1 font-mono text-[10px] font-bold uppercase text-perdida transition-colors hover:bg-perdida/10"
+                                >
+                                  {t("maestro.detail.delete")}
+                                </button>
+                              </div>
                             )}
                           </td>
                         </tr>

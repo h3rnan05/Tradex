@@ -5,6 +5,7 @@ from escenarios_historicos import ESCENARIOS_HISTORICOS
 from limiter import limiter
 from models.user import User
 from precios_utils import (
+    EXPLORADOR_CATEGORIAS,
     normalizar_ticker,
     obtener_explorador_categoria,
     obtener_earnings_calendar,
@@ -74,6 +75,14 @@ def precios_destacados(request: Request, current_user: User = Depends(get_curren
 @limiter.limit("20/minute")
 def trending(request: Request, current_user: User = Depends(get_current_user)):
     return obtener_trending()
+
+
+@router.get("/categorias")
+@limiter.limit("60/minute")
+def categorias_activos(request: Request, current_user: User = Depends(get_current_user)):
+    """Lista estática (sin precios en vivo) de los activos de cada categoría.
+    Útil para mostrar al maestro qué instrumentos incluye cada mercado."""
+    return EXPLORADOR_CATEGORIAS
 
 
 @router.get("/explorador/{categoria}")

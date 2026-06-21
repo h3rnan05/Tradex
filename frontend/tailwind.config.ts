@@ -22,6 +22,7 @@ const config: Config = {
       },
       fontFamily: {
         mono: ["IBM Plex Mono", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
+        serif: ['"Playfair Display"', "Georgia", "Cambria", '"Times New Roman"', "serif"],
       },
       keyframes: {
         ticker: {

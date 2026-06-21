@@ -63,6 +63,17 @@ h4 {
   font-variant-numeric: tabular-nums;
 }
 
+/* Capitular (drop cap) estilo periódico para la nota principal */
+.dropcap::first-letter {
+  float: left;
+  font-family: "Playfair Display", Georgia, serif;
+  font-weight: 900;
+  font-size: 3.6em;
+  line-height: 0.72;
+  padding: 0.04em 0.08em 0 0;
+  color: #1a1a1a;
+}
+
 code,
 kbd {
   font-family: "IBM Plex Mono", ui-monospace, monospace;

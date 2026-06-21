@@ -7,23 +7,23 @@ interface Insignia {
   otorgada_at: string;
 }
 
-type Nivel = "facil" | "medio" | "dificil" | "legendario";
+export type Nivel = "facil" | "medio" | "dificil" | "legendario";
 
-interface BadgeDef {
+export interface BadgeDef {
   codigo: string;
   titulo: string;
   desc: string;
   nivel: Nivel;
 }
 
-const NIVEL_COLORES: Record<Nivel, { border: string; bg: string; text: string; glow: string; label: string }> = {
+export const NIVEL_COLORES: Record<Nivel, { border: string; bg: string; text: string; glow: string; label: string }> = {
   facil:      { border: "#6b7280", bg: "#1f2937", text: "#9ca3af", glow: "rgba(107,114,128,0.4)",  label: "Fácil" },
   medio:      { border: "#3b82f6", bg: "#1e3a5f", text: "#60a5fa", glow: "rgba(59,130,246,0.45)",  label: "Medio" },
   dificil:    { border: "#f59e0b", bg: "#2d1f00", text: "#fbbf24", glow: "rgba(245,158,11,0.5)",   label: "Difícil" },
   legendario: { border: "#a855f7", bg: "#2e1065", text: "#c084fc", glow: "rgba(168,85,247,0.55)",  label: "Legendario" },
 };
 
-const BADGES_DEF: BadgeDef[] = [
+export const BADGES_DEF: BadgeDef[] = [
   // Fáciles
   { codigo: "primera_orden",            titulo: "Primera Orden",         desc: "Ejecuta tu primera operación",                   nivel: "facil" },
   { codigo: "sin_miedo_a_vender",       titulo: "Sin Miedo a Vender",    desc: "Ejecuta tu primera venta",                       nivel: "facil" },
@@ -50,7 +50,7 @@ const BADGES_DEF: BadgeDef[] = [
   { codigo: "sin_rendirse",             titulo: "Constancia",            desc: "Opera en 5 días distintos",                     nivel: "legendario" },
 ];
 
-const NIVEL_ORDEN: Nivel[] = ["facil", "medio", "dificil", "legendario"];
+export const NIVEL_ORDEN: Nivel[] = ["facil", "medio", "dificil", "legendario"];
 
 function BadgeHex({ def, tiene, fecha, t }: { def: BadgeDef; tiene: boolean; fecha?: string; t: (k: any) => string }) {
   const c = NIVEL_COLORES[def.nivel];
