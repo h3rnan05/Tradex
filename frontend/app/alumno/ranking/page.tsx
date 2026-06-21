@@ -6,6 +6,7 @@ import Footer from "@/components/Footer";
 import { Card, formatoMoneda, formatoPorcentaje } from "@/components/primitives";
 import { api, ApiError } from "@/lib/api";
 import { obtenerSesion } from "@/lib/auth";
+import { conGrupo } from "@/lib/clase";
 import { useLanguage } from "@/lib/i18n";
 import ErrorState from "@/components/ErrorState";
 
@@ -44,7 +45,7 @@ export default function RankingPage() {
     setSesionId(sesion.userId);
     setError(null);
     api
-      .get<Portafolio>(`/alumnos/${sesion.userId}/portafolio`)
+      .get<Portafolio>(conGrupo(`/alumnos/${sesion.userId}/portafolio`))
       .then((portafolio) => {
         const gid = portafolio.grupo_id;
         api.get<RankingEntry[]>(`/grupos/${gid}/ranking`).then(setRanking)

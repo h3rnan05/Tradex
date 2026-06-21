@@ -9,8 +9,14 @@ import PanelInsignias from "@/components/PanelInsignias";
 import { Card, StatTile, formatoMoneda, formatoPorcentaje } from "@/components/primitives";
 import { api, ApiError } from "@/lib/api";
 import { obtenerSesion } from "@/lib/auth";
+import { getGrupoActivo, setGrupoActivo, conGrupo } from "@/lib/clase";
 import { useLanguage } from "@/lib/i18n";
 import ErrorState from "@/components/ErrorState";
+
+interface ClaseResumen {
+  grupo_id: string;
+  nombre: string;
+}
 
 interface HoldingConPrecio {
   id: string;
@@ -59,19 +65,21 @@ export default function PortafolioPage() {
   const [cargandoGrafica, setCargandoGrafica] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [insignias, setInsignias] = useState<{ codigo: string; otorgada_at: string }[]>([]);
+  const [clases, setClases] = useState<ClaseResumen[]>([]);
+  const [grupoId, setGrupoId] = useState<string | null>(null);
 
-  async function cargar() {
+  async function cargar(gid: string | null) {
     const sesion = obtenerSesion();
     if (!sesion) return;
     try {
       const [data, ordenesData] = await Promise.all([
-        api.get<Portafolio>(`/alumnos/${sesion.userId}/portafolio`),
-        api.get<Orden[]>(`/alumnos/${sesion.userId}/ordenes`).catch(() => [] as Orden[]),
+        api.get<Portafolio>(conGrupo(`/alumnos/${sesion.userId}/portafolio`, gid)),
+        api.get<Orden[]>(conGrupo(`/alumnos/${sesion.userId}/ordenes`, gid)).catch(() => [] as Orden[]),
       ]);
       setPortafolio(data);
       setOrdenes(ordenesData);
       if (data.grupo_id) {
-        localStorage.setItem("tradex_grupo_id", data.grupo_id);
+        setGrupoActivo(data.grupo_id);
         api.get<typeof insignias>(`/insignias/mis-insignias?grupo_id=${data.grupo_id}`).then(setInsignias).catch(() => {});
       }
     } catch (err) {
@@ -79,12 +87,12 @@ export default function PortafolioPage() {
     }
   }
 
-  async function cargarHistorial() {
+  async function cargarHistorial(gid: string | null) {
     const sesion = obtenerSesion();
     if (!sesion) return;
     setCargandoGrafica(true);
     try {
-      const data = await api.get<PuntoValor[]>(`/alumnos/${sesion.userId}/historial-valor`);
+      const data = await api.get<PuntoValor[]>(conGrupo(`/alumnos/${sesion.userId}/historial-valor`, gid));
       setHistorialValor(data);
     } catch {
       // silent — gráfica opcional
@@ -93,19 +101,43 @@ export default function PortafolioPage() {
     }
   }
 
+  // Resuelve la clase activa: prioridad ?grupo_id= en la URL, luego localStorage.
   useEffect(() => {
-    cargar();
-    cargarHistorial();
-    const interval = setInterval(cargar, 10000);
-    return () => clearInterval(interval);
+    const sesion = obtenerSesion();
+    if (!sesion) return;
+    const params = new URLSearchParams(window.location.search);
+    const fromUrl = params.get("grupo_id");
+    const inicial = fromUrl ?? getGrupoActivo();
+    if (fromUrl) setGrupoActivo(fromUrl);
+    setGrupoId(inicial);
+    api
+      .get<ClaseResumen[]>(`/alumnos/${sesion.userId}/grupos`)
+      .then(setClases)
+      .catch(() => {});
   }, []);
+
+  function cambiarClase(gid: string) {
+    setGrupoActivo(gid);
+    setGrupoId(gid);
+    setPortafolio(null);
+    cargar(gid);
+    cargarHistorial(gid);
+  }
+
+  useEffect(() => {
+    if (grupoId === undefined) return;
+    cargar(grupoId);
+    cargarHistorial(grupoId);
+    const interval = setInterval(() => cargar(grupoId), 10000);
+    return () => clearInterval(interval);
+  }, [grupoId]);
 
   if (error) {
     return (
       <main className="min-h-screen bg-canvas">
         <Navbar />
         <div className="mx-auto max-w-6xl p-6">
-          <ErrorState message={error} onRetry={() => { setError(null); cargar(); }} />
+          <ErrorState message={error} onRetry={() => { setError(null); cargar(grupoId); }} />
         </div>
         <Footer />
       </main>
@@ -162,7 +194,22 @@ export default function PortafolioPage() {
     <main className="min-h-screen bg-canvas">
       <Navbar />
       <div className="mx-auto max-w-7xl p-4 md:p-6">
-        <h1 className="mb-6 text-2xl font-bold text-fg">{t("portfolio.title")}</h1>
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-2xl font-bold text-fg">{t("portfolio.title")}</h1>
+          {clases.length > 1 && (
+            <select
+              value={grupoId ?? portafolio.grupo_id}
+              onChange={(e) => cambiarClase(e.target.value)}
+              className="border border-fg/20 bg-panel px-3 py-2 font-mono text-xs text-fg outline-none focus:border-accent"
+            >
+              {clases.map((c) => (
+                <option key={c.grupo_id} value={c.grupo_id}>
+                  {c.nombre}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
 
         {/* KPIs */}
         <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">

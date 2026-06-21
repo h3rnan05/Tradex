@@ -7,6 +7,7 @@ import ComentariosMaestro from "@/components/ComentariosMaestro";
 import { Badge, Card, formatoMoneda } from "@/components/primitives";
 import { api, ApiError } from "@/lib/api";
 import { obtenerSesion } from "@/lib/auth";
+import { conGrupo } from "@/lib/clase";
 import { useLanguage } from "@/lib/i18n";
 
 interface Orden {
@@ -29,7 +30,7 @@ export default function HistorialPage() {
     const sesion = obtenerSesion();
     if (!sesion) return;
     api
-      .get<Orden[]>(`/alumnos/${sesion.userId}/ordenes`)
+      .get<Orden[]>(conGrupo(`/alumnos/${sesion.userId}/ordenes`))
       .then(setOrdenes)
       .catch((err) => setError(err instanceof ApiError ? err.message : "Error al cargar el historial"));
   }, []);

@@ -128,17 +128,16 @@ def portafolio(
 @router.get("/{alumno_id}/ordenes", response_model=list[OrdenOut])
 def historial_ordenes(
     alumno_id: str,
+    grupo_id: str | None = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     _check_alumno_access(db, current_user, alumno_id)
 
-    return (
-        db.query(Orden)
-        .filter(Orden.alumno_id == alumno_id)
-        .order_by(Orden.timestamp.desc())
-        .all()
-    )
+    q = db.query(Orden).filter(Orden.alumno_id == alumno_id)
+    if grupo_id:
+        q = q.filter(Orden.grupo_id == grupo_id)
+    return q.order_by(Orden.timestamp.desc()).all()
 
 
 def _historial_valor_impl(alumno_id: str, grupo_id: str | None, db: Session) -> list:

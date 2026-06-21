@@ -6,6 +6,7 @@ import Navbar from "@/components/Navbar";
 import { Card } from "@/components/primitives";
 import { api, ApiError } from "@/lib/api";
 import { obtenerSesion } from "@/lib/auth";
+import { conGrupo } from "@/lib/clase";
 import { useLanguage } from "@/lib/i18n";
 
 interface Portafolio {
@@ -31,7 +32,7 @@ export default function RetosPage() {
     const sesion = obtenerSesion();
     if (!sesion) return;
     api
-      .get<Portafolio>(`/alumnos/${sesion.userId}/portafolio`)
+      .get<Portafolio>(conGrupo(`/alumnos/${sesion.userId}/portafolio`))
       .then((portafolio) => api.get<Reto[]>(`/grupos/${portafolio.grupo_id}/retos`))
       .then(setRetos)
       .catch((err) => setError(err instanceof ApiError ? err.message : "Error al cargar los retos"));

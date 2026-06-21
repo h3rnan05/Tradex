@@ -10,6 +10,7 @@ import Tooltip from "@/components/Tooltip";
 import { Badge, Card } from "@/components/primitives";
 import { api, ApiError } from "@/lib/api";
 import { obtenerSesion } from "@/lib/auth";
+import { getGrupoActivo, setGrupoActivo, conGrupo } from "@/lib/clase";
 import { useLanguage } from "@/lib/i18n";
 
 interface PrecioResponse {
@@ -314,7 +315,7 @@ function OperarPageInterna() {
       api.get<OrdenPendiente[]>("/ordenes-limite").catch(() => [] as OrdenPendiente[]),
       api.get<Alerta[]>("/ordenes-limite/alertas").catch(() => [] as Alerta[]),
       sesion
-        ? api.get<Portafolio>(`/alumnos/${sesion.userId}/portafolio`).catch(() => null)
+        ? api.get<Portafolio>(conGrupo(`/alumnos/${sesion.userId}/portafolio`, getGrupoActivo())).catch(() => null)
         : Promise.resolve(null),
     ]).then(([dest, notiGen, sect, earn, ordenes, alertasData, portafolio]) => {
       setDestacados(dest);
@@ -329,6 +330,7 @@ function OperarPageInterna() {
         setHoldings(portafolio.holdings || []);
         setCapitalDisponible(portafolio.capital_disponible);
         setGrupoId(portafolio.grupo_id);
+        if (portafolio.grupo_id) setGrupoActivo(portafolio.grupo_id);
 
         // Noticias de las posiciones del alumno (para el Tradex Times)
         const tickersCartera = Array.from(
@@ -523,7 +525,7 @@ function OperarPageInterna() {
       setMensaje(
         `${t(tipo === "compra" ? "trade.buyDone" : "trade.sellDone")}: ${orden.cantidad} ${orden.ticker} ${t("templates.at")} $${Number(orden.precio_ejecucion).toFixed(2)}`
       );
-      const p2 = await api.get<Portafolio>(`/alumnos/${sesion.userId}/portafolio`).catch(() => null);
+      const p2 = await api.get<Portafolio>(conGrupo(`/alumnos/${sesion.userId}/portafolio`, grupoId)).catch(() => null);
       if (p2) {
         setHoldings(p2.holdings || []);
         setCapitalDisponible(p2.capital_disponible);
@@ -555,7 +557,7 @@ function OperarPageInterna() {
       setMensaje(
         `${t(endpoint === "short" ? "trade.shortOpened" : "trade.shortCovered")}: ${orden.cantidad} ${orden.ticker} ${t("templates.at")} $${Number(orden.precio_ejecucion).toFixed(2)}`
       );
-      const p2 = await api.get<Portafolio>(`/alumnos/${sesion.userId}/portafolio`).catch(() => null);
+      const p2 = await api.get<Portafolio>(conGrupo(`/alumnos/${sesion.userId}/portafolio`, grupoId)).catch(() => null);
       if (p2) {
         setHoldings(p2.holdings || []);
         setCapitalDisponible(p2.capital_disponible);
