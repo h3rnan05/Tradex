@@ -11,6 +11,7 @@ import Pagination from "@/components/Pagination";
 import ErrorState from "@/components/ErrorState";
 import ConfirmModal from "@/components/ConfirmModal";
 import ActivosCategoria from "@/components/ActivosCategoria";
+import PanelInsigniasMaestro from "@/components/PanelInsigniasMaestro";
 import { useLanguage } from "@/lib/i18n";
 import type { TranslationKey } from "@/translations/es";
 
@@ -101,7 +102,7 @@ export default function DetalleGrupoPage() {
   const params = useParams<{ id: string }>();
   const [grupo, setGrupo] = useState<GrupoDetalle | null>(null);
   const [evaluacion, setEvaluacion] = useState<EvaluacionEntry[]>([]);
-  const [tab, setTab] = useState<"config" | "participantes">("participantes");
+  const [tab, setTab] = useState<"config" | "participantes" | "insignias">("participantes");
   const [error, setError] = useState<string | null>(null);
   const [pendingPause, setPendingPause] = useState<{ membershipId: string; alumnoNombre: string; pausado: boolean } | null>(null);
   const [pendingDelete, setPendingDelete] = useState<{ membershipId: string; alumnoNombre: string } | null>(null);
@@ -311,13 +312,17 @@ export default function DetalleGrupoPage() {
             )}
           </div>
           <div className="flex gap-1">
-            {(["participantes", "config"] as const).map((tabKey) => (
+            {(["participantes", "insignias", "config"] as const).map((tabKey) => (
               <button
                 key={tabKey}
                 onClick={() => setTab(tabKey)}
                 className={`px-4 py-2 font-mono text-[11px] uppercase tracking-wider transition-colors ${tab === tabKey ? "bg-accent text-black" : "border border-fg/20 text-fg/60 hover:text-fg"}`}
               >
-                {tabKey === "participantes" ? t("maestro.detail.tabBoard") : t("maestro.detail.tabConfig")}
+                {tabKey === "participantes"
+                  ? t("maestro.detail.tabBoard")
+                  : tabKey === "insignias"
+                  ? t("maestro.detail.tabBadges")
+                  : t("maestro.detail.tabConfig")}
               </button>
             ))}
           </div>
@@ -468,6 +473,14 @@ export default function DetalleGrupoPage() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Tab: Insignias */}
+        {tab === "insignias" && (
+          <PanelInsigniasMaestro
+            grupoId={params.id as string}
+            participantes={evaluacion.map((e) => ({ alumno_id: e.alumno_id, nombre: e.nombre }))}
+          />
         )}
 
         {/* Tab: Participantes (Tablero de evaluación) */}
