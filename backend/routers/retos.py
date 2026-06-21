@@ -115,6 +115,23 @@ def listar_retos_grupo(grupo_id: str, db: Session = Depends(get_db), current_use
     return db.query(Reto).filter(Reto.grupo_id == grupo_id).order_by(Reto.created_at.desc()).all()
 
 
+@router.get("/retos/{reto_id}", response_model=RetoOut)
+def detalle_reto(reto_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    reto = db.query(Reto).filter(Reto.id == reto_id).first()
+    if not reto:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reto no encontrado")
+
+    grupo = db.query(Grupo).filter(Grupo.id == reto.grupo_id).first()
+    es_maestro_del_grupo = current_user.rol == RolEnum.maestro and grupo and grupo.maestro_id == current_user.id
+    es_alumno_del_grupo = db.query(Membership).filter(
+        Membership.grupo_id == reto.grupo_id, Membership.alumno_id == current_user.id
+    ).first()
+    if not es_maestro_del_grupo and not es_alumno_del_grupo:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No autorizado")
+
+    return reto
+
+
 def _calcular_estado(db: Session, reto: Reto, participante: RetoParticipante) -> RetoEstadoOut:
     holdings = db.query(RetoHolding).filter(
         RetoHolding.reto_id == reto.id, RetoHolding.alumno_id == participante.alumno_id
