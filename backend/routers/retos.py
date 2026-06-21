@@ -47,12 +47,24 @@ def _precio_reto(reto: Reto, ticker: str):
     return precio_simulado(ticker, reto.escenario_id, reto.fecha_inicio, reto.fecha_fin)
 
 
-def _participante(db: Session, reto_id: str, alumno: User) -> RetoParticipante:
+def _participante(db: Session, reto: Reto, alumno: User) -> RetoParticipante:
     participante = db.query(RetoParticipante).filter(
-        RetoParticipante.reto_id == reto_id, RetoParticipante.alumno_id == alumno.id
+        RetoParticipante.reto_id == reto.id, RetoParticipante.alumno_id == alumno.id
     ).first()
-    if not participante:
+    if participante:
+        return participante
+    # Inscripción al vuelo: si el alumno es miembro del grupo pero se unió
+    # después de crear el reto, lo damos de alta con el capital inicial.
+    es_miembro = db.query(Membership).filter(
+        Membership.grupo_id == reto.grupo_id, Membership.alumno_id == alumno.id
+    ).first()
+    if not es_miembro:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No participas en este reto")
+    participante = RetoParticipante(
+        reto_id=reto.id, alumno_id=alumno.id, capital_disponible=reto.capital_inicial
+    )
+    db.add(participante)
+    db.flush()
     return participante
 
 
@@ -180,8 +192,10 @@ def estado_reto(reto_id: str, db: Session = Depends(get_db), alumno: User = Depe
     reto = db.query(Reto).filter(Reto.id == reto_id).first()
     if not reto:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reto no encontrado")
-    participante = _participante(db, reto_id, alumno)
-    return _calcular_estado(db, reto, participante)
+    participante = _participante(db, reto, alumno)
+    estado = _calcular_estado(db, reto, participante)
+    db.commit()
+    return estado
 
 
 @router.post("/retos/{reto_id}/comprar", response_model=RetoOrdenOut, status_code=status.HTTP_201_CREATED)
@@ -194,10 +208,13 @@ def comprar_reto(
     reto = db.query(Reto).filter(Reto.id == reto_id).first()
     if not reto:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reto no encontrado")
-    if datetime.now(timezone.utc) >= reto.fecha_fin:
+    ahora = datetime.now(timezone.utc)
+    if ahora < reto.fecha_inicio:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Este reto aún no comienza")
+    if ahora >= reto.fecha_fin:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Este reto ya terminó")
 
-    participante = _participante(db, reto_id, alumno)
+    participante = _participante(db, reto, alumno)
     ticker = normalizar_ticker(payload.ticker) if reto.activos_permitidos else payload.ticker.upper().strip()
     if reto.activos_permitidos and ticker not in _activos_lista(reto):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Este activo no está permitido en el reto")
@@ -247,10 +264,13 @@ def vender_reto(
     reto = db.query(Reto).filter(Reto.id == reto_id).first()
     if not reto:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reto no encontrado")
-    if datetime.now(timezone.utc) >= reto.fecha_fin:
+    ahora = datetime.now(timezone.utc)
+    if ahora < reto.fecha_inicio:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Este reto aún no comienza")
+    if ahora >= reto.fecha_fin:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Este reto ya terminó")
 
-    participante = _participante(db, reto_id, alumno)
+    participante = _participante(db, reto, alumno)
     ticker = normalizar_ticker(payload.ticker) if reto.activos_permitidos else payload.ticker.upper().strip()
 
     holding = db.query(RetoHolding).filter(
@@ -293,8 +313,10 @@ def ranking_reto(reto_id: str, db: Session = Depends(get_db), current_user: User
     participantes = db.query(RetoParticipante).options(joinedload(RetoParticipante.alumno)).filter(
         RetoParticipante.reto_id == reto_id
     ).all()
-    es_participante = any(p.alumno_id == current_user.id for p in participantes)
-    if not es_maestro_del_grupo and not es_participante:
+    es_miembro = db.query(Membership).filter(
+        Membership.grupo_id == reto.grupo_id, Membership.alumno_id == current_user.id
+    ).first()
+    if not es_maestro_del_grupo and not es_miembro:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No autorizado")
 
     entradas = []
