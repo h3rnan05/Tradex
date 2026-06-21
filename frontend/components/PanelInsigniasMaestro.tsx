@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { useLanguage } from "@/lib/i18n";
-import { useToast } from "@/components/Toast";
 import { BADGES_DEF, NIVEL_COLORES, NIVEL_ORDEN } from "@/components/PanelInsignias";
 
 interface Participante {
@@ -15,8 +14,9 @@ interface Participante {
 type InsigniasGrupo = Record<string, string[]>;
 
 /**
- * Panel para el maestro: ver las insignias de cada alumno del grupo y
- * otorgar/revocar manualmente cualquier insignia del catálogo.
+ * Panel de consulta para el maestro: muestra las insignias que la app ha
+ * otorgado automáticamente a cada alumno del grupo. No hay otorgar manual:
+ * el motor de insignias evalúa y entrega las medallas según la actividad.
  */
 export default function PanelInsigniasMaestro({
   grupoId,
@@ -26,11 +26,9 @@ export default function PanelInsigniasMaestro({
   participantes: Participante[];
 }) {
   const { t } = useLanguage();
-  const { toast } = useToast();
   const [insignias, setInsignias] = useState<InsigniasGrupo>({});
   const [seleccionado, setSeleccionado] = useState<string>("");
   const [cargando, setCargando] = useState(true);
-  const [guardando, setGuardando] = useState<string | null>(null);
 
   useEffect(() => {
     api
@@ -48,25 +46,6 @@ export default function PanelInsigniasMaestro({
 
   const ganadas = new Set(insignias[seleccionado] ?? []);
 
-  async function alternar(codigo: string, tiene: boolean) {
-    if (!seleccionado) return;
-    setGuardando(codigo);
-    try {
-      const ruta = tiene ? "/insignias/revocar" : "/insignias/otorgar";
-      await api.post(ruta, { alumno_id: seleccionado, codigo, grupo_id: grupoId });
-      setInsignias((prev) => {
-        const actuales = new Set(prev[seleccionado] ?? []);
-        if (tiene) actuales.delete(codigo);
-        else actuales.add(codigo);
-        return { ...prev, [seleccionado]: Array.from(actuales) };
-      });
-    } catch {
-      toast(t("common.error"), "error");
-    } finally {
-      setGuardando(null);
-    }
-  }
-
   if (cargando) {
     return <p className="p-4 font-mono text-xs text-fg/40">{t("maestro.detail.loading")}</p>;
   }
@@ -77,6 +56,10 @@ export default function PanelInsigniasMaestro({
 
   return (
     <div className="mt-4">
+      <p className="mb-4 border border-fg/10 bg-fg/5 px-3 py-2 font-mono text-[11px] text-fg/50">
+        {t("maestro.badges.autoNote")}
+      </p>
+
       {/* Resumen: conteo de insignias por alumno */}
       <div className="mb-5 overflow-x-auto">
         <table className="w-full border border-fg/10 bg-panel text-sm">
@@ -104,9 +87,9 @@ export default function PanelInsigniasMaestro({
         </table>
       </div>
 
-      {/* Catálogo para el alumno seleccionado */}
+      {/* Detalle de insignias del alumno seleccionado (solo consulta) */}
       <h3 className="mb-3 font-mono text-[11px] uppercase tracking-widest text-fg/40">
-        {t("maestro.badges.manageFor")}{" "}
+        {t("maestro.badges.badgesOf")}{" "}
         <span className="text-fg">{participantes.find((p) => p.alumno_id === seleccionado)?.nombre ?? "—"}</span>
       </h3>
 
@@ -122,15 +105,10 @@ export default function PanelInsigniasMaestro({
               {delNivel.map((b) => {
                 const tiene = ganadas.has(b.codigo);
                 return (
-                  <button
+                  <div
                     key={b.codigo}
-                    type="button"
-                    disabled={guardando === b.codigo}
-                    onClick={() => alternar(b.codigo, tiene)}
-                    className={`flex items-center justify-between gap-2 border px-3 py-2 text-left transition-colors disabled:opacity-50 ${
-                      tiene
-                        ? "border-accent bg-accent/10"
-                        : "border-fg/15 bg-canvas hover:border-fg/30"
+                    className={`flex items-center justify-between gap-2 border px-3 py-2 ${
+                      tiene ? "border-accent bg-accent/10" : "border-fg/15 bg-canvas opacity-60"
                     }`}
                     title={b.desc}
                   >
@@ -138,10 +116,10 @@ export default function PanelInsigniasMaestro({
                       <span className="block truncate text-xs font-bold text-fg">{b.titulo}</span>
                       <span className="block truncate font-mono text-[10px] text-fg/40">{b.desc}</span>
                     </span>
-                    <span className={`shrink-0 font-mono text-[10px] font-bold uppercase ${tiene ? "text-accent" : "text-fg/40"}`}>
-                      {tiene ? t("maestro.badges.granted") : t("maestro.badges.grant")}
+                    <span className={`shrink-0 font-mono text-[10px] font-bold uppercase ${tiene ? "text-accent" : "text-fg/30"}`}>
+                      {tiene ? t("maestro.badges.earned") : t("maestro.badges.locked")}
                     </span>
-                  </button>
+                  </div>
                 );
               })}
             </div>
