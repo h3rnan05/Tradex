@@ -15,6 +15,10 @@ from database import get_db
 from models.fase_activo import FaseActivo
 from models.grupo import Grupo, _generar_codigo
 from models.holding import Holding
+from models.insignia import InsigniaAlumno
+from models.comentario import ComentarioOrden
+from models.orden import Orden
+from models.orden_pendiente import OrdenPendiente
 from models.membership import Membership
 from models.user import RolEnum, User
 from precios_utils import obtener_precio_actual
@@ -209,6 +213,50 @@ def pausar_participante(
     db.commit()
     db.refresh(membership)
     return membership
+
+
+@router.delete("/{grupo_id}/memberships/{membership_id}", status_code=status.HTTP_204_NO_CONTENT)
+def eliminar_participante(
+    grupo_id: str,
+    membership_id: str,
+    db: Session = Depends(get_db),
+    maestro: User = Depends(require_maestro),
+):
+    """Elimina a un alumno del grupo junto con todos sus datos en ese grupo
+    (órdenes, posiciones, órdenes pendientes, comentarios e insignias)."""
+    grupo = db.query(Grupo).filter(Grupo.id == grupo_id, Grupo.maestro_id == maestro.id).first()
+    if not grupo:
+        raise HTTPException(status_code=404, detail="Grupo no encontrado")
+    membership = db.query(Membership).filter(Membership.id == membership_id, Membership.grupo_id == grupo_id).first()
+    if not membership:
+        raise HTTPException(status_code=404, detail="Participante no encontrado")
+
+    alumno_id = membership.alumno_id
+    # Borrar datos dependientes del alumno dentro de este grupo.
+    # Los comentarios cuelgan de las órdenes del alumno, así que se borran primero.
+    orden_ids = [
+        o.id for o in db.query(Orden.id).filter(
+            Orden.grupo_id == grupo_id, Orden.alumno_id == alumno_id
+        ).all()
+    ]
+    if orden_ids:
+        db.query(ComentarioOrden).filter(
+            ComentarioOrden.orden_id.in_(orden_ids)
+        ).delete(synchronize_session=False)
+    db.query(OrdenPendiente).filter(
+        OrdenPendiente.grupo_id == grupo_id, OrdenPendiente.alumno_id == alumno_id
+    ).delete(synchronize_session=False)
+    db.query(Orden).filter(
+        Orden.grupo_id == grupo_id, Orden.alumno_id == alumno_id
+    ).delete(synchronize_session=False)
+    db.query(Holding).filter(
+        Holding.grupo_id == grupo_id, Holding.alumno_id == alumno_id
+    ).delete(synchronize_session=False)
+    db.query(InsigniaAlumno).filter(
+        InsigniaAlumno.grupo_id == grupo_id, InsigniaAlumno.alumno_id == alumno_id
+    ).delete(synchronize_session=False)
+    db.delete(membership)
+    db.commit()
 
 
 @router.get("/{grupo_id}/evaluacion", response_model=list[EvaluacionEntry])

@@ -407,6 +407,8 @@ export const en = {
   "maestro.detail.paused":        "Paused",
   "maestro.detail.resume":        "Resume",
   "maestro.detail.pause":         "Pause",
+  "maestro.detail.delete":        "Remove",
+  "maestro.detail.confirmDelete": "Remove this student from the group? All their orders, positions and badges in this group will be deleted. This action cannot be undone.",
   "maestro.detail.lastOrders":    "Latest group trades",
   "maestro.detail.colStudent":    "Student",
   "maestro.detail.colType":       "Type",

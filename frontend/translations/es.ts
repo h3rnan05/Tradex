@@ -407,6 +407,8 @@ export const es = {
   "maestro.detail.paused":        "Pausado",
   "maestro.detail.resume":        "Reanudar",
   "maestro.detail.pause":         "Pausar",
+  "maestro.detail.delete":        "Eliminar",
+  "maestro.detail.confirmDelete": "¿Eliminar a este alumno del grupo? Se borrarán todas sus órdenes, posiciones e insignias en este grupo. Esta acción no se puede deshacer.",
   "maestro.detail.lastOrders":    "Últimas operaciones del grupo",
   "maestro.detail.colStudent":    "Alumno",
   "maestro.detail.colType":       "Tipo",

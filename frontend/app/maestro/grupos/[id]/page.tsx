@@ -103,6 +103,7 @@ export default function DetalleGrupoPage() {
   const [tab, setTab] = useState<"config" | "participantes">("participantes");
   const [error, setError] = useState<string | null>(null);
   const [pendingPause, setPendingPause] = useState<{ membershipId: string; alumnoNombre: string; pausado: boolean } | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<{ membershipId: string; alumnoNombre: string } | null>(null);
   const [pendingRegen, setPendingRegen] = useState(false);
   const [exportando, setExportando] = useState(false);
 
@@ -212,6 +213,18 @@ export default function DetalleGrupoPage() {
     }
   }
 
+  async function ejecutarEliminar(membershipId: string) {
+    try {
+      await api.delete(`/grupos/${params.id}/memberships/${membershipId}`);
+      cargar();
+      cargarEvaluacion();
+    } catch {
+      // silent
+    } finally {
+      setPendingDelete(null);
+    }
+  }
+
   async function ejecutarRegen() {
     try {
       const actualizado = await api.post<GrupoDetalle>(`/grupos/${grupo!.id}/regenerar-codigo`, {});
@@ -252,6 +265,14 @@ export default function DetalleGrupoPage() {
         danger={!pendingPause?.pausado}
         onConfirm={() => pendingPause && ejecutarPausar(pendingPause.membershipId)}
         onCancel={() => setPendingPause(null)}
+      />
+      <ConfirmModal
+        open={!!pendingDelete}
+        title={t("maestro.detail.confirmDelete")}
+        message={pendingDelete?.alumnoNombre ?? ""}
+        danger
+        onConfirm={() => pendingDelete && ejecutarEliminar(pendingDelete.membershipId)}
+        onCancel={() => setPendingDelete(null)}
       />
       <ConfirmModal
         open={pendingRegen}
@@ -530,12 +551,20 @@ export default function DetalleGrupoPage() {
                           </td>
                           <td className="px-3 py-3">
                             {m && (
-                              <button
-                                onClick={() => setPendingPause({ membershipId: m.id, alumnoNombre: e.nombre, pausado: e.pausado })}
-                                className={`px-2 py-1 font-mono text-[10px] font-bold uppercase transition-colors ${e.pausado ? "bg-ganancia/10 text-ganancia hover:bg-ganancia/20" : "bg-perdida/10 text-perdida hover:bg-perdida/20"}`}
-                              >
-                                {e.pausado ? t("maestro.detail.resume") : t("maestro.detail.pause")}
-                              </button>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  onClick={() => setPendingPause({ membershipId: m.id, alumnoNombre: e.nombre, pausado: e.pausado })}
+                                  className={`px-2 py-1 font-mono text-[10px] font-bold uppercase transition-colors ${e.pausado ? "bg-ganancia/10 text-ganancia hover:bg-ganancia/20" : "bg-perdida/10 text-perdida hover:bg-perdida/20"}`}
+                                >
+                                  {e.pausado ? t("maestro.detail.resume") : t("maestro.detail.pause")}
+                                </button>
+                                <button
+                                  onClick={() => setPendingDelete({ membershipId: m.id, alumnoNombre: e.nombre })}
+                                  className="border border-perdida/30 px-2 py-1 font-mono text-[10px] font-bold uppercase text-perdida transition-colors hover:bg-perdida/10"
+                                >
+                                  {t("maestro.detail.delete")}
+                                </button>
+                              </div>
                             )}
                           </td>
                         </tr>
