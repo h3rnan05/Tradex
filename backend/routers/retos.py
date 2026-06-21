@@ -111,6 +111,30 @@ def crear_reto(
     return reto
 
 
+@router.get("/retos/activo", response_model=RetoOut | None)
+def reto_activo(db: Session = Depends(get_db), alumno: User = Depends(require_alumno)):
+    """Reto en curso del alumno (ya empezó y no ha terminado) en cualquiera de
+    sus grupos. Si hay varios, devuelve el que termina primero. Sirve para que
+    la interfaz del alumno entre en 'modo reto' automáticamente."""
+    ahora = datetime.now(timezone.utc)
+    grupo_ids = [
+        m.grupo_id for m in db.query(Membership).filter(Membership.alumno_id == alumno.id).all()
+    ]
+    if not grupo_ids:
+        return None
+    reto = (
+        db.query(Reto)
+        .filter(
+            Reto.grupo_id.in_(grupo_ids),
+            Reto.fecha_inicio <= ahora,
+            Reto.fecha_fin > ahora,
+        )
+        .order_by(Reto.fecha_fin.asc())
+        .first()
+    )
+    return reto
+
+
 @router.get("/grupos/{grupo_id}/retos", response_model=list[RetoOut])
 def listar_retos_grupo(grupo_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     grupo = db.query(Grupo).filter(Grupo.id == grupo_id).first()
@@ -154,7 +178,12 @@ def _calcular_estado(db: Session, reto: Reto, participante: RetoParticipante) ->
     for h in holdings:
         if h.cantidad == 0:
             continue
-        precio_actual = _precio_reto(reto, h.ticker)
+        try:
+            precio_actual = _precio_reto(reto, h.ticker)
+        except Exception:
+            # Si no hay precio disponible para este activo, valoramos al costo
+            # promedio para no romper el cálculo del portafolio del reto.
+            precio_actual = h.precio_promedio
         valor_mercado = precio_actual * h.cantidad
         valor_holdings += valor_mercado
         holdings_out.append(
@@ -196,6 +225,20 @@ def estado_reto(reto_id: str, db: Session = Depends(get_db), alumno: User = Depe
     estado = _calcular_estado(db, reto, participante)
     db.commit()
     return estado
+
+
+@router.get("/retos/{reto_id}/ordenes", response_model=list[RetoOrdenOut])
+def ordenes_reto(reto_id: str, db: Session = Depends(get_db), alumno: User = Depends(require_alumno)):
+    """Historial de órdenes del alumno dentro del reto."""
+    reto = db.query(Reto).filter(Reto.id == reto_id).first()
+    if not reto:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reto no encontrado")
+    return (
+        db.query(RetoOrden)
+        .filter(RetoOrden.reto_id == reto_id, RetoOrden.alumno_id == alumno.id)
+        .order_by(RetoOrden.timestamp.desc())
+        .all()
+    )
 
 
 @router.post("/retos/{reto_id}/comprar", response_model=RetoOrdenOut, status_code=status.HTTP_201_CREATED)

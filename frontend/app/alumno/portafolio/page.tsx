@@ -9,7 +9,9 @@ import PanelInsignias from "@/components/PanelInsignias";
 import { Card, StatTile, formatoMoneda, formatoPorcentaje } from "@/components/primitives";
 import { api, ApiError } from "@/lib/api";
 import { obtenerSesion } from "@/lib/auth";
-import { getGrupoActivo, setGrupoActivo, conGrupo } from "@/lib/clase";
+import { setGrupoActivo, getGrupoActivo, conGrupo } from "@/lib/clase";
+import { useRetoActivo } from "@/lib/retoContext";
+import RetoActivo from "@/components/RetoActivo";
 import { useLanguage } from "@/lib/i18n";
 import ErrorState from "@/components/ErrorState";
 
@@ -59,6 +61,7 @@ const COLORES_DONUT = ["#ff6600", "#0077b6", "#6d28d9", "#0096a0", "#cc5200", "#
 
 export default function PortafolioPage() {
   const { t } = useLanguage();
+  const { reto: retoActivo } = useRetoActivo();
   const [portafolio, setPortafolio] = useState<Portafolio | null>(null);
   const [ordenes, setOrdenes] = useState<Orden[]>([]);
   const [historialValor, setHistorialValor] = useState<PuntoValor[]>([]);
@@ -131,6 +134,8 @@ export default function PortafolioPage() {
     const interval = setInterval(() => cargar(grupoId), 10000);
     return () => clearInterval(interval);
   }, [grupoId]);
+
+  if (retoActivo) return <RetoActivo retoId={retoActivo.id} />;
 
   if (error) {
     return (

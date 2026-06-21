@@ -11,6 +11,8 @@ import { Badge, Card } from "@/components/primitives";
 import { api, ApiError } from "@/lib/api";
 import { obtenerSesion } from "@/lib/auth";
 import { getGrupoActivo, setGrupoActivo, conGrupo } from "@/lib/clase";
+import { useRetoActivo } from "@/lib/retoContext";
+import RetoActivo from "@/components/RetoActivo";
 import { useLanguage } from "@/lib/i18n";
 
 interface PrecioResponse {
@@ -271,6 +273,7 @@ export default function OperarPage() {
 
 function OperarPageInterna() {
   const { t, lang } = useLanguage();
+  const { reto: retoActivo } = useRetoActivo();
   const searchParams = useSearchParams();
   const [ticker, setTicker] = useState("");
   const [precio, setPrecio] = useState<string | null>(null);
@@ -601,6 +604,8 @@ function OperarPageInterna() {
     .filter((d) => d.cambio_porcentaje < 0)
     .sort((a, b) => a.cambio_porcentaje - b.cambio_porcentaje)
     .slice(0, 5);
+
+  if (retoActivo) return <RetoActivo retoId={retoActivo.id} />;
 
   return (
     <main className="min-h-screen bg-canvas">

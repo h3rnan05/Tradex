@@ -534,6 +534,14 @@ export const en = {
   "maestro.retos.none":           "No challenges in this group yet.",
   "maestro.retos.incomplete":     "Fill in name, dates and at least one asset.",
   "maestro.retos.created":        "Challenge created.",
+  "maestro.retos.modeLive":       "Live assets",
+  "maestro.retos.modeCrisis":     "Crisis simulation",
+  "maestro.retos.scenario":       "Historical scenario",
+  "maestro.retos.scenarioHint":   "Prices replay the real event data, compressed into the challenge duration.",
+  "maestro.retos.pickScenario":   "Pick a scenario",
+  "retoMode.banner":              "Challenge in progress",
+  "retoMode.live":                "Live challenge",
+  "retoMode.ends":                "ends in",
 
   // ── Plantillas extras ──────────────────────────────────────────
   "templates.desc":       "Choose a template and your available capital will be distributed among the suggested assets according to the defined percentages.",

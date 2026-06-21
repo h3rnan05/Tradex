@@ -8,6 +8,8 @@ import { Badge, Card, formatoMoneda } from "@/components/primitives";
 import { api, ApiError } from "@/lib/api";
 import { obtenerSesion } from "@/lib/auth";
 import { conGrupo } from "@/lib/clase";
+import { useRetoActivo } from "@/lib/retoContext";
+import RetoActivo from "@/components/RetoActivo";
 import { useLanguage } from "@/lib/i18n";
 
 interface Orden {
@@ -22,6 +24,7 @@ interface Orden {
 
 export default function HistorialPage() {
   const { t } = useLanguage();
+  const { reto: retoActivo } = useRetoActivo();
   const [ordenes, setOrdenes] = useState<Orden[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [expandido, setExpandido] = useState<string | null>(null);
@@ -34,6 +37,8 @@ export default function HistorialPage() {
       .then(setOrdenes)
       .catch((err) => setError(err instanceof ApiError ? err.message : "Error al cargar el historial"));
   }, []);
+
+  if (retoActivo) return <RetoActivo retoId={retoActivo.id} />;
 
   return (
     <main className="min-h-screen bg-canvas">

@@ -16,20 +16,33 @@ interface Reto {
   capital_inicial: string;
 }
 
+interface Escenario {
+  id: string;
+  nombre: string;
+  descripcion: string;
+  tickers_sugeridos: string[];
+}
+
+type Modo = "live" | "crisis";
+
 /**
- * Panel del maestro para crear y listar retos temáticos del grupo:
- * un período + una lista de activos permitidos. Gana quien termine con
- * más dinero operando solo esos activos (sandbox con capital virtual).
+ * Panel del maestro para crear y listar retos del grupo. Dos modos:
+ * - "live": lista de activos en vivo (gana quien más dinero haga operándolos).
+ * - "crisis": un escenario histórico (COVID, 2008, puntocom...) cuyos precios
+ *   se reproducen comprimidos en la duración del reto.
  */
 export default function PanelRetosMaestro({ grupoId }: { grupoId: string }) {
   const { t } = useLanguage();
   const { toast } = useToast();
   const [retos, setRetos] = useState<Reto[] | null>(null);
+  const [escenarios, setEscenarios] = useState<Escenario[]>([]);
+  const [modo, setModo] = useState<Modo>("live");
   const [nombre, setNombre] = useState("");
   const [inicio, setInicio] = useState("");
   const [fin, setFin] = useState("");
   const [capital, setCapital] = useState("10000");
   const [tickers, setTickers] = useState("");
+  const [escenarioId, setEscenarioId] = useState("");
   const [guardando, setGuardando] = useState(false);
 
   function cargar() {
@@ -37,11 +50,15 @@ export default function PanelRetosMaestro({ grupoId }: { grupoId: string }) {
   }
 
   useEffect(cargar, [grupoId]);
+  useEffect(() => {
+    api.get<Escenario[]>("/precios/escenarios").then(setEscenarios).catch(() => setEscenarios([]));
+  }, []);
 
   async function crear(e: React.FormEvent) {
     e.preventDefault();
     const activos = tickers.split(",").map((x) => x.trim()).filter(Boolean);
-    if (!nombre.trim() || !inicio || !fin || activos.length === 0) {
+    const baseOk = nombre.trim() && inicio && fin;
+    if (!baseOk || (modo === "live" && activos.length === 0) || (modo === "crisis" && !escenarioId)) {
       toast(t("maestro.retos.incomplete"), "error");
       return;
     }
@@ -52,10 +69,10 @@ export default function PanelRetosMaestro({ grupoId }: { grupoId: string }) {
         fecha_inicio: new Date(inicio).toISOString(),
         fecha_fin: new Date(fin).toISOString(),
         capital_inicial: capital,
-        activos_permitidos: activos,
+        ...(modo === "live" ? { activos_permitidos: activos } : { escenario_id: escenarioId }),
       });
       toast(t("maestro.retos.created"), "success");
-      setNombre(""); setInicio(""); setFin(""); setTickers(""); setCapital("10000");
+      setNombre(""); setInicio(""); setFin(""); setTickers(""); setEscenarioId(""); setCapital("10000");
       cargar();
     } catch (err) {
       toast(err instanceof ApiError ? err.message : t("common.error"), "error");
@@ -76,6 +93,23 @@ export default function PanelRetosMaestro({ grupoId }: { grupoId: string }) {
       {/* Crear reto */}
       <form onSubmit={crear} className="border border-fg/10 bg-panel p-4">
         <h3 className="mb-3 font-mono text-[11px] uppercase tracking-widest text-fg/40">{t("maestro.retos.newChallenge")}</h3>
+
+        {/* Toggle de modo */}
+        <div className="mb-4 flex gap-1">
+          {(["live", "crisis"] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => setModo(m)}
+              className={`flex-1 px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider ${
+                modo === m ? "bg-accent text-black" : "border border-fg/20 text-fg/60 hover:text-fg"
+              }`}
+            >
+              {m === "live" ? t("maestro.retos.modeLive") : t("maestro.retos.modeCrisis")}
+            </button>
+          ))}
+        </div>
+
         <label className="mb-1 block font-mono text-[10px] uppercase tracking-wider text-fg/50">{t("maestro.retos.name")}</label>
         <input
           value={nombre}
@@ -95,14 +129,35 @@ export default function PanelRetosMaestro({ grupoId }: { grupoId: string }) {
         </div>
         <label className="mb-1 block font-mono text-[10px] uppercase tracking-wider text-fg/50">{t("maestro.retos.capital")}</label>
         <input type="number" min="1" value={capital} onChange={(e) => setCapital(e.target.value)} className="mb-3 w-full border border-fg/20 bg-canvas px-3 py-2 text-sm focus:border-accent focus:outline-none" />
-        <label className="mb-1 block font-mono text-[10px] uppercase tracking-wider text-fg/50">{t("maestro.retos.assets")}</label>
-        <input
-          value={tickers}
-          onChange={(e) => setTickers(e.target.value)}
-          placeholder="AAPL, BABA, BTC-USD"
-          className="mb-1 w-full border border-fg/20 bg-canvas px-3 py-2 font-mono text-sm focus:border-accent focus:outline-none"
-        />
-        <p className="mb-3 font-mono text-[10px] text-fg/40">{t("maestro.retos.assetsHint")}</p>
+        {modo === "live" ? (
+          <>
+            <label className="mb-1 block font-mono text-[10px] uppercase tracking-wider text-fg/50">{t("maestro.retos.assets")}</label>
+            <input
+              value={tickers}
+              onChange={(e) => setTickers(e.target.value)}
+              placeholder="AAPL, BABA, BTC-USD"
+              className="mb-1 w-full border border-fg/20 bg-canvas px-3 py-2 font-mono text-sm focus:border-accent focus:outline-none"
+            />
+            <p className="mb-3 font-mono text-[10px] text-fg/40">{t("maestro.retos.assetsHint")}</p>
+          </>
+        ) : (
+          <>
+            <label className="mb-1 block font-mono text-[10px] uppercase tracking-wider text-fg/50">{t("maestro.retos.scenario")}</label>
+            <select
+              value={escenarioId}
+              onChange={(e) => setEscenarioId(e.target.value)}
+              className="mb-1 w-full border border-fg/20 bg-canvas px-3 py-2 text-sm focus:border-accent focus:outline-none"
+            >
+              <option value="">{t("maestro.retos.pickScenario")}</option>
+              {escenarios.map((e) => (
+                <option key={e.id} value={e.id}>{e.nombre}</option>
+              ))}
+            </select>
+            <p className="mb-3 font-mono text-[10px] text-fg/40">
+              {escenarios.find((e) => e.id === escenarioId)?.descripcion ?? t("maestro.retos.scenarioHint")}
+            </p>
+          </>
+        )}
         <button type="submit" disabled={guardando} className="w-full bg-accent px-4 py-2 font-mono text-sm font-bold uppercase tracking-wide text-black hover:opacity-90 disabled:opacity-50">
           {t("maestro.retos.create")}
         </button>

@@ -534,6 +534,14 @@ export const es = {
   "maestro.retos.none":           "Aún no hay retos en este grupo.",
   "maestro.retos.incomplete":     "Completa nombre, fechas y al menos un activo.",
   "maestro.retos.created":        "Reto creado.",
+  "maestro.retos.modeLive":       "Activos en vivo",
+  "maestro.retos.modeCrisis":     "Simulación de crisis",
+  "maestro.retos.scenario":       "Escenario histórico",
+  "maestro.retos.scenarioHint":   "Los precios reproducen datos reales del evento, comprimidos en la duración del reto.",
+  "maestro.retos.pickScenario":   "Elige un escenario",
+  "retoMode.banner":              "Reto en curso",
+  "retoMode.live":                "Reto en vivo",
+  "retoMode.ends":                "termina en",
 
   // ── Plantillas extras ──────────────────────────────────────────
   "templates.desc":       "Elige una plantilla y se distribuirá tu capital disponible entre los activos sugeridos según los porcentajes definidos.",
