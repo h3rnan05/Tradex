@@ -147,6 +147,19 @@ interface NoticiasTicker {
   noticias: Noticia[];
 }
 
+interface Sector {
+  sector: string;
+  cambio_porcentaje: number | null;
+}
+
+interface Earning {
+  fecha: string;
+  ticker: string;
+  empresa: string;
+  momento: string | null;
+  eps_estimado: number | null;
+}
+
 const MAX_TICKERS_DIARIO = 5;
 
 interface ActivoProximo {
@@ -286,6 +299,8 @@ function OperarPageInterna() {
   const [cargandoCat, setCargandoCat] = useState(false);
   const [sugerenciasAbiertas, setSugerenciasAbiertas] = useState(false);
   const [grupoId, setGrupoId] = useState<string | null>(null);
+  const [sectores, setSectores] = useState<Sector[]>([]);
+  const [earnings, setEarnings] = useState<Earning[]>([]);
 
   useEffect(() => {
     const sesion = obtenerSesion();
@@ -294,14 +309,18 @@ function OperarPageInterna() {
     Promise.all([
       api.get<Destacado[]>("/precios/destacados").catch(() => [] as Destacado[]),
       api.get<NoticiasGeneralesResponse>("/precios/noticias-generales").catch(() => ({ noticias: [] })),
+      api.get<Sector[]>("/precios/sectores").catch(() => [] as Sector[]),
+      api.get<Earning[]>("/precios/earnings-calendar").catch(() => [] as Earning[]),
       api.get<OrdenPendiente[]>("/ordenes-limite").catch(() => [] as OrdenPendiente[]),
       api.get<Alerta[]>("/ordenes-limite/alertas").catch(() => [] as Alerta[]),
       sesion
         ? api.get<Portafolio>(`/alumnos/${sesion.userId}/portafolio`).catch(() => null)
         : Promise.resolve(null),
-    ]).then(([dest, notiGen, ordenes, alertasData, portafolio]) => {
+    ]).then(([dest, notiGen, sect, earn, ordenes, alertasData, portafolio]) => {
       setDestacados(dest);
       setNoticiasGenerales(notiGen.noticias);
+      setSectores(sect);
+      setEarnings(earn);
       setOrdenesPendientes(ordenes);
       setAlertas(alertasData);
       if (portafolio) {
@@ -1230,6 +1249,31 @@ function OperarPageInterna() {
                       })}
                     </ul>
                   )}
+
+                  {/* Calendario de resultados */}
+                  {earnings.length > 0 && (
+                    <section className="mt-6">
+                      <h2 className="bg-[#1a1a1a] px-2 py-1 text-center font-serif text-xs font-black uppercase tracking-[0.2em] text-[#f4f1ea]">
+                        {t("news.earningsTitle")}
+                      </h2>
+                      <ul className="mt-1 divide-y divide-[#1a1a1a]/15">
+                        {earnings.slice(0, 8).map((e) => (
+                          <li key={`${e.ticker}-${e.fecha}`}>
+                            <button onClick={() => buscar(e.ticker)} className="flex w-full items-center justify-between gap-2 py-2 text-left hover:bg-[#1a1a1a]/5">
+                              <span className="flex min-w-0 flex-col">
+                                <span className="font-serif text-sm font-bold">{e.ticker}</span>
+                                <span className="truncate font-mono text-[10px] text-[#1a1a1a]/55">{e.empresa}</span>
+                              </span>
+                              <span className="flex shrink-0 flex-col items-end">
+                                <span className="font-serif text-xs font-bold uppercase">{fechaCortaDiario(e.fecha)}</span>
+                                {e.momento && <span className="font-mono text-[9px] uppercase text-[#1a1a1a]/50">{e.momento}</span>}
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  )}
                 </aside>
 
                 {/* Centro: editorial */}
@@ -1368,6 +1412,36 @@ function OperarPageInterna() {
                       );
                     })}
                   </ul>
+
+                  {/* Sectores del mercado */}
+                  {sectores.length > 0 && (
+                    <section className="mt-6">
+                      <h2 className="bg-[#1a1a1a] px-2 py-1 text-center font-serif text-xs font-black uppercase tracking-[0.2em] text-[#f4f1ea]">
+                        {t("news.sectorsTitle")}
+                      </h2>
+                      <ul>
+                        {sectores.map((s, i) => {
+                          const v = s.cambio_porcentaje;
+                          const sube = (v ?? 0) >= 0;
+                          return (
+                            <li
+                              key={s.sector}
+                              className={`flex items-center justify-between px-1 py-1.5 ${i % 2 === 1 ? "bg-[#1a1a1a]/[0.035]" : ""}`}
+                            >
+                              <span className="truncate pr-2 font-serif text-sm">{s.sector}</span>
+                              {v === null ? (
+                                <span className="font-mono text-xs text-[#1a1a1a]/40">—</span>
+                              ) : (
+                                <span className={`shrink-0 font-mono text-xs font-bold tabular-nums ${sube ? "text-[#007a2e]" : "text-[#c0271a]"}`}>
+                                  {sube ? "▲" : "▼"}{Math.abs(v).toFixed(2)}%
+                                </span>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </section>
+                  )}
                 </aside>
               </div>
             )}

@@ -640,6 +640,8 @@ export const en = {
   "news.edition":           "Investor's Edition",
   "news.frontPage":         "Market Front Page",
   "news.leadStory":         "Lead story",
+  "news.earningsTitle":     "Earnings calendar",
+  "news.sectorsTitle":      "Sectors today",
   "news.moversTitle":       "How the market closed today",
   "news.gainers":           "Top gainers",
   "news.losers":            "Top losers",

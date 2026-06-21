@@ -640,6 +640,8 @@ export const es = {
   "news.edition":           "Edición del Inversionista",
   "news.frontPage":         "Portada del Mercado",
   "news.leadStory":         "Nota de portada",
+  "news.earningsTitle":     "Calendario de resultados",
+  "news.sectorsTitle":      "Sectores hoy",
   "news.moversTitle":       "Cómo cerró el mercado hoy",
   "news.gainers":           "Las que más subieron",
   "news.losers":            "Las que más bajaron",
