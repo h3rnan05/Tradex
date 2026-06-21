@@ -1168,17 +1168,23 @@ function OperarPageInterna() {
           /* ── Landing: portada completa Tradex Times ── */
           <div className="border border-fg/15 bg-[#f4f1ea] p-4 text-[#1a1a1a] shadow-sm sm:p-7">
             {/* Masthead a todo lo ancho */}
-            <header className="border-b-4 border-double border-[#1a1a1a] pb-0 text-center">
-              <div className="flex items-center justify-between font-serif text-[10px] uppercase tracking-wide text-[#1a1a1a]/70">
-                <span>{t("news.edition")}</span>
-                <span className="hidden sm:inline">{t("news.tagline")}</span>
+            <header className="text-center">
+              {/* Filete superior doble */}
+              <div className="mb-1 border-t-4 border-double border-[#1a1a1a]" />
+              <div className="flex items-center justify-between border-b border-[#1a1a1a]/30 pb-1 font-serif text-[10px] uppercase tracking-[0.15em] text-[#1a1a1a]/70">
+                <span className="hidden sm:inline">{t("news.edition")}</span>
                 <span className="capitalize">{hoy}</span>
+                <span className="font-bold">$0.00 · MXN</span>
               </div>
-              <h1 className="mt-2 font-serif text-5xl font-black uppercase leading-none tracking-tight sm:text-7xl">
+              <h1 className="mt-3 font-serif text-5xl font-black uppercase leading-[0.85] tracking-[0.02em] sm:text-8xl">
                 {t("news.masthead")}
               </h1>
-              {/* Barra de índices integrada debajo del título */}
-              <div className="mt-2 border-t border-[#1a1a1a]/25">
+              <p className="mt-2 font-serif text-[11px] italic tracking-wide text-[#1a1a1a]/60 sm:text-sm">
+                {t("news.tagline")}
+              </p>
+              {/* Filete inferior doble + barra de índices */}
+              <div className="mt-3 border-t-4 border-double border-[#1a1a1a]" />
+              <div className="border-t border-[#1a1a1a]/20">
                 <BarraIndices onSeleccionar={buscar} variante="periodico" />
               </div>
             </header>
@@ -1190,7 +1196,7 @@ function OperarPageInterna() {
 
                 {/* Riel izquierdo: tu cartera */}
                 <aside className="lg:col-span-3 lg:border-r lg:border-[#1a1a1a]/25 lg:pr-5">
-                  <h2 className="border-b-2 border-[#1a1a1a] pb-1 font-serif text-sm font-black uppercase tracking-widest">
+                  <h2 className="bg-[#1a1a1a] px-2 py-1 text-center font-serif text-xs font-black uppercase tracking-[0.2em] text-[#f4f1ea]">
                     {t("trade.myPortfolio")}
                   </h2>
                   {capitalDisponible !== null && (
@@ -1236,26 +1242,29 @@ function OperarPageInterna() {
                       rel="noopener noreferrer"
                       className="group block border-b-2 border-[#1a1a1a] pb-5"
                     >
+                      <p className="mb-2 text-center font-serif text-[10px] uppercase tracking-[0.25em] text-[#ff6600]">
+                        ★ {t("news.leadStory")} ★
+                      </p>
+                      <h2 className="dropcap font-serif text-4xl font-black leading-[1.02] tracking-tight group-hover:text-[#ff6600] sm:text-5xl">
+                        {noticiasGenerales[0].titulo}
+                      </h2>
+                      <p className="mt-3 font-serif text-[11px] uppercase tracking-[0.12em] text-[#1a1a1a]/55">
+                        {noticiasGenerales[0].fuente} · {fechaCortaDiario(noticiasGenerales[0].fecha)}
+                      </p>
                       {noticiasGenerales[0].imagen && (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={noticiasGenerales[0].imagen}
                           alt=""
-                          className="mb-3 aspect-[16/9] w-full border border-[#1a1a1a]/20 object-cover grayscale transition group-hover:grayscale-0"
+                          className="mt-3 aspect-[21/9] w-full border border-[#1a1a1a]/20 object-cover grayscale transition duration-500 group-hover:grayscale-0"
                         />
                       )}
-                      <h2 className="font-serif text-3xl font-black leading-tight tracking-tight group-hover:text-[#ff6600]">
-                        {noticiasGenerales[0].titulo}
-                      </h2>
-                      <p className="mt-2 font-serif text-[11px] uppercase tracking-wide text-[#1a1a1a]/55">
-                        {noticiasGenerales[0].fuente} · {fechaCortaDiario(noticiasGenerales[0].fecha)}
-                      </p>
                     </a>
                   )}
 
                   {/* Movers */}
                   <section className="mt-5 border-b-2 border-[#1a1a1a] pb-5">
-                    <h2 className="mb-3 text-center font-serif text-lg font-bold uppercase tracking-wide">{t("news.moversTitle")}</h2>
+                    <h2 className="mb-3 bg-[#1a1a1a] px-2 py-1 text-center font-serif text-sm font-black uppercase tracking-[0.2em] text-[#f4f1ea]">{t("news.moversTitle")}</h2>
                     <div className="grid gap-4 sm:grid-cols-2">
                       <DiarioMovers titulo={t("news.gainers")} items={gainers} onSel={buscar} />
                       <DiarioMovers titulo={t("news.losers")} items={losers} onSel={buscar} />
@@ -1265,9 +1274,9 @@ function OperarPageInterna() {
                   {/* Tus posiciones en las noticias */}
                   {noticiasPorTicker.length > 0 && (
                     <section className="mt-6">
-                      <div className="border-y border-[#1a1a1a]/40 py-1 text-center">
-                        <h2 className="font-serif text-xl font-black uppercase tracking-tight">{t("news.yourPositions")}</h2>
-                        <p className="font-serif text-[10px] italic text-[#1a1a1a]/60">{t("news.yourPositionsDesc")}</p>
+                      <div className="text-center">
+                        <h2 className="bg-[#1a1a1a] px-2 py-1 font-serif text-sm font-black uppercase tracking-[0.2em] text-[#f4f1ea]">{t("news.yourPositions")}</h2>
+                        <p className="mt-1 font-serif text-[10px] italic text-[#1a1a1a]/60">{t("news.yourPositionsDesc")}</p>
                       </div>
                       <div className="mt-4 space-y-5">
                         {noticiasPorTicker.map((bloque) => (
@@ -1295,8 +1304,8 @@ function OperarPageInterna() {
                   {/* Más titulares */}
                   {noticiasGenerales.length > 1 && (
                     <section className="mt-6">
-                      <div className="border-y border-[#1a1a1a]/40 py-1 text-center">
-                        <h2 className="font-serif text-xl font-black uppercase tracking-tight">{t("news.generalNews")}</h2>
+                      <div className="text-center">
+                        <h2 className="bg-[#1a1a1a] px-2 py-1 font-serif text-sm font-black uppercase tracking-[0.2em] text-[#f4f1ea]">{t("news.generalNews")}</h2>
                       </div>
                       <div className="mt-4 columns-1 gap-5 sm:columns-2 [column-fill:_balance]">
                         {noticiasGenerales.slice(1).map((n, i) => (
@@ -1311,7 +1320,7 @@ function OperarPageInterna() {
 
                 {/* Riel derecho: explorador de mercados */}
                 <aside className="lg:col-span-3">
-                  <h2 className="border-b-2 border-[#1a1a1a] pb-1 font-serif text-sm font-black uppercase tracking-widest">
+                  <h2 className="bg-[#1a1a1a] px-2 py-1 text-center font-serif text-xs font-black uppercase tracking-[0.2em] text-[#f4f1ea]">
                     {t("trade.explorer")}
                   </h2>
                   {categoriasVisibles.length > 1 && (
@@ -1380,25 +1389,35 @@ function DiarioMovers({
   onSel: (t: string) => void;
 }) {
   return (
-    <div className="border border-[#1a1a1a]/30 p-3">
-      <h3 className="mb-2 border-b border-[#1a1a1a]/30 pb-1 font-serif text-sm font-bold uppercase tracking-wider">{titulo}</h3>
-      <ul className="divide-y divide-[#1a1a1a]/10">
-        {items.length === 0 && <li className="py-2 font-serif text-sm italic text-[#1a1a1a]/40">—</li>}
-        {items.map((m) => {
+    <div className="border border-[#1a1a1a]/40">
+      <h3 className="border-b border-[#1a1a1a]/40 bg-[#1a1a1a]/[0.06] px-2 py-1 font-serif text-xs font-black uppercase tracking-[0.18em]">
+        {titulo}
+      </h3>
+      {/* Encabezado de columnas tipo tabla bursátil */}
+      <div className="flex items-center justify-between border-b border-[#1a1a1a]/20 px-2 py-1 font-mono text-[9px] uppercase tracking-wider text-[#1a1a1a]/45">
+        <span>Sím.</span>
+        <span className="flex gap-4">
+          <span className="w-16 text-right">Últ.</span>
+          <span className="w-16 text-right">Var.</span>
+        </span>
+      </div>
+      <ul>
+        {items.length === 0 && <li className="px-2 py-2 font-serif text-sm italic text-[#1a1a1a]/40">—</li>}
+        {items.map((m, i) => {
           const sube = m.cambio_porcentaje >= 0;
           return (
-            <li key={m.ticker}>
+            <li key={m.ticker} className={i % 2 === 1 ? "bg-[#1a1a1a]/[0.035]" : ""}>
               <button
                 onClick={() => onSel(m.ticker)}
-                className="flex w-full items-center justify-between py-1.5 text-left hover:bg-[#1a1a1a]/5"
+                className="flex w-full items-center justify-between px-2 py-1.5 text-left transition-colors hover:bg-[#ff6600]/10"
               >
                 <span className="font-serif text-sm font-bold">
                   {m.ticker.replace("-USD", "").replace("=X", "").replace(".MX", "")}
                 </span>
-                <span className="flex items-center gap-2">
-                  <span className="font-mono text-xs text-[#1a1a1a]/70">${Number(m.precio).toFixed(2)}</span>
-                  <span className={`font-mono text-xs font-bold ${sube ? "text-[#007a2e]" : "text-[#c0271a]"}`}>
-                    {sube ? "▲" : "▼"} {Math.abs(m.cambio_porcentaje).toFixed(2)}%
+                <span className="flex gap-4">
+                  <span className="w-16 text-right font-mono text-xs tabular-nums text-[#1a1a1a]/70">${Number(m.precio).toFixed(2)}</span>
+                  <span className={`w-16 text-right font-mono text-xs font-bold tabular-nums ${sube ? "text-[#007a2e]" : "text-[#c0271a]"}`}>
+                    {sube ? "▲" : "▼"}{Math.abs(m.cambio_porcentaje).toFixed(2)}%
                   </span>
                 </span>
               </button>

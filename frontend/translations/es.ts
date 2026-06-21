@@ -639,6 +639,7 @@ export const es = {
   "news.tagline":           "Money talks, we translate",
   "news.edition":           "Edición del Inversionista",
   "news.frontPage":         "Portada del Mercado",
+  "news.leadStory":         "Nota de portada",
   "news.moversTitle":       "Cómo cerró el mercado hoy",
   "news.gainers":           "Las que más subieron",
   "news.losers":            "Las que más bajaron",
