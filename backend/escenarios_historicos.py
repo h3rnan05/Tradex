@@ -98,3 +98,30 @@ def precio_simulado(ticker: str, escenario_id: str, fecha_inicio_reto: datetime,
     indice = int(progreso * (len(historial) - 1))
     indice = max(0, min(indice, len(historial) - 1))
     return Decimal(str(historial[indice]["precio"]))
+
+
+def precio_y_cambio_simulado(
+    ticker: str, escenario_id: str, fecha_inicio_reto: datetime, fecha_fin_reto: datetime
+) -> tuple[Decimal, float]:
+    """Precio simulado actual del ticker y su variacion porcentual acumulada
+    desde el inicio del reto. Sirve para el ticker de crisis: muestra cuanto
+    ha caido (o subido) cada activo conforme avanza el escenario."""
+    historial = _historial_escenario(escenario_id, ticker)
+    if not historial:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"No hay datos historicos de {ticker} para este escenario",
+        )
+
+    ahora = datetime.now(timezone.utc)
+    duracion = (fecha_fin_reto - fecha_inicio_reto).total_seconds()
+    progreso = (ahora - fecha_inicio_reto).total_seconds() / duracion if duracion > 0 else 1
+    progreso = max(0.0, min(1.0, progreso))
+
+    indice = int(progreso * (len(historial) - 1))
+    indice = max(0, min(indice, len(historial) - 1))
+
+    precio = Decimal(str(historial[indice]["precio"]))
+    precio_inicial = Decimal(str(historial[0]["precio"]))
+    cambio = float((precio - precio_inicial) / precio_inicial * 100) if precio_inicial else 0.0
+    return precio, cambio

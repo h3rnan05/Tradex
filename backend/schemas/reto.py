@@ -75,6 +75,12 @@ class RetoEstadoOut(BaseModel):
     progreso_porcentaje: float
 
 
+class RetoMercadoEntry(BaseModel):
+    ticker: str
+    precio: Decimal
+    cambio_porcentaje: float
+
+
 class RetoRankingEntry(BaseModel):
     alumno_id: uuid.UUID
     nombre: str

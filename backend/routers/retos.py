@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from auth_utils import get_current_user, require_alumno, require_maestro
 from database import get_db
-from escenarios_historicos import obtener_escenario, precio_simulado
+from escenarios_historicos import obtener_escenario, precio_simulado, precio_y_cambio_simulado
 from insignias_engine import _otorgar
 from models.grupo import Grupo
 from models.membership import Membership
@@ -17,6 +17,7 @@ from schemas.reto import (
     RetoCreate,
     RetoEstadoOut,
     RetoHoldingOut,
+    RetoMercadoEntry,
     RetoOrdenCreate,
     RetoOrdenOut,
     RetoOut,
@@ -239,6 +240,37 @@ def ordenes_reto(reto_id: str, db: Session = Depends(get_db), alumno: User = Dep
         .order_by(RetoOrden.timestamp.desc())
         .all()
     )
+
+
+@router.get("/retos/{reto_id}/mercado", response_model=list[RetoMercadoEntry])
+def mercado_reto(reto_id: str, db: Session = Depends(get_db), alumno: User = Depends(require_alumno)):
+    """Estado del mercado dentro del reto: para cada activo operable devuelve su
+    precio actual y la variacion acumulada desde el inicio. Alimenta el ticker
+    inmersivo que tiñe la pantalla de rojo cuando el escenario es una crisis."""
+    reto = db.query(Reto).filter(Reto.id == reto_id).first()
+    if not reto:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reto no encontrado")
+    _participante(db, reto, alumno)
+
+    entradas: list[RetoMercadoEntry] = []
+    if reto.activos_permitidos:
+        for ticker in _activos_lista(reto):
+            try:
+                precio = obtener_precio_actual(ticker)
+            except Exception:
+                continue
+            entradas.append(RetoMercadoEntry(ticker=ticker, precio=precio, cambio_porcentaje=0.0))
+    elif reto.escenario_id:
+        escenario = obtener_escenario(reto.escenario_id)
+        for ticker in escenario["tickers_sugeridos"]:
+            try:
+                precio, cambio = precio_y_cambio_simulado(
+                    ticker, reto.escenario_id, reto.fecha_inicio, reto.fecha_fin
+                )
+            except Exception:
+                continue
+            entradas.append(RetoMercadoEntry(ticker=ticker, precio=precio, cambio_porcentaje=cambio))
+    return entradas
 
 
 @router.post("/retos/{reto_id}/comprar", response_model=RetoOrdenOut, status_code=status.HTTP_201_CREATED)

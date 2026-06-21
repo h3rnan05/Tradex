@@ -57,6 +57,12 @@ interface RetoOrden {
   timestamp: string;
 }
 
+interface MercadoEntry {
+  ticker: string;
+  precio: string;
+  cambio_porcentaje: number;
+}
+
 function limpiar(t: string) {
   return t.replace("-USD", "").replace("=X", "").replace(".MX", "");
 }
@@ -72,6 +78,7 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
   const [escenario, setEscenario] = useState<Escenario | null>(null);
   const [ranking, setRanking] = useState<RankingEntry[]>([]);
   const [ordenes, setOrdenes] = useState<RetoOrden[]>([]);
+  const [mercado, setMercado] = useState<MercadoEntry[]>([]);
   const [ticker, setTicker] = useState<string | null>(null);
   const [cantidad, setCantidad] = useState("1");
   const [error, setError] = useState<string | null>(null);
@@ -91,14 +98,19 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
   function cargarOrdenes() {
     api.get<RetoOrden[]>(`/retos/${retoId}/ordenes`).then(setOrdenes).catch(() => {});
   }
+  function cargarMercado() {
+    api.get<MercadoEntry[]>(`/retos/${retoId}/mercado`).then(setMercado).catch(() => {});
+  }
 
   useEffect(() => {
     cargarEstado();
     cargarRanking();
     cargarOrdenes();
+    cargarMercado();
     const interval = setInterval(() => {
       cargarEstado();
       cargarRanking();
+      cargarMercado();
     }, 5000);
     return () => clearInterval(interval);
   }, [retoId]);
@@ -141,6 +153,12 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
     );
   }
 
+  const esCrisis = !!estado.reto.escenario_id;
+  const cambioPromedio =
+    mercado.length > 0 ? mercado.reduce((acc, m) => acc + m.cambio_porcentaje, 0) / mercado.length : 0;
+  // Mercado en caida libre: tiñe la interfaz de rojo para transmitir el crash.
+  const enCaida = esCrisis && cambioPromedio <= -2.5;
+
   const terminado = estado.progreso_porcentaje >= 100;
   const fin = new Date(estado.reto.fecha_fin).getTime();
   const restanteMs = fin - Date.now();
@@ -151,10 +169,15 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
   return (
     <main className="min-h-screen bg-canvas">
       <Navbar />
+
       <div className="mx-auto max-w-6xl p-4 md:p-6">
         {/* Encabezado del reto */}
         <div className="mb-2 flex flex-wrap items-center gap-3">
-          <span className="font-mono text-[11px] uppercase tracking-widest text-accent">● {t("retoMode.live")}</span>
+          <span
+            className={`font-mono text-[11px] uppercase tracking-widest ${enCaida ? "text-perdida" : "text-accent"}`}
+          >
+            ● {enCaida ? t("challenge.crashLive") : t("retoMode.live")}
+          </span>
           <h1 className="text-2xl font-bold text-fg">{estado.reto.nombre}</h1>
           <Badge tone={terminado ? "perdida" : "ganancia"}>
             {terminado ? t("challenge.finished") : `${t("retoMode.ends")} ${restante}`}
@@ -167,6 +190,23 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
             ? `${t("challenge.scenario")}: ${escenario.nombre} — ${escenario.descripcion}`
             : ""}
         </p>
+
+        {/* Indicador de mercado en crisis */}
+        {esCrisis && mercado.length > 0 && (
+          <div
+            className={`mb-4 flex items-center gap-3 border-l-2 px-4 py-2 ${
+              enCaida ? "border-perdida bg-perdida/10" : "border-fg/20 bg-fg/5"
+            }`}
+          >
+            <span className={`text-lg font-bold ${cambioPromedio < 0 ? "text-perdida" : "text-ganancia"}`}>
+              {cambioPromedio >= 0 ? "▲" : "▼"} {cambioPromedio >= 0 ? "+" : ""}
+              {cambioPromedio.toFixed(2)}%
+            </span>
+            <span className="font-mono text-[11px] uppercase tracking-wider text-fg/50">
+              {enCaida ? t("challenge.crashAlert") : t("challenge.marketSince")}
+            </span>
+          </div>
+        )}
 
         {/* Barra de progreso */}
         <div className="mb-6 h-1.5 w-full bg-fg/10">
