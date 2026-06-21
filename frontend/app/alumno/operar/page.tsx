@@ -489,6 +489,7 @@ function OperarPageInterna() {
         ticker: ticker.trim().toUpperCase(),
         precio_objetivo: precioAlerta,
         condicion: condicionAlerta,
+        grupo_id: grupoId,
       });
       setAlertas((prev) => [nueva, ...prev]);
       setPrecioAlerta("");

@@ -31,6 +31,7 @@ class AlertaCreate(BaseModel):
     ticker: str
     precio_objetivo: Decimal
     condicion: str  # "gte" | "lte"
+    grupo_id: uuid.UUID | None = None  # clase activa, para otorgar la insignia por grupo
 
 
 def _procesar_ordenes_pendientes(db: Session, alumno: User) -> list[OrdenPendiente]:
@@ -237,7 +238,7 @@ def crear_alerta(payload: AlertaCreate, db: Session = Depends(get_db), alumno: U
     db.refresh(alerta)
     try:
         from insignias_engine import _otorgar
-        if _otorgar(db, alumno.id, None, "alerta_puesta"):
+        if _otorgar(db, alumno.id, payload.grupo_id, "alerta_puesta"):
             db.commit()
     except Exception:
         pass

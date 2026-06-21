@@ -98,6 +98,8 @@ def mis_insignias(
 ):
     evaluar_y_otorgar_insignias(db, alumno.id, grupo_id)
     q = db.query(InsigniaAlumno).filter(InsigniaAlumno.alumno_id == alumno.id)
+    if grupo_id:
+        q = q.filter(InsigniaAlumno.grupo_id == grupo_id)
     insignias = q.all()
     return [
         {
