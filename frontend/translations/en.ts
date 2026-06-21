@@ -262,6 +262,10 @@ export const en = {
   "ranking.totalValue": "Total value",
   "ranking.return":   "Return",
   "ranking.you":      "You",
+  "ranking.byMoney":  "By money",
+  "ranking.byBadges": "By badges",
+  "ranking.badges":   "Badges",
+  "ranking.points":   "Points",
   "ranking.noData":   "No ranking data available.",
 
   // ── Markets ───────────────────────────────────────────────────
