@@ -10,6 +10,7 @@ import ComentariosMaestro from "@/components/ComentariosMaestro";
 import Pagination from "@/components/Pagination";
 import ErrorState from "@/components/ErrorState";
 import ConfirmModal from "@/components/ConfirmModal";
+import ActivosCategoria from "@/components/ActivosCategoria";
 import { useLanguage } from "@/lib/i18n";
 import type { TranslationKey } from "@/translations/es";
 
@@ -355,20 +356,23 @@ export default function DetalleGrupoPage() {
 
               <div>
                 <label className="block font-mono text-[11px] uppercase tracking-wider text-fg/50 mb-2">{t("maestro.detail.allowedMarkets")}</label>
-                <div className="flex flex-wrap gap-2">
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2 md:grid-cols-3">
                   {MERCADOS.map((m) => (
-                    <label key={m.value} className="flex items-center gap-1.5 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={cfgMercados.includes(m.value)}
-                        onChange={(e) => {
-                          if (e.target.checked) setCfgMercados([...cfgMercados, m.value]);
-                          else setCfgMercados(cfgMercados.filter((x) => x !== m.value));
-                        }}
-                        className="accent-accent"
-                      />
-                      <span className="font-mono text-xs text-fg/70">{t(m.labelKey)}</span>
-                    </label>
+                    <div key={m.value}>
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={cfgMercados.includes(m.value)}
+                          onChange={(e) => {
+                            if (e.target.checked) setCfgMercados([...cfgMercados, m.value]);
+                            else setCfgMercados(cfgMercados.filter((x) => x !== m.value));
+                          }}
+                          className="accent-accent"
+                        />
+                        <span className="font-mono text-xs text-fg/70">{t(m.labelKey)}</span>
+                      </label>
+                      <ActivosCategoria categoria={m.value} />
+                    </div>
                   ))}
                 </div>
               </div>

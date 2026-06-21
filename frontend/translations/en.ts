@@ -344,6 +344,8 @@ export const en = {
   "maestro.groups.orderLimit":  "Order limit",
   "maestro.groups.unlimited":   "Unlimited",
   "maestro.groups.unlocks":     "Unlocks:",
+  "maestro.groups.viewAssets":  "View assets",
+  "maestro.groups.hideAssets":  "Hide assets",
   "maestro.groups.loadError":   "Error loading groups",
   "maestro.groups.createError": "Could not create the group",
   "maestro.groups.emptyHint":   "Create your first group to share the code with your students",
