@@ -9,12 +9,12 @@ import { useToast } from "@/components/Toast";
 import { obtenerSesion } from "@/lib/auth";
 
 /** Estado de ánimo del mercado según la caída actual promedio. */
-function sentimiento(cambio: number): { label: string; color: string; pos: number; emoji: string } {
-  if (cambio <= -10) return { label: "Pánico", color: "#dc2626", pos: 8, emoji: "😱" };
-  if (cambio <= -3) return { label: "Miedo", color: "#ea580c", pos: 28, emoji: "😨" };
-  if (cambio < 0) return { label: "Cautela", color: "#ca8a04", pos: 48, emoji: "😟" };
-  if (cambio < 5) return { label: "Optimismo", color: "#16a34a", pos: 72, emoji: "🙂" };
-  return { label: "Euforia", color: "#15803d", pos: 92, emoji: "🤑" };
+function sentimiento(cambio: number): { label: string; color: string; pos: number } {
+  if (cambio <= -10) return { label: "Pánico", color: "#dc2626", pos: 8 };
+  if (cambio <= -3) return { label: "Miedo", color: "#ea580c", pos: 28 };
+  if (cambio < 0) return { label: "Cautela", color: "#ca8a04", pos: 48 };
+  if (cambio < 5) return { label: "Optimismo", color: "#16a34a", pos: 72 };
+  return { label: "Euforia", color: "#15803d", pos: 92 };
 }
 
 interface RetoOut {
@@ -328,7 +328,7 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
           const soyGanador = miPos === 0;
           const rend = Number(estado.rendimiento_porcentaje);
           const mensaje = soyGanador
-            ? "🏆 ¡Ganaste el reto! Leíste la crisis mejor que nadie."
+            ? "¡Ganaste el reto! Leíste la crisis mejor que nadie."
             : rend > 0
             ? "Saliste con ganancias a pesar de la crisis. ¡Bien hecho!"
             : "La crisis te alcanzó. Revisa tu historial y vuelve más fuerte.";
@@ -357,7 +357,7 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
                 </div>
                 <div>
                   <p className="font-mono text-[10px] uppercase text-fg/40">Ganador</p>
-                  <p className="truncate text-lg font-bold text-fg">🏅 {ganador?.nombre ?? "—"}</p>
+                  <p className="truncate text-lg font-bold text-fg">{ganador?.nombre ?? "—"}</p>
                   {ganador && (
                     <p className="font-mono text-[11px] text-ganancia">
                       {formatoPorcentaje(ganador.rendimiento_porcentaje)}
@@ -408,7 +408,7 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
                       Sentimiento del mercado
                     </span>
                     <span className="font-mono text-[11px] font-bold" style={{ color: s.color }}>
-                      {s.emoji} {s.label}
+                      {s.label}
                     </span>
                   </div>
                   <div className="relative h-2 w-full rounded-full bg-gradient-to-r from-[#dc2626] via-[#ca8a04] to-[#15803d]">
@@ -792,7 +792,7 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
                   return (
                     <li key={r.alumno_id} className="flex items-center gap-2 px-3 py-2.5">
                       <span className="w-5 shrink-0 text-center font-mono text-xs text-fg/40">
-                        {terminado && i === 0 ? "🏅" : i + 1}
+                        {i + 1}
                       </span>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium text-fg">{r.nombre}</p>

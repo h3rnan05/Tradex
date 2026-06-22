@@ -628,8 +628,8 @@ export const en = {
   "challenge.close":               "Close",
   "challenge.closeConfirm":        "Close this position at the current price?",
   "challenge.closeDone":           "Position closed",
-  "challenge.bottomAlert":         "📉 The market hit bottom! Time to cover shorts and buy the rebound.",
-  "challenge.shortHint":           "💡 In a crisis you can SHORT-sell an asset you expect to fall: you get the cash now and buy it back cheaper (Cover) to keep the difference. If the price rises, you lose. Margin limit: 1x your initial capital.",
+  "challenge.bottomAlert":         "The market hit bottom. Time to cover shorts and buy the rebound.",
+  "challenge.shortHint":           "In a crisis you can SHORT-sell an asset you expect to fall: you get the cash now and buy it back cheaper (Cover) to keep the difference. If the price rises, you lose. Margin limit: 1x your initial capital.",
 
   // ── Comparador ─────────────────────────────────────────────────
   "comparador.title":              "Strategy Comparator",

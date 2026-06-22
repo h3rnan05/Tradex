@@ -22,7 +22,7 @@ interface RankingEntry {
   rendimiento_porcentaje: string;
 }
 
-const MEDALLAS = ["🥇", "🥈", "🥉"];
+const MEDALLAS = ["1", "2", "3"];
 
 /**
  * Vista dedicada del ranking del reto: muestra las posiciones de todos los
@@ -72,7 +72,7 @@ export default function RetoRanking({ retoId }: { retoId: string }) {
               const yo = r.alumno_id === sesionId;
               return (
                 <div key={r.alumno_id} className="flex flex-col items-center justify-end">
-                  <span className="mb-1 text-2xl">{MEDALLAS[idx]}</span>
+                  <span className="mb-1 font-mono text-xl font-black text-fg/60">{MEDALLAS[idx]}</span>
                   <span className={`mb-1 max-w-full truncate text-center text-sm font-bold ${yo ? "text-accent" : "text-fg"}`}>
                     {r.nombre}
                   </span>

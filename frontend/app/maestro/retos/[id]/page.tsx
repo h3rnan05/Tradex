@@ -106,7 +106,7 @@ export default function RankingRetoPage() {
                 {ranking.map((r, i) => (
                   <tr key={r.alumno_id} className="border-t border-fg/5">
                     <td className="px-4 py-3 text-fg/40">
-                      {terminado && i === 0 ? "🏅" : i + 1}
+                      {i + 1}
                     </td>
                     <td className="px-4 py-3 font-medium text-fg">{r.nombre}</td>
                     <td className="px-4 py-3">{formatoMoneda(r.valor_total)}</td>
