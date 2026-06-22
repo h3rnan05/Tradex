@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cerrarSesion, obtenerSesion } from "@/lib/auth";
 import { useLanguage } from "@/lib/i18n";
+import { useRetoActivo } from "@/lib/retoContext";
 
 export default function Navbar() {
   const router = useRouter();
@@ -13,6 +14,11 @@ export default function Navbar() {
   const [comando, setComando] = useState("");
   const [menuAbierto, setMenuAbierto] = useState(false);
   const { lang, t, setLang } = useLanguage();
+  const { reto } = useRetoActivo();
+
+  // Durante un reto, la interfaz del alumno ES el reto: ocultamos las pestañas
+  // y el buscador que llevan fuera de él para no confundir.
+  const enReto = sesion?.rol === "alumno" && !!reto;
 
   function salir() {
     cerrarSesion();
@@ -40,16 +46,24 @@ export default function Navbar() {
       ? [{ href: "/sponsor/dashboard", label: t("nav.dashboard") }]
       : sesion?.rol === "maestro"
       ? [{ href: "/maestro/grupos", label: t("nav.groups") }]
-      : [
-          { href: "/alumno/portafolio", label: t("nav.portfolio") },
-          { href: "/alumno/operar", label: t("nav.trade") },
-          { href: "/alumno/historial", label: t("nav.history") },
-          { href: "/alumno/ranking", label: t("nav.ranking") },
-          { href: "/alumno/mercados", label: t("nav.markets") },
-          { href: "/alumno/clase", label: t("nav.class") },
-          { href: "/alumno/plantillas", label: t("nav.templates") },
-          { href: "/alumno/retos", label: t("nav.challenges") },
-        ];
+      : (enReto
+          ? // En modo reto solo quedan las secciones que forman parte del reto.
+            [
+              { href: "/alumno/portafolio", label: t("nav.portfolio") },
+              { href: "/alumno/operar", label: t("nav.trade") },
+              { href: "/alumno/historial", label: t("nav.history") },
+              { href: "/alumno/ranking", label: t("nav.ranking") },
+            ]
+          : [
+              { href: "/alumno/portafolio", label: t("nav.portfolio") },
+              { href: "/alumno/operar", label: t("nav.trade") },
+              { href: "/alumno/historial", label: t("nav.history") },
+              { href: "/alumno/ranking", label: t("nav.ranking") },
+              { href: "/alumno/mercados", label: t("nav.markets") },
+              { href: "/alumno/clase", label: t("nav.class") },
+              { href: "/alumno/plantillas", label: t("nav.templates") },
+              { href: "/alumno/retos", label: t("nav.challenges") },
+            ]);
 
   const rolLabel =
     sesion?.rol === "maestro"
@@ -94,7 +108,7 @@ export default function Navbar() {
         )}
 
         {/* Desktop search */}
-        {sesion && sesion.rol === "alumno" && (
+        {sesion && sesion.rol === "alumno" && !enReto && (
           <form onSubmit={ejecutarComando} className="ml-3 hidden items-center md:flex">
             <div className="flex w-36 items-center border border-fg/20 bg-panel">
               <span className="px-1.5 font-mono text-[11px] text-fg/40">$</span>
@@ -170,7 +184,7 @@ export default function Navbar() {
             })}
 
             {/* Mobile search */}
-            {sesion.rol === "alumno" && (
+            {sesion.rol === "alumno" && !enReto && (
               <form onSubmit={ejecutarComando} className="border-b border-fg/5 px-5 py-3">
                 <div className="flex items-center border border-fg/20 bg-panel">
                   <span className="px-2 font-mono text-[11px] text-fg/40">$</span>
