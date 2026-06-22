@@ -622,6 +622,9 @@ export const es = {
   "challenge.buyCover":            "Comprar / Cubrir",
   "challenge.sellShort":           "Vender / Shortear",
   "challenge.short":               "Corto",
+  "challenge.liquidate":           "Liquidar todo",
+  "challenge.liquidateConfirm":    "¿Cerrar todas tus posiciones al precio actual? Se venderán tus largos y se cubrirán tus cortos.",
+  "challenge.liquidateDone":       "Posiciones liquidadas",
   "challenge.shortHint":           "💡 En una crisis puedes VENDER en corto un activo que crees que caerá: recibes el efectivo ahora y lo recompras más barato (Cubrir) para quedarte la diferencia. Si el precio sube, pierdes. Límite de margen: 1x tu capital inicial.",
 
   // ── Comparador ─────────────────────────────────────────────────

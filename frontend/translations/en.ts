@@ -622,6 +622,9 @@ export const en = {
   "challenge.buyCover":            "Buy / Cover",
   "challenge.sellShort":           "Sell / Short",
   "challenge.short":               "Short",
+  "challenge.liquidate":           "Liquidate all",
+  "challenge.liquidateConfirm":    "Close all your positions at the current price? Your longs will be sold and your shorts covered.",
+  "challenge.liquidateDone":       "Positions liquidated",
   "challenge.shortHint":           "💡 In a crisis you can SHORT-sell an asset you expect to fall: you get the cash now and buy it back cheaper (Cover) to keep the difference. If the price rises, you lose. Margin limit: 1x your initial capital.",
 
   // ── Comparador ─────────────────────────────────────────────────

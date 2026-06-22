@@ -210,6 +210,25 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
     }
   }
 
+  async function liquidar() {
+    if (!window.confirm(t("challenge.liquidateConfirm"))) return;
+    setError(null);
+    setMensaje(null);
+    setOperando(true);
+    try {
+      await api.post(`/retos/${retoId}/liquidar`, {});
+      setMensaje(t("challenge.liquidateDone"));
+      await cargarEstado();
+      cargarRanking();
+      cargarOrdenes();
+      cargarMercado();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("challenge.errorOrder"));
+    } finally {
+      setOperando(false);
+    }
+  }
+
   if (!estado) {
     return (
       <main className="min-h-screen bg-canvas">
@@ -502,9 +521,18 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
             {/* Posiciones con P&L coloreado */}
             {estado.holdings.length > 0 && (
               <Card className="mb-4 overflow-hidden p-0">
-                <p className="border-b border-fg/5 px-4 py-3 font-mono text-[11px] uppercase tracking-widest text-fg/40">
-                  Mis posiciones
-                </p>
+                <div className="flex items-center justify-between border-b border-fg/5 px-4 py-2">
+                  <p className="font-mono text-[11px] uppercase tracking-widest text-fg/40">Mis posiciones</p>
+                  {!terminado && (
+                    <button
+                      onClick={liquidar}
+                      disabled={operando}
+                      className="rounded-none border border-perdida/40 px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-wider text-perdida hover:bg-perdida hover:text-white disabled:opacity-50"
+                    >
+                      {t("challenge.liquidate")}
+                    </button>
+                  )}
+                </div>
                 <table className="w-full text-sm">
                   <thead className="bg-fg/5 text-left text-fg/60">
                     <tr>

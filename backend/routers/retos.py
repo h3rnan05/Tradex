@@ -460,6 +460,52 @@ def vender_reto(
     return orden
 
 
+@router.post("/retos/{reto_id}/liquidar", response_model=RetoEstadoOut)
+def liquidar_reto(reto_id: str, db: Session = Depends(get_db), alumno: User = Depends(require_alumno)):
+    """Cierra de golpe todas las posiciones del alumno: vende los largos y cubre
+    los cortos al precio actual. Liquidación forzada (no aplica el guard de
+    capital, igual que una llamada de margen real)."""
+    reto = db.query(Reto).filter(Reto.id == reto_id).first()
+    if not reto:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reto no encontrado")
+    ahora = datetime.now(timezone.utc)
+    if ahora < reto.fecha_inicio:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Este reto aún no comienza")
+    if ahora >= reto.fecha_fin:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Este reto ya terminó")
+
+    participante = _participante(db, reto, alumno)
+    holdings = db.query(RetoHolding).filter(
+        RetoHolding.reto_id == reto_id, RetoHolding.alumno_id == alumno.id
+    ).all()
+
+    for h in holdings:
+        if h.cantidad == 0:
+            continue
+        try:
+            precio = _precio_reto(reto, h.ticker)
+        except Exception:
+            precio = h.precio_promedio
+        cantidad = abs(h.cantidad)
+        es_compra = h.cantidad < 0  # los cortos se cierran comprando (cubrir)
+        signed = cantidad if es_compra else -cantidad
+        participante.capital_disponible -= precio * signed
+        h.cantidad = Decimal("0")
+        h.precio_promedio = Decimal("0")
+        db.add(RetoOrden(
+            reto_id=reto_id,
+            alumno_id=alumno.id,
+            ticker=h.ticker,
+            tipo=TipoOrdenRetoEnum.compra if es_compra else TipoOrdenRetoEnum.venta,
+            cantidad=cantidad,
+            precio_ejecucion=precio,
+        ))
+
+    estado = _calcular_estado(db, reto, participante)
+    db.commit()
+    return estado
+
+
 @router.get("/retos/{reto_id}/ranking", response_model=list[RetoRankingEntry])
 def ranking_reto(reto_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     reto = db.query(Reto).filter(Reto.id == reto_id).first()
