@@ -15,6 +15,7 @@ export default function Navbar() {
   const sesion = obtenerSesion();
   const [comando, setComando] = useState("");
   const [menuAbierto, setMenuAbierto] = useState(false);
+  const [masAbierto, setMasAbierto] = useState(false);
   const { lang, t, setLang } = useLanguage();
   const { reto } = useRetoActivo();
 
@@ -90,7 +91,7 @@ export default function Navbar() {
           <>
             <span className="mx-2 hidden h-4 w-px shrink-0 bg-fg/20 md:block" aria-hidden />
             <nav className="hidden min-w-0 items-center md:flex">
-              {enlaces.map((enlace) => {
+              {(sesion.rol === "alumno" && !enReto ? enlaces.slice(0, 4) : enlaces).map((enlace) => {
                 const activo = pathname?.startsWith(enlace.href);
                 return (
                   <Link
@@ -104,6 +105,45 @@ export default function Navbar() {
                   </Link>
                 );
               })}
+
+              {/* "Más" dropdown for alumno tabs 5-9 */}
+              {sesion.rol === "alumno" && !enReto && enlaces.length > 4 && (
+                <div className="relative">
+                  <button
+                    onClick={() => setMasAbierto(!masAbierto)}
+                    className={`inline-flex h-12 shrink-0 items-center gap-0.5 px-2.5 font-mono text-[11px] font-semibold uppercase tracking-wider transition-colors ${
+                      masAbierto || enlaces.slice(4).some(e => pathname?.startsWith(e.href))
+                        ? "bg-accent text-black"
+                        : "text-fg/60 hover:bg-fg/5 hover:text-fg"
+                    }`}
+                  >
+                    {t("nav.more")}
+                    <span className="text-[9px] leading-none ml-0.5">{masAbierto ? "▲" : "▼"}</span>
+                  </button>
+                  {masAbierto && (
+                    <>
+                      <div className="fixed inset-0 z-30" onClick={() => setMasAbierto(false)} />
+                      <div className="absolute left-0 top-full z-40 min-w-[140px] border border-fg/20 bg-canvas shadow-lg">
+                        {enlaces.slice(4).map((enlace) => {
+                          const activo = pathname?.startsWith(enlace.href);
+                          return (
+                            <Link
+                              key={enlace.href}
+                              href={enlace.href}
+                              onClick={() => setMasAbierto(false)}
+                              className={`flex items-center px-4 py-3 font-mono text-[11px] font-semibold uppercase tracking-wider transition-colors border-b border-fg/5 last:border-b-0 ${
+                                activo ? "bg-accent text-black" : "text-fg/60 hover:bg-fg/5 hover:text-fg"
+                              }`}
+                            >
+                              {enlace.label}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
             </nav>
           </>
         )}

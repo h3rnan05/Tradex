@@ -15,6 +15,7 @@ export const en = {
   "nav.teachers":    "Teachers",
   "nav.users":       "Users",
   "nav.globalRanking": "Global Ranking",
+  "nav.more":        "More",
   "nav.logout":      "Sign out",
   "nav.student":     "Student",
   "nav.teacher":     "Teacher",
