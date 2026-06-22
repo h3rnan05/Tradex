@@ -171,7 +171,9 @@ def _ejecutar_operacion(
     nuevo_avg = _nuevo_promedio(q, avg, signed, precio, nuevo_q)
     if nuevo_q == 0:
         prestamo = Decimal("0")
-    participante.capital_disponible = cap
+    # Una pérdida catastrófica (p. ej. cubrir un corto en plena subida) no puede
+    # dejar el efectivo negativo: el alumno pierde como máximo su capital.
+    participante.capital_disponible = cap if cap > 0 else Decimal("0")
 
     if holding:
         holding.cantidad = nuevo_q

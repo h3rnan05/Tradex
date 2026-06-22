@@ -182,7 +182,7 @@ function TerminalInterna() {
       const orden = await api.post<OrdenResponse>(`/ordenes/${endpoint}`, {
         grupo_id: grupoId,
         ticker: ticker.trim().toUpperCase(),
-        cantidad,
+        cantidad: cantidadNum,
         ...(usaLev ? { apalancamiento: String(apalancamiento) } : {}),
       });
       const etiqueta =

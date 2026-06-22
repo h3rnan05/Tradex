@@ -307,7 +307,10 @@ def cubrir_corto(payload: OrdenCreate, db: Session = Depends(get_db), alumno: Us
     pnl = (precio_entrada - precio_actual) * payload.cantidad
 
     devolucion = colateral_liberado + pnl - comision
-    membership.capital_disponible += devolucion
+    # Una pérdida catastrófica en el corto no puede dejar el efectivo negativo:
+    # el alumno pierde como máximo todo su capital disponible.
+    nuevo_capital = membership.capital_disponible + devolucion
+    membership.capital_disponible = nuevo_capital if nuevo_capital > 0 else Decimal("0")
 
     holding_corto.cantidad -= payload.cantidad
     holding_corto.prestamo = prestamo_actual - colateral_liberado

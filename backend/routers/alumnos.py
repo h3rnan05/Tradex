@@ -315,10 +315,18 @@ def mis_grupos(alumno_id: str, db: Session = Depends(get_db), current_user: User
     for m in memberships:
         g = m.grupo
         holdings = holdings_by_grupo.get(str(m.grupo_id), [])
-        valor_holdings = sum(
-            precios.get(h.ticker, h.precio_promedio) * h.cantidad
-            for h in holdings
-        )
+        valor_holdings = Decimal("0")
+        for h in holdings:
+            precio = precios.get(h.ticker, h.precio_promedio)
+            prestamo = (h.prestamo or Decimal("0"))
+            if getattr(h, "es_corto", False):
+                # Corto: equity = colateral retenido + P&L (entrada - actual).
+                colateral = prestamo if prestamo > 0 else h.precio_promedio * h.cantidad
+                pnl = (h.precio_promedio - precio) * h.cantidad
+                valor_holdings += colateral + pnl
+            else:
+                # Largo apalancado: valor de mercado menos el préstamo pendiente.
+                valor_holdings += precio * h.cantidad - prestamo
         valor_total = m.capital_disponible + valor_holdings
         result.append(MisGruposEntry(
             grupo_id=g.id,
