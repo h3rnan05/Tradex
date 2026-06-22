@@ -97,7 +97,7 @@ export default function Navbar() {
                   <Link
                     key={enlace.href}
                     href={enlace.href}
-                    className={`inline-flex h-12 shrink-0 items-center px-2.5 font-mono text-[11px] font-semibold uppercase tracking-wider transition-colors ${
+                    className={`inline-flex h-12 shrink-0 items-center px-4 lg:px-5 font-mono text-[11px] font-semibold uppercase tracking-wider transition-colors ${
                       activo ? "bg-accent text-black" : "text-fg/60 hover:bg-fg/5 hover:text-fg"
                     }`}
                   >
@@ -111,7 +111,7 @@ export default function Navbar() {
                 <div className="relative">
                   <button
                     onClick={() => setMasAbierto(!masAbierto)}
-                    className={`inline-flex h-12 shrink-0 items-center gap-0.5 px-2.5 font-mono text-[11px] font-semibold uppercase tracking-wider transition-colors ${
+                    className={`inline-flex h-12 shrink-0 items-center gap-0.5 px-4 lg:px-5 font-mono text-[11px] font-semibold uppercase tracking-wider transition-colors ${
                       masAbierto || enlaces.slice(4).some(e => pathname?.startsWith(e.href))
                         ? "bg-accent text-black"
                         : "text-fg/60 hover:bg-fg/5 hover:text-fg"
@@ -150,7 +150,7 @@ export default function Navbar() {
 
         {/* Desktop search */}
         {sesion && sesion.rol === "alumno" && !enReto && (
-          <form onSubmit={ejecutarComando} className="ml-2 hidden shrink-0 items-center md:flex">
+          <form onSubmit={ejecutarComando} className="ml-3 hidden shrink-0 items-center md:flex">
             <div className="flex w-28 items-center border border-fg/20 bg-panel">
               <span className="px-1.5 font-mono text-[11px] text-fg/40">$</span>
               <input
