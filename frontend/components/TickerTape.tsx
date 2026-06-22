@@ -9,6 +9,7 @@ interface PrecioDestacado {
   ticker: string;
   precio: string;
   cambio_porcentaje: number;
+  cambio_total?: number;
 }
 
 interface RetoActivoInfo {
@@ -87,9 +88,13 @@ export default function TickerTape() {
   if (esRutaPublica || !autenticado || datos.length === 0) return null;
 
   const promedioCambio = datos.reduce((acc, d) => acc + d.cambio_porcentaje, 0) / datos.length;
-  // En un reto de crisis basta con que el mercado caiga; fuera del reto exigimos
-  // una caída fuerte para declarar pánico.
-  const crisis = retoId ? promedioCambio <= -1.5 : promedioCambio <= -2.5;
+  // En reto de crisis: usamos cambio_total (caída histórica total del escenario)
+  // para activar la atmósfera roja desde el minuto 0, sin esperar a que el
+  // precio simulado acumule suficiente caída dentro del reto.
+  const promedioTotal = retoId && datos[0]?.cambio_total !== undefined
+    ? datos.reduce((acc, d) => acc + (d.cambio_total ?? 0), 0) / datos.length
+    : 0;
+  const crisis = retoId ? (promedioTotal <= -3 || promedioCambio <= -1) : promedioCambio <= -2.5;
 
   const fila = [...datos, ...datos];
 
@@ -138,6 +143,11 @@ export default function TickerTape() {
                     {sube ? "▲" : "▼"} {sube ? "+" : ""}
                     {d.cambio_porcentaje.toFixed(2)}%
                   </span>
+                  {retoId && d.cambio_total !== undefined && (
+                    <span className="text-[9px] text-white/50">
+                      →{d.cambio_total >= 0 ? "+" : ""}{d.cambio_total.toFixed(0)}%
+                    </span>
+                  )}
                 </button>
               );
             })}

@@ -102,10 +102,11 @@ def precio_simulado(ticker: str, escenario_id: str, fecha_inicio_reto: datetime,
 
 def precio_y_cambio_simulado(
     ticker: str, escenario_id: str, fecha_inicio_reto: datetime, fecha_fin_reto: datetime
-) -> tuple[Decimal, float]:
-    """Precio simulado actual del ticker y su variacion porcentual acumulada
-    desde el inicio del reto. Sirve para el ticker de crisis: muestra cuanto
-    ha caido (o subido) cada activo conforme avanza el escenario."""
+) -> tuple[Decimal, float, float]:
+    """Precio simulado actual del ticker, variacion porcentual acumulada
+    desde el inicio del reto, y caida TOTAL del escenario (de principio a fin).
+    El cambio_total sirve para mostrar desde el arranque cuán profundo es el crash,
+    aunque el reto acabe de empezar y el precio todavía no haya caído."""
     historial = _historial_escenario(escenario_id, ticker)
     if not historial:
         raise HTTPException(
@@ -123,5 +124,7 @@ def precio_y_cambio_simulado(
 
     precio = Decimal(str(historial[indice]["precio"]))
     precio_inicial = Decimal(str(historial[0]["precio"]))
+    precio_final = Decimal(str(historial[-1]["precio"]))
     cambio = float((precio - precio_inicial) / precio_inicial * 100) if precio_inicial else 0.0
-    return precio, cambio
+    cambio_total = float((precio_final - precio_inicial) / precio_inicial * 100) if precio_inicial else 0.0
+    return precio, cambio, cambio_total

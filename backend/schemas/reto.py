@@ -79,6 +79,7 @@ class RetoMercadoEntry(BaseModel):
     ticker: str
     precio: Decimal
     cambio_porcentaje: float
+    cambio_total: float = 0.0
 
 
 class RetoRankingEntry(BaseModel):

@@ -264,12 +264,12 @@ def mercado_reto(reto_id: str, db: Session = Depends(get_db), alumno: User = Dep
         escenario = obtener_escenario(reto.escenario_id)
         for ticker in escenario["tickers_sugeridos"]:
             try:
-                precio, cambio = precio_y_cambio_simulado(
+                precio, cambio, cambio_total = precio_y_cambio_simulado(
                     ticker, reto.escenario_id, reto.fecha_inicio, reto.fecha_fin
                 )
             except Exception:
                 continue
-            entradas.append(RetoMercadoEntry(ticker=ticker, precio=precio, cambio_porcentaje=cambio))
+            entradas.append(RetoMercadoEntry(ticker=ticker, precio=precio, cambio_porcentaje=cambio, cambio_total=cambio_total))
     return entradas
 
 
