@@ -1,7 +1,7 @@
 export const es = {
   // ── Navbar ──────────────────────────────────────────────────
   "nav.portfolio":   "Portafolio",
-  "nav.trade":       "Operar",
+  "nav.trade":       "Noticias",
   "nav.terminal":    "Terminal",
   "nav.history":     "Historial",
   "nav.ranking":     "Ranking",
@@ -723,7 +723,7 @@ export const es = {
   "badge.sin_rendirse.desc":              "Opera en 5 días distintos",
 
   // ── Diario del Mercado (Tradex Times) ───────────────────────
-  "news.masthead":          "NOTICIAS",
+  "news.masthead":          "TRADEX TIMES",
   "news.tagline":           "Money talks, we translate",
   "news.edition":           "Edición del Inversionista",
   "news.frontPage":         "Portada del Mercado",

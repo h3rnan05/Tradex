@@ -1,7 +1,7 @@
 export const en = {
   // ── Navbar ──────────────────────────────────────────────────
   "nav.portfolio":   "Portfolio",
-  "nav.trade":       "Trade",
+  "nav.trade":       "News",
   "nav.terminal":    "Terminal",
   "nav.history":     "History",
   "nav.ranking":     "Ranking",
@@ -723,7 +723,7 @@ export const en = {
   "badge.sin_rendirse.desc":              "Trade on 5 different days",
 
   // ── Market Times (Tradex Times) ─────────────────────────────
-  "news.masthead":          "NEWS",
+  "news.masthead":          "TRADEX TIMES",
   "news.tagline":           "Money talks, we translate",
   "news.edition":           "Investor's Edition",
   "news.frontPage":         "Market Front Page",
