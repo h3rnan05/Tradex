@@ -210,14 +210,16 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
     }
   }
 
-  async function liquidar() {
-    if (!window.confirm(t("challenge.liquidateConfirm"))) return;
+  async function liquidar(tk?: string) {
+    const mensajeConfirm = tk ? t("challenge.closeConfirm") : t("challenge.liquidateConfirm");
+    if (!window.confirm(mensajeConfirm)) return;
     setError(null);
     setMensaje(null);
     setOperando(true);
     try {
-      await api.post(`/retos/${retoId}/liquidar`, {});
-      setMensaje(t("challenge.liquidateDone"));
+      const url = tk ? `/retos/${retoId}/liquidar?ticker=${encodeURIComponent(tk)}` : `/retos/${retoId}/liquidar`;
+      await api.post(url, {});
+      setMensaje(tk ? t("challenge.closeDone") : t("challenge.liquidateDone"));
       await cargarEstado();
       cargarRanking();
       cargarOrdenes();
@@ -525,7 +527,7 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
                   <p className="font-mono text-[11px] uppercase tracking-widest text-fg/40">Mis posiciones</p>
                   {!terminado && (
                     <button
-                      onClick={liquidar}
+                      onClick={() => liquidar()}
                       disabled={operando}
                       className="rounded-none border border-perdida/40 px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-wider text-perdida hover:bg-perdida hover:text-white disabled:opacity-50"
                     >
@@ -542,6 +544,7 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
                       <th className="px-4 py-3">{t("challenge.currentPrice")}</th>
                       <th className="px-4 py-3">P&L</th>
                       <th className="px-4 py-3">{t("challenge.marketValue")}</th>
+                      {!terminado && <th className="px-4 py-3" />}
                     </tr>
                   </thead>
                   <tbody>
@@ -572,6 +575,17 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
                             </span>
                           </td>
                           <td className="px-4 py-3 tabular-nums">{formatoMoneda(h.valor_mercado)}</td>
+                          {!terminado && (
+                            <td className="px-4 py-3 text-right">
+                              <button
+                                onClick={() => liquidar(h.ticker)}
+                                disabled={operando}
+                                className="rounded-none border border-fg/20 px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-wider text-fg/60 hover:border-perdida hover:bg-perdida hover:text-white disabled:opacity-50"
+                              >
+                                {t("challenge.close")}
+                              </button>
+                            </td>
+                          )}
                         </tr>
                       );
                     })}

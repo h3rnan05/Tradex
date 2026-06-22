@@ -461,10 +461,12 @@ def vender_reto(
 
 
 @router.post("/retos/{reto_id}/liquidar", response_model=RetoEstadoOut)
-def liquidar_reto(reto_id: str, db: Session = Depends(get_db), alumno: User = Depends(require_alumno)):
-    """Cierra de golpe todas las posiciones del alumno: vende los largos y cubre
-    los cortos al precio actual. Liquidación forzada (no aplica el guard de
-    capital, igual que una llamada de margen real)."""
+def liquidar_reto(
+    reto_id: str, ticker: str | None = None, db: Session = Depends(get_db), alumno: User = Depends(require_alumno)
+):
+    """Cierra posiciones del alumno al precio actual: vende los largos y cubre
+    los cortos. Sin `ticker` cierra todo; con `ticker` cierra solo ese activo.
+    Liquidación forzada (no aplica el guard de capital, como un margin call)."""
     reto = db.query(Reto).filter(Reto.id == reto_id).first()
     if not reto:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reto no encontrado")
@@ -475,9 +477,12 @@ def liquidar_reto(reto_id: str, db: Session = Depends(get_db), alumno: User = De
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Este reto ya terminó")
 
     participante = _participante(db, reto, alumno)
-    holdings = db.query(RetoHolding).filter(
+    query = db.query(RetoHolding).filter(
         RetoHolding.reto_id == reto_id, RetoHolding.alumno_id == alumno.id
-    ).all()
+    )
+    if ticker:
+        query = query.filter(RetoHolding.ticker == ticker)
+    holdings = query.all()
 
     for h in holdings:
         if h.cantidad == 0:
