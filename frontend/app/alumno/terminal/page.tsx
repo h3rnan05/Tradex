@@ -234,7 +234,7 @@ function TerminalInterna() {
 
       <div className="mx-auto max-w-[1400px] p-3">
         {/* Encabezado de cuenta */}
-        <div className="mb-3 grid grid-cols-2 gap-px overflow-hidden border border-[#1f1f1f] bg-[#1f1f1f] sm:grid-cols-4">
+        <div className="mb-3 grid grid-cols-2 gap-px overflow-hidden border border-[#3a3a3a] bg-[#3a3a3a] sm:grid-cols-4">
           {[
             { l: t("terminal.equity"), v: `$${money(valorTotal)}`, c: "text-[#e8e8e8]" },
             { l: t("terminal.cash"), v: `$${money(capitalDisponible)}`, c: "text-[#e8e8e8]" },
@@ -250,8 +250,8 @@ function TerminalInterna() {
 
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-[200px_1fr_280px]">
           {/* Watchlist */}
-          <div className="border border-[#1f1f1f] bg-[#111]">
-            <p className="border-b border-[#1f1f1f] px-3 py-2 font-mono text-[10px] uppercase tracking-widest text-[#ff9e1b]">
+          <div className="border border-[#3a3a3a] bg-[#111]">
+            <p className="border-b border-[#3a3a3a] px-3 py-2 font-mono text-[10px] uppercase tracking-widest text-[#ff9e1b]">
               {t("terminal.watchlist")}
             </p>
             <ul className="max-h-[520px] overflow-y-auto">
@@ -284,7 +284,7 @@ function TerminalInterna() {
 
           {/* Centro: búsqueda + gráfica */}
           <div className="space-y-3">
-            <form onSubmit={buscarSubmit} className="flex items-center border border-[#1f1f1f] bg-[#111]">
+            <form onSubmit={buscarSubmit} className="flex items-center border border-[#3a3a3a] bg-[#111]">
               <span className="px-3 font-mono text-sm font-bold text-[#ff9e1b]">{limpiar(ticker)}</span>
               <span className="ml-auto px-3 font-mono text-lg font-bold tabular-nums text-[#e8e8e8]">
                 {precio ? `$${money(precio)}` : "—"}
@@ -293,14 +293,14 @@ function TerminalInterna() {
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
                 placeholder={t("terminal.symbol")}
-                className="w-28 border-l border-[#1f1f1f] bg-transparent px-3 py-2 font-mono text-[12px] uppercase tracking-wide text-[#e8e8e8] outline-none placeholder:text-[#8c8c8c]"
+                className="w-28 border-l border-[#3a3a3a] bg-transparent px-3 py-2 font-mono text-[12px] uppercase tracking-wide text-[#e8e8e8] outline-none placeholder:text-[#8c8c8c]"
               />
               <button type="submit" className="bg-[#ff9e1b] px-3 py-2 font-mono text-[10px] font-bold uppercase text-black">
                 {t("nav.go")}
               </button>
             </form>
 
-            <div className="border border-[#1f1f1f] bg-[#111] p-2">
+            <div className="border border-[#3a3a3a] bg-[#111] p-2">
               {/* ProChart se encarga de cargar el historial y dibujar la gráfica */}
               <ProChart
                 ticker={ticker}
@@ -314,8 +314,8 @@ function TerminalInterna() {
 
           {/* Ticket de orden */}
           <div className="space-y-3">
-            <div className="border border-[#1f1f1f] bg-[#111]">
-              <p className="border-b border-[#1f1f1f] px-3 py-2 font-mono text-[10px] uppercase tracking-widest text-[#ff9e1b]">
+            <div className="border border-[#3a3a3a] bg-[#111]">
+              <p className="border-b border-[#3a3a3a] px-3 py-2 font-mono text-[10px] uppercase tracking-widest text-[#ff9e1b]">
                 {t("terminal.orderTicket")}
               </p>
               <div className="space-y-3 p-3">
@@ -329,7 +329,7 @@ function TerminalInterna() {
                     value={cantidad}
                     onChange={(e) => setCantidad(e.target.value)}
                     placeholder="0"
-                    className="mt-1 w-full border border-[#2a2a2a] bg-[#0a0a0a] px-3 py-2 font-mono text-sm tabular-nums text-[#e8e8e8] outline-none focus:border-[#ff9e1b]"
+                    className="mt-1 w-full border border-[#4a4a4a] bg-[#0a0a0a] px-3 py-2 font-mono text-sm tabular-nums text-[#e8e8e8] outline-none focus:border-[#ff9e1b]"
                   />
                   <div className="mt-1 flex gap-1">
                     {[0.25, 0.5, 1].map((f) => (
@@ -337,7 +337,7 @@ function TerminalInterna() {
                         key={f}
                         type="button"
                         onClick={() => maxAccionesMargen > 0 && setCantidad(String(Math.floor(maxAccionesMargen * f)))}
-                        className="flex-1 border border-[#2a2a2a] py-1 font-mono text-[10px] text-[#b0b0b0] hover:border-[#ff9e1b] hover:text-[#ff9e1b]"
+                        className="flex-1 border border-[#4a4a4a] py-1 font-mono text-[10px] text-[#b0b0b0] hover:border-[#ff9e1b] hover:text-[#ff9e1b]"
                       >
                         {f === 1 ? t("terminal.max") : `${f * 100}%`}
                       </button>
@@ -359,7 +359,7 @@ function TerminalInterna() {
                         className={`flex-1 border py-2 font-mono text-[12px] font-bold transition-colors ${
                           apalancamiento === n
                             ? "border-[#ff9e1b] bg-[#ff9e1b] text-black"
-                            : "border-[#2a2a2a] text-[#b0b0b0] hover:border-[#ff9e1b]"
+                            : "border-[#4a4a4a] text-[#b0b0b0] hover:border-[#ff9e1b]"
                         }`}
                       >
                         {n}x
@@ -415,14 +415,14 @@ function TerminalInterna() {
         </div>
 
         {/* Posiciones */}
-        <div className="mt-3 border border-[#1f1f1f] bg-[#111]">
-          <p className="border-b border-[#1f1f1f] px-3 py-2 font-mono text-[10px] uppercase tracking-widest text-[#ff9e1b]">
+        <div className="mt-3 border border-[#3a3a3a] bg-[#111]">
+          <p className="border-b border-[#3a3a3a] px-3 py-2 font-mono text-[10px] uppercase tracking-widest text-[#ff9e1b]">
             {t("terminal.positions")}
           </p>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[760px] font-mono text-[11px]">
               <thead className="text-[#a0a0a0]">
-                <tr className="border-b border-[#1f1f1f]">
+                <tr className="border-b border-[#3a3a3a]">
                   <th className="px-3 py-2 text-left">{t("terminal.symbol")}</th>
                   <th className="px-3 py-2 text-right">{t("terminal.quantity")}</th>
                   <th className="px-3 py-2 text-right">{t("terminal.avg")}</th>
@@ -438,7 +438,7 @@ function TerminalInterna() {
                   const pnl = Number(h.pnl);
                   const lev = Number(h.apalancamiento || 1);
                   return (
-                    <tr key={`${h.ticker}-${h.es_corto}`} className="border-b border-[#161616] hover:bg-[#161616]">
+                    <tr key={`${h.ticker}-${h.es_corto}`} className="border-b border-[#2e2e2e] hover:bg-[#161616]">
                       <td className="whitespace-nowrap px-3 py-2 font-bold text-[#dcdcdc]">
                         {limpiar(h.ticker)}
                         {h.es_corto && <span className="ml-2 bg-[#8a2a2a] px-1 text-[9px] text-white">{t("terminal.short")}</span>}
@@ -457,7 +457,7 @@ function TerminalInterna() {
                         <button
                           disabled={operando}
                           onClick={() => cerrarPosicion(h)}
-                          className="whitespace-nowrap border border-[#2a2a2a] px-2 py-1 text-[10px] text-[#b0b0b0] hover:border-[#ff9e1b] hover:text-[#ff9e1b] disabled:opacity-40"
+                          className="whitespace-nowrap border border-[#4a4a4a] px-2 py-1 text-[10px] text-[#b0b0b0] hover:border-[#ff9e1b] hover:text-[#ff9e1b] disabled:opacity-40"
                         >
                           {t("terminal.close")}
                         </button>

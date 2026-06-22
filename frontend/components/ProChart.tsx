@@ -147,7 +147,7 @@ export default function ProChart({
     const fondo = dark ? COLOR_FONDO_DARK : COLOR_FONDO_LIGHT;
     const texto = dark ? COLOR_TEXTO_DARK : COLOR_TEXTO_LIGHT;
     const grid = dark ? COLOR_GRID_DARK : COLOR_GRID_LIGHT;
-    const borde = dark ? "rgba(255,255,255,0.08)" : "rgba(26,14,0,0.15)";
+    const borde = dark ? "rgba(255,255,255,0.18)" : "rgba(26,14,0,0.15)";
     const crosshairColor = dark ? "rgba(255,255,255,0.25)" : "rgba(26,14,0,0.3)";
     const crosshairBg = dark ? "#1e1e1e" : "#1a0e00";
     const sepColor = dark ? "rgba(255,255,255,0.06)" : "rgba(26,14,0,0.12)";
@@ -472,14 +472,14 @@ export default function ProChart({
 
   // Clases de color adaptadas al tema
   const dk = dark;
-  const wrap = dk ? "bg-[#0d0d0d] border-[#1f1f1f]" : "bg-canvas border-fg/10";
+  const wrap = dk ? "bg-[#0d0d0d] border-[#3a3a3a]" : "bg-canvas border-fg/10";
   const txt = dk ? "text-[#dcdcdc]" : "text-fg";
-  const txt50 = dk ? "text-[#7a7a7a]" : "text-fg/50";
-  const border = dk ? "border-[#2a2a2a]" : "border-fg/15";
+  const txt50 = dk ? "text-[#9a9a9a]" : "text-fg/50";
+  const border = dk ? "border-[#4a4a4a]" : "border-fg/15";
   const panelBg = dk ? "bg-[#131313]" : "bg-panel";
   const hov = dk ? "hover:bg-[#1a1a1a]" : "hover:bg-fg/5";
-  const sep = dk ? "border-[#1f1f1f]" : "border-fg/10";
-  const sepLight = dk ? "border-[#191919]" : "border-fg/5";
+  const sep = dk ? "border-[#3a3a3a]" : "border-fg/10";
+  const sepLight = dk ? "border-[#2e2e2e]" : "border-fg/5";
   const activoBg = dk ? "bg-[#ff9e1b]/10" : "bg-accent/10";
   const btnActive = dk ? "bg-[#ff9e1b] text-black" : "bg-accent text-white";
   const indActive = dk ? "border-[#ff9e1b] bg-[#ff9e1b]/10 text-[#ff9e1b]" : "border-accent bg-accent/10 text-accent";
