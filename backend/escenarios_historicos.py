@@ -200,6 +200,28 @@ def precio_simulado(ticker: str, escenario_id: str, fecha_inicio_reto: datetime,
     return Decimal(str(historial[indice]["precio"]))
 
 
+def serie_simulada(
+    ticker: str, escenario_id: str, fecha_inicio_reto: datetime, fecha_fin_reto: datetime, puntos: int = 48
+) -> list[float]:
+    """Serie de precios ya 'revelada' hasta el avance actual del reto: el prefijo
+    del historial que el alumno ha vivido. Muestra la caída y, pasada la mitad,
+    la recuperación. Se submuestrea a ~`puntos` valores para una gráfica ligera."""
+    historial = _historial_escenario(escenario_id, ticker)
+    if not historial:
+        return []
+    progreso = _progreso(fecha_inicio_reto, fecha_fin_reto)
+    indice = _indice_arco(historial, progreso)
+    revelado = historial[: indice + 1]
+    if len(revelado) <= 1:
+        return [float(revelado[0]["precio"])] if revelado else []
+    if len(revelado) > puntos:
+        paso = (len(revelado) - 1) / (puntos - 1)
+        muestreado = [revelado[int(round(i * paso))] for i in range(puntos)]
+        muestreado[-1] = revelado[-1]
+        revelado = muestreado
+    return [float(p["precio"]) for p in revelado]
+
+
 def precio_y_cambio_simulado(
     ticker: str, escenario_id: str, fecha_inicio_reto: datetime, fecha_fin_reto: datetime
 ) -> tuple[Decimal, float, float]:

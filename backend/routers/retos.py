@@ -13,6 +13,7 @@ from escenarios_historicos import (
     obtener_escenario,
     precio_simulado,
     precio_y_cambio_simulado,
+    serie_simulada,
 )
 from insignias_engine import _otorgar
 from models.grupo import Grupo
@@ -352,6 +353,20 @@ def mercado_reto(reto_id: str, db: Session = Depends(get_db), alumno: User = Dep
             entradas.append(RetoMercadoEntry(ticker=ticker, precio=precio, cambio_porcentaje=cambio, cambio_total=cambio_total))
     db.commit()
     return entradas
+
+
+@router.get("/retos/{reto_id}/serie", response_model=list[float])
+def serie_reto(reto_id: str, ticker: str, db: Session = Depends(get_db), alumno: User = Depends(require_alumno)):
+    """Serie de precios revelada hasta ahora para graficar el activo en el reto.
+    Solo aplica a retos de escenario histórico."""
+    reto = db.query(Reto).filter(Reto.id == reto_id).first()
+    if not reto:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reto no encontrado")
+    _participante(db, reto, alumno)
+    db.commit()
+    if not reto.escenario_id:
+        return []
+    return serie_simulada(ticker, reto.escenario_id, reto.fecha_inicio, reto.fecha_fin)
 
 
 @router.get("/retos/{reto_id}/noticias", response_model=RetoNoticiasOut)

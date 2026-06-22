@@ -79,6 +79,36 @@ function limpiar(t: string) {
   return t.replace("-USD", "").replace("=X", "").replace(".MX", "");
 }
 
+/** Mini-gráfica de línea (SVG) que revela la curva del precio en el reto. */
+function MiniGrafica({ serie, baja }: { serie: number[]; baja: boolean }) {
+  if (serie.length < 2) {
+    return (
+      <div className="flex h-full items-center justify-center font-mono text-[10px] text-fg/30">
+        Esperando datos del mercado…
+      </div>
+    );
+  }
+  const w = 300;
+  const h = 90;
+  const min = Math.min(...serie);
+  const max = Math.max(...serie);
+  const rango = max - min || 1;
+  const px = (i: number) => (i / (serie.length - 1)) * w;
+  const py = (v: number) => h - 4 - ((v - min) / rango) * (h - 8);
+  const linea = serie.map((v, i) => `${px(i).toFixed(1)},${py(v).toFixed(1)}`).join(" ");
+  const area = `0,${h} ${linea} ${w},${h}`;
+  const colorClase = baja ? "text-perdida" : "text-ganancia";
+  const ultimoX = px(serie.length - 1);
+  const ultimoY = py(serie[serie.length - 1]);
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className={`h-full w-full ${colorClase}`}>
+      <polygon points={area} fill="currentColor" opacity={0.08} />
+      <polyline points={linea} fill="none" stroke="currentColor" strokeWidth={2} vectorEffect="non-scaling-stroke" />
+      <circle cx={ultimoX} cy={ultimoY} r={3} fill="currentColor" />
+    </svg>
+  );
+}
+
 export default function RetoActivo({ retoId }: { retoId: string }) {
   const { t } = useLanguage();
   const [estado, setEstado] = useState<RetoEstado | null>(null);
@@ -87,6 +117,7 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
   const [ordenes, setOrdenes] = useState<RetoOrden[]>([]);
   const [mercado, setMercado] = useState<MercadoEntry[]>([]);
   const [noticias, setNoticias] = useState<NoticiasResp | null>(null);
+  const [serie, setSerie] = useState<number[]>([]);
   const [ticker, setTicker] = useState<string | null>(null);
   const [cantidad, setCantidad] = useState("1");
   const [error, setError] = useState<string | null>(null);
@@ -127,6 +158,22 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
     }, 5000);
     return () => clearInterval(interval);
   }, [retoId]);
+
+  // Serie de precio del activo seleccionado, revelándose en vivo.
+  useEffect(() => {
+    if (!ticker || !estado?.reto.escenario_id) {
+      setSerie([]);
+      return;
+    }
+    const cargar = () =>
+      api
+        .get<number[]>(`/retos/${retoId}/serie?ticker=${encodeURIComponent(ticker)}`)
+        .then(setSerie)
+        .catch(() => {});
+    cargar();
+    const iv = setInterval(cargar, 5000);
+    return () => clearInterval(iv);
+  }, [ticker, retoId, estado?.reto.escenario_id]);
 
   useEffect(() => {
     if (!estado?.reto.escenario_id) return;
@@ -386,6 +433,29 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
                           <p className="font-mono text-sm font-bold text-fg">
                             {costoEstimado !== null ? formatoMoneda(costoEstimado.toFixed(2)) : "—"}
                           </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Gráfica del activo seleccionado */}
+                    {esCrisis && (
+                      <div className="mb-4">
+                        <div className="mb-1 flex items-center justify-between">
+                          <p className="font-mono text-[10px] uppercase tracking-wider text-fg/40">
+                            {limpiar(ticker)} · evolución en el reto
+                          </p>
+                          {serie.length >= 2 && (
+                            <span
+                              className={`font-mono text-[10px] font-bold ${
+                                serie[serie.length - 1] < serie[0] ? "text-perdida" : "text-ganancia"
+                              }`}
+                            >
+                              ${serie[serie.length - 1].toFixed(2)}
+                            </span>
+                          )}
+                        </div>
+                        <div className="h-24 w-full border border-fg/10 bg-fg/[0.02] px-1">
+                          <MiniGrafica serie={serie} baja={serie.length >= 2 && serie[serie.length - 1] < serie[0]} />
                         </div>
                       </div>
                     )}
