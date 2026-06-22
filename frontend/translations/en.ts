@@ -763,4 +763,15 @@ export const en = {
   "news.loadError":         "Couldn't load the times.",
   "news.source":            "Source",
   "news.today":             "Today",
+
+  // ── Level / XP ──────────────────────────────────────────────
+  "level.label":            "Level",
+  "level.xp":               "XP",
+  "level.toNext":           "to level up",
+  "level.levelUp":          "Level up!",
+  "level.badges":           "Badges",
+  "level.rarity.bronce":    "Bronze",
+  "level.rarity.plata":     "Silver",
+  "level.rarity.oro":       "Gold",
+  "level.rarity.diamante":  "Diamond",
 } as const;

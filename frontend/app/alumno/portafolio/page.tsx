@@ -6,6 +6,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import MercadosMundo from "@/components/MercadosMundo";
 import PanelInsignias from "@/components/PanelInsignias";
+import BarraNivel from "@/components/BarraNivel";
 import { Card, StatTile, formatoMoneda, formatoPorcentaje } from "@/components/primitives";
 import { api, ApiError } from "@/lib/api";
 import { obtenerSesion } from "@/lib/auth";
@@ -667,6 +668,9 @@ export default function PortafolioPage() {
         {/* Insignias */}
         <div className="mt-8">
           <p className="mb-3 font-mono text-[11px] uppercase tracking-widest text-fg/40">{t("portfolio.achievements")}</p>
+          <div className="mb-4">
+            <BarraNivel grupoId={grupoId ?? portafolio.grupo_id} />
+          </div>
           <PanelInsignias insignias={insignias} />
         </div>
       </div>

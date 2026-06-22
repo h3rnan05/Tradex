@@ -763,6 +763,17 @@ export const es = {
   "news.loadError":         "No se pudo cargar el diario.",
   "news.source":            "Fuente",
   "news.today":             "Hoy",
+
+  // ── Nivel / XP ──────────────────────────────────────────────
+  "level.label":            "Nivel",
+  "level.xp":               "XP",
+  "level.toNext":           "para subir de nivel",
+  "level.levelUp":          "¡Subiste de nivel!",
+  "level.badges":           "Insignias",
+  "level.rarity.bronce":    "Bronce",
+  "level.rarity.plata":     "Plata",
+  "level.rarity.oro":       "Oro",
+  "level.rarity.diamante":  "Diamante",
 } as const;
 
 export type TranslationKey = keyof typeof es;
