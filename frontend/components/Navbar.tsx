@@ -6,6 +6,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { cerrarSesion, obtenerSesion } from "@/lib/auth";
 import { useLanguage } from "@/lib/i18n";
 import { useRetoActivo } from "@/lib/retoContext";
+import { BarraNivelHUD } from "@/components/BarraNivel";
+import { getGrupoActivo } from "@/lib/clase";
 
 export default function Navbar() {
   const router = useRouter();
@@ -130,6 +132,10 @@ export default function Navbar() {
         {/* Desktop user info */}
         {sesion && (
           <div className="ml-auto hidden items-center gap-3 border-l border-fg/15 pl-3 md:flex">
+            {sesion.rol === "alumno" && (
+              <BarraNivelHUD grupoId={getGrupoActivo()} />
+            )}
+            <div className="h-4 w-px bg-fg/15" aria-hidden />
             <Link href="/perfil" className="font-mono text-[11px] text-fg/60 hover:text-fg">
               {sesion.nombre} · {rolLabel}
             </Link>
