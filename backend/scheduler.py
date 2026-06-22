@@ -47,10 +47,17 @@ def _sweep():
                 if precio_actual is None:
                     continue
 
-                debe_ejecutar = (
-                    (op.tipo == "compra" and precio_actual <= op.precio_limite) or
-                    (op.tipo == "venta" and precio_actual >= op.precio_limite)
-                )
+                sl_tp = getattr(op, "sl_tp_tipo", None)
+                trigger = getattr(op, "precio_trigger", None) or op.precio_limite
+                if sl_tp == "stop_loss":
+                    debe_ejecutar = precio_actual <= trigger
+                elif sl_tp == "take_profit":
+                    debe_ejecutar = precio_actual >= trigger
+                else:
+                    debe_ejecutar = (
+                        (op.tipo == "compra" and precio_actual <= op.precio_limite) or
+                        (op.tipo == "venta" and precio_actual >= op.precio_limite)
+                    )
                 if not debe_ejecutar:
                     continue
 

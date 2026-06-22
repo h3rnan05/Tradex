@@ -52,7 +52,15 @@ def _procesar_ordenes_pendientes(db: Session, alumno: User) -> list[OrdenPendien
             continue
 
         debe_ejecutar = False
-        if op_pendiente.tipo == "compra" and precio_actual <= op_pendiente.precio_limite:
+        sl_tp = getattr(op_pendiente, "sl_tp_tipo", None)
+        trigger = getattr(op_pendiente, "precio_trigger", None) or op_pendiente.precio_limite
+        if sl_tp == "stop_loss":
+            # Stop-loss: vende cuando el precio CAE al nivel de disparo o por debajo.
+            debe_ejecutar = precio_actual <= trigger
+        elif sl_tp == "take_profit":
+            # Take-profit: vende cuando el precio SUBE al nivel de disparo o más.
+            debe_ejecutar = precio_actual >= trigger
+        elif op_pendiente.tipo == "compra" and precio_actual <= op_pendiente.precio_limite:
             debe_ejecutar = True
         elif op_pendiente.tipo == "venta" and precio_actual >= op_pendiente.precio_limite:
             debe_ejecutar = True
@@ -182,6 +190,49 @@ def crear_orden_limite(payload: OrdenLimiteCreate, db: Session = Depends(get_db)
     }
 
 
+class StopOrderCreate(BaseModel):
+    grupo_id: uuid.UUID
+    ticker: str
+    cantidad: Decimal
+    tipo_condicional: str  # "stop_loss" | "take_profit"
+    precio_trigger: Decimal
+
+
+@router.post("/condicional", status_code=status.HTTP_201_CREATED)
+def crear_orden_condicional(payload: StopOrderCreate, db: Session = Depends(get_db), alumno: User = Depends(require_alumno)):
+    """Crea una orden condicional de cierre (stop-loss o take-profit). Vende la
+    posición existente cuando el precio cruza el nivel de disparo."""
+    if payload.tipo_condicional not in ("stop_loss", "take_profit"):
+        raise HTTPException(status_code=400, detail="tipo_condicional debe ser 'stop_loss' o 'take_profit'")
+    if payload.cantidad <= 0 or payload.precio_trigger <= 0:
+        raise HTTPException(status_code=400, detail="Cantidad y precio de disparo deben ser mayores a cero")
+
+    _get_membership(db, alumno, payload.grupo_id)  # valida pertenencia
+
+    op = OrdenPendiente(
+        alumno_id=alumno.id,
+        grupo_id=payload.grupo_id,
+        ticker=payload.ticker.upper().strip(),
+        tipo="venta",
+        cantidad=payload.cantidad,
+        precio_limite=payload.precio_trigger,
+        sl_tp_tipo=payload.tipo_condicional,
+        precio_trigger=payload.precio_trigger,
+    )
+    db.add(op)
+    db.commit()
+    db.refresh(op)
+    return {
+        "id": str(op.id),
+        "ticker": op.ticker,
+        "tipo_condicional": op.sl_tp_tipo,
+        "cantidad": str(op.cantidad),
+        "precio_trigger": str(op.precio_trigger),
+        "estado": op.estado,
+        "creada_en": op.creada_en.isoformat(),
+    }
+
+
 @router.get("")
 def listar_ordenes_limite(db: Session = Depends(get_db), alumno: User = Depends(require_alumno)):
     # Process pending orders first, then return updated list
@@ -200,6 +251,8 @@ def listar_ordenes_limite(db: Session = Depends(get_db), alumno: User = Depends(
             "tipo": o.tipo,
             "cantidad": str(o.cantidad),
             "precio_limite": str(o.precio_limite),
+            "sl_tp_tipo": getattr(o, "sl_tp_tipo", None),
+            "precio_trigger": str(o.precio_trigger) if getattr(o, "precio_trigger", None) else None,
             "estado": o.estado,
             "creada_en": o.creada_en.isoformat() if o.creada_en else None,
             "ejecutada_en": o.ejecutada_en.isoformat() if o.ejecutada_en else None,
@@ -321,10 +374,17 @@ def obtener_notificaciones(db: Session = Depends(get_db), alumno: User = Depends
 
     notifs = []
     for o in ordenes_ejecutadas:
+        sl_tp = getattr(o, "sl_tp_tipo", None)
+        if sl_tp == "stop_loss":
+            etiqueta = f"Stop-loss disparado: vendiste {o.cantidad} {o.ticker} a ${o.precio_limite}"
+        elif sl_tp == "take_profit":
+            etiqueta = f"Take-profit disparado: vendiste {o.cantidad} {o.ticker} a ${o.precio_limite}"
+        else:
+            etiqueta = f"Orden {o.tipo} de {o.cantidad} {o.ticker} ejecutada a ${o.precio_limite}"
         notifs.append({
             "id": f"orden-{o.id}",
             "tipo": "orden_ejecutada",
-            "mensaje": f"Orden {o.tipo} de {o.cantidad} {o.ticker} ejecutada a ${o.precio_limite}",
+            "mensaje": etiqueta,
             "ticker": o.ticker,
             "ts": o.ejecutada_en.isoformat() if o.ejecutada_en else None,
         })
