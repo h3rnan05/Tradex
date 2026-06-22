@@ -1,10 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Navbar from "@/components/Navbar";
 import { Badge, Card, StatTile, formatoMoneda, formatoPorcentaje } from "@/components/primitives";
 import { api, ApiError } from "@/lib/api";
 import { useLanguage } from "@/lib/i18n";
+import { useToast } from "@/components/Toast";
+import { obtenerSesion } from "@/lib/auth";
+
+/** Estado de ánimo del mercado según la caída actual promedio. */
+function sentimiento(cambio: number): { label: string; color: string; pos: number; emoji: string } {
+  if (cambio <= -10) return { label: "Pánico", color: "#dc2626", pos: 8, emoji: "😱" };
+  if (cambio <= -3) return { label: "Miedo", color: "#ea580c", pos: 28, emoji: "😨" };
+  if (cambio < 0) return { label: "Cautela", color: "#ca8a04", pos: 48, emoji: "😟" };
+  if (cambio < 5) return { label: "Optimismo", color: "#16a34a", pos: 72, emoji: "🙂" };
+  return { label: "Euforia", color: "#15803d", pos: 92, emoji: "🤑" };
+}
 
 interface RetoOut {
   id: string;
@@ -111,6 +122,8 @@ function MiniGrafica({ serie, baja }: { serie: number[]; baja: boolean }) {
 
 export default function RetoActivo({ retoId }: { retoId: string }) {
   const { t } = useLanguage();
+  const { toast } = useToast();
+  const fondoAvisado = useRef(false);
   const [estado, setEstado] = useState<RetoEstado | null>(null);
   const [escenario, setEscenario] = useState<Escenario | null>(null);
   const [ranking, setRanking] = useState<RankingEntry[]>([]);
@@ -183,6 +196,18 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
       .catch(() => {});
   }, [estado?.reto.escenario_id]);
 
+  // Aviso único cuando el mercado toca fondo (señal para cubrir cortos / comprar).
+  useEffect(() => {
+    if (!estado?.reto.escenario_id || mercado.length === 0 || fondoAvisado.current) return;
+    const totalProm = mercado.reduce((a, m) => a + m.cambio_total, 0) / mercado.length;
+    const actualProm = mercado.reduce((a, m) => a + m.cambio_porcentaje, 0) / mercado.length;
+    // Llegamos al ~90% de la caída proyectada y el reto pasó la mitad: es el fondo.
+    if (totalProm < -1 && actualProm <= totalProm * 0.9 && estado.progreso_porcentaje >= 45) {
+      fondoAvisado.current = true;
+      toast(t("challenge.bottomAlert"), "info");
+    }
+  }, [mercado, estado?.progreso_porcentaje, estado?.reto.escenario_id, t, toast]);
+
   const activosReto = estado?.reto.activos_permitidos ?? [];
   const tickersOperables = activosReto.length > 0 ? activosReto : escenario?.tickers_sugeridos ?? [];
 
@@ -198,13 +223,17 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
     setOperando(true);
     try {
       await api.post(`/retos/${retoId}/${tipo}`, { ticker, cantidad });
-      setMensaje(tipo === "comprar" ? t("challenge.buyDone") : t("challenge.sellDone"));
+      const msg = tipo === "comprar" ? t("challenge.buyDone") : t("challenge.sellDone");
+      setMensaje(msg);
+      toast(`${msg}: ${cantidad} ${limpiar(ticker)}`, "success");
       await cargarEstado();
       cargarRanking();
       cargarOrdenes();
       cargarMercado();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t("challenge.errorOrder"));
+      const m = err instanceof ApiError ? err.message : t("challenge.errorOrder");
+      setError(m);
+      toast(m, "error");
     } finally {
       setOperando(false);
     }
@@ -219,13 +248,17 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
     try {
       const url = tk ? `/retos/${retoId}/liquidar?ticker=${encodeURIComponent(tk)}` : `/retos/${retoId}/liquidar`;
       await api.post(url, {});
-      setMensaje(tk ? t("challenge.closeDone") : t("challenge.liquidateDone"));
+      const msg = tk ? t("challenge.closeDone") : t("challenge.liquidateDone");
+      setMensaje(msg);
+      toast(tk ? `${msg}: ${limpiar(tk)}` : msg, "success");
       await cargarEstado();
       cargarRanking();
       cargarOrdenes();
       cargarMercado();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t("challenge.errorOrder"));
+      const m = err instanceof ApiError ? err.message : t("challenge.errorOrder");
+      setError(m);
+      toast(m, "error");
     } finally {
       setOperando(false);
     }
@@ -287,6 +320,56 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
             : ""}
         </p>
 
+        {/* Resumen final del reto */}
+        {terminado && (() => {
+          const sesionId = obtenerSesion()?.userId ?? null;
+          const miPos = ranking.findIndex((r) => r.alumno_id === sesionId);
+          const ganador = ranking[0];
+          const soyGanador = miPos === 0;
+          const rend = Number(estado.rendimiento_porcentaje);
+          const mensaje = soyGanador
+            ? "🏆 ¡Ganaste el reto! Leíste la crisis mejor que nadie."
+            : rend > 0
+            ? "Saliste con ganancias a pesar de la crisis. ¡Bien hecho!"
+            : "La crisis te alcanzó. Revisa tu historial y vuelve más fuerte.";
+          return (
+            <Card className="mb-6 border-2 border-accent p-5">
+              <p className="mb-3 font-mono text-[11px] uppercase tracking-widest text-accent">
+                {t("challenge.finished")} · Resumen
+              </p>
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                <div>
+                  <p className="font-mono text-[10px] uppercase text-fg/40">Tu lugar</p>
+                  <p className="text-2xl font-black text-fg">
+                    {miPos >= 0 ? `#${miPos + 1}` : "—"}
+                    <span className="ml-1 text-sm font-normal text-fg/40">/ {ranking.length}</span>
+                  </p>
+                </div>
+                <div>
+                  <p className="font-mono text-[10px] uppercase text-fg/40">Tu rendimiento</p>
+                  <p className={`text-2xl font-black ${rend >= 0 ? "text-ganancia" : "text-perdida"}`}>
+                    {formatoPorcentaje(estado.rendimiento_porcentaje)}
+                  </p>
+                </div>
+                <div>
+                  <p className="font-mono text-[10px] uppercase text-fg/40">Valor final</p>
+                  <p className="text-2xl font-black text-fg">{formatoMoneda(estado.valor_total)}</p>
+                </div>
+                <div>
+                  <p className="font-mono text-[10px] uppercase text-fg/40">Ganador</p>
+                  <p className="truncate text-lg font-bold text-fg">🏅 {ganador?.nombre ?? "—"}</p>
+                  {ganador && (
+                    <p className="font-mono text-[11px] text-ganancia">
+                      {formatoPorcentaje(ganador.rendimiento_porcentaje)}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <p className="mt-4 text-sm text-fg/60">{mensaje}</p>
+            </Card>
+          );
+        })()}
+
         {/* Banner inmersivo de crisis: muestra el crash proyectado */}
         {enCrisis && mercado.length > 0 && (
           <div className="mb-4 border border-perdida/30 bg-perdida/10 p-4">
@@ -314,6 +397,34 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
             <p className="mt-2 font-mono text-[10px] text-perdida/70">
               Fondo proyectado del mercado: {caídaTotalPromedio.toFixed(0)}% · Caída actual: {cambioActualPromedio.toFixed(1)}% · El mercado se recupera en la 2ª mitad
             </p>
+
+            {/* Sentímetro del mercado */}
+            {(() => {
+              const s = sentimiento(cambioActualPromedio);
+              return (
+                <div className="mt-3 border-t border-perdida/20 pt-3">
+                  <div className="mb-1 flex items-center justify-between">
+                    <span className="font-mono text-[10px] uppercase tracking-wider text-fg/40">
+                      Sentimiento del mercado
+                    </span>
+                    <span className="font-mono text-[11px] font-bold" style={{ color: s.color }}>
+                      {s.emoji} {s.label}
+                    </span>
+                  </div>
+                  <div className="relative h-2 w-full rounded-full bg-gradient-to-r from-[#dc2626] via-[#ca8a04] to-[#15803d]">
+                    <div
+                      className="absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-canvas bg-fg shadow"
+                      style={{ left: `${s.pos}%` }}
+                    />
+                  </div>
+                  <div className="mt-1 flex justify-between font-mono text-[8px] uppercase tracking-wider text-fg/30">
+                    <span>Pánico</span>
+                    <span>Neutral</span>
+                    <span>Euforia</span>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
 
@@ -351,7 +462,7 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
                   </h2>
                 </div>
                 {/* Titulares */}
-                <div className="divide-y divide-fg/15">
+                <div className="max-h-72 divide-y divide-fg/15 overflow-y-auto">
                   {noticias.noticias.map((n, i) => (
                     <article key={`${n.fecha}-${i}`} className={`px-4 py-3 ${i === 0 ? "bg-perdida/5" : ""}`}>
                       <div className="mb-1 flex items-baseline gap-2">
@@ -385,11 +496,12 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
                   {tickersOperables.map((tk) => {
                     const info = mercado.find((m) => m.ticker === tk);
                     const baja = info && info.cambio_porcentaje < 0;
+                    const posicion = estado.holdings.find((h) => h.ticker === tk && Number(h.cantidad) !== 0);
                     return (
                       <button
                         key={tk}
                         onClick={() => setTicker(tk)}
-                        className={`flex flex-col items-start rounded-none px-3 py-2 font-mono transition-colors ${
+                        className={`relative flex flex-col items-start rounded-none px-3 py-2 font-mono transition-colors ${
                           ticker === tk
                             ? enCrisis
                               ? "bg-perdida text-white"
@@ -397,6 +509,14 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
                             : "bg-fg/5 text-fg/70 hover:bg-fg/10"
                         }`}
                       >
+                        {posicion && (
+                          <span
+                            title={Number(posicion.cantidad) < 0 ? "Tienes un corto" : "Tienes una posición"}
+                            className={`absolute right-1 top-1 h-1.5 w-1.5 rounded-full ${
+                              Number(posicion.cantidad) < 0 ? "bg-perdida" : "bg-ganancia"
+                            } ${ticker === tk ? "ring-1 ring-white" : ""}`}
+                          />
+                        )}
                         <span className="text-xs font-bold uppercase">{limpiar(tk)}</span>
                         {info && (
                           <>
@@ -478,6 +598,30 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
                         <div className="h-24 w-full border border-fg/10 bg-fg/[0.02] px-1">
                           <MiniGrafica serie={serie} baja={serie.length >= 2 && serie[serie.length - 1] < serie[0]} />
                         </div>
+                      </div>
+                    )}
+
+                    {/* Atajos de cantidad según el capital disponible */}
+                    {precioTicker && Number(precioTicker.precio) > 0 && (
+                      <div className="mb-2 flex flex-wrap items-center gap-2">
+                        <span className="font-mono text-[10px] uppercase tracking-wider text-fg/40">
+                          Cantidad rápida:
+                        </span>
+                        {[0.25, 0.5, 1].map((frac) => {
+                          const max = Number(estado.capital_disponible) / Number(precioTicker.precio);
+                          const q = Math.floor(max * frac);
+                          return (
+                            <button
+                              key={frac}
+                              type="button"
+                              disabled={q <= 0}
+                              onClick={() => setCantidad(String(q))}
+                              className="rounded-none border border-fg/20 px-2 py-1 font-mono text-[10px] font-bold uppercase text-fg/60 hover:border-accent hover:text-fg disabled:opacity-30"
+                            >
+                              {frac === 1 ? "Máx" : `${frac * 100}%`}
+                            </button>
+                          );
+                        })}
                       </div>
                     )}
 
