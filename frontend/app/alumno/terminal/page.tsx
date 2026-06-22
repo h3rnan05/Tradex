@@ -61,6 +61,11 @@ interface OrdenResponse {
   precio_ejecucion: string;
 }
 
+interface PuntoValor {
+  fecha: string;
+  valor: number;
+}
+
 const NIVELES_APALANCAMIENTO = [1, 2, 3, 5];
 
 function limpiar(t: string) {
@@ -70,6 +75,31 @@ function limpiar(t: string) {
 function money(v: string | number | null | undefined, dec = 2) {
   const n = Number(v ?? 0);
   return n.toLocaleString("es-MX", { minimumFractionDigits: dec, maximumFractionDigits: dec });
+}
+
+function Sparkline({ puntos }: { puntos: PuntoValor[] }) {
+  if (puntos.length < 2) return null;
+  const valores = puntos.map((p) => p.valor);
+  const min = Math.min(...valores);
+  const max = Math.max(...valores);
+  const rango = max - min || 1;
+  const W = 240;
+  const H = 40;
+  const subiendo = valores[valores.length - 1] >= valores[0];
+  const color = subiendo ? "#22c55e" : "#ef4444";
+  const pts = valores.map((v, i) => {
+    const x = (i / (valores.length - 1)) * W;
+    const y = H - ((v - min) / rango) * H;
+    return `${x.toFixed(2)},${y.toFixed(2)}`;
+  });
+  const linea = `M ${pts.join(" L ")}`;
+  const area = `${linea} L ${W},${H} L 0,${H} Z`;
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="h-10 w-full">
+      <path d={area} fill={color} fillOpacity={0.12} />
+      <path d={linea} fill="none" stroke={color} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
 }
 
 export default function TerminalPage() {
@@ -102,6 +132,10 @@ function TerminalInterna() {
   const [error, setError] = useState<string | null>(null);
   const [mensaje, setMensaje] = useState<string | null>(null);
 
+  const [condAbierto, setCondAbierto] = useState(false);
+  const [precioTrigger, setPrecioTrigger] = useState<string>("");
+  const [historialValor, setHistorialValor] = useState<PuntoValor[]>([]);
+
   const refrescarTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const recargarPortafolio = useCallback(async (gid?: string | null) => {
@@ -118,6 +152,12 @@ function TerminalInterna() {
       setPrestamoTotal(p.prestamo_total);
       setRendPct(p.rendimiento_porcentaje);
       setHoldings(p.holdings || []);
+      if (p.grupo_id) {
+        const hv = await api
+          .get<PuntoValor[]>(`/alumnos/${sesion.userId}/historial-valor?grupo_id=${p.grupo_id}`)
+          .catch(() => null);
+        if (hv) setHistorialValor(hv);
+      }
     }
   }, [grupoId]);
 
@@ -224,6 +264,36 @@ function TerminalInterna() {
     }
   }
 
+  async function crearCondicional(tipo: "stop_loss" | "take_profit") {
+    setError(null);
+    setMensaje(null);
+    const sesion = obtenerSesion();
+    if (!sesion) { setError(t("trade.errorSessionExpired")); return; }
+    if (!grupoId) { setError(t("trade.errorNoGroup")); return; }
+    const cantidadNum = Number(cantidad);
+    if (!cantidadNum || cantidadNum <= 0) { setError(t("trade.errorQuantity")); return; }
+    const triggerNum = Number(precioTrigger);
+    if (!triggerNum || triggerNum <= 0) { setError(t("trade.errorQuantity")); return; }
+
+    setOperando(true);
+    try {
+      await api.post("/ordenes-limite/condicional", {
+        grupo_id: grupoId,
+        ticker: ticker.trim().toUpperCase(),
+        cantidad: cantidadNum,
+        tipo_condicional: tipo,
+        precio_trigger: triggerNum,
+      });
+      const etiqueta = tipo === "stop_loss" ? t("terminal.stopLoss") : t("terminal.takeProfit");
+      setMensaje(`${t("terminal.condCreated")}: ${etiqueta} ${limpiar(ticker)} @ $${money(triggerNum)}`);
+      setPrecioTrigger("");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("trade.errorExecuteOrder"));
+    } finally {
+      setOperando(false);
+    }
+  }
+
   const rendNum = Number(rendPct || 0);
 
   const watchlist = useMemo(() => destacados.slice(0, 14), [destacados]);
@@ -247,6 +317,14 @@ function TerminalInterna() {
             </div>
           ))}
         </div>
+
+        {/* Curva de patrimonio */}
+        {historialValor.length >= 2 && (
+          <div className="mb-3 border border-[#3a3a3a] bg-[#111] px-3 py-2">
+            <p className="font-mono text-[9px] uppercase tracking-widest text-[#a0a0a0]">{t("terminal.equityCurve")}</p>
+            <Sparkline puntos={historialValor} />
+          </div>
+        )}
 
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-[200px_1fr_280px]">
           {/* Watchlist */}
@@ -405,6 +483,49 @@ function TerminalInterna() {
                   >
                     {t("terminal.cover")}
                   </button>
+                </div>
+
+                {/* Órdenes condicionales */}
+                <div className="border-t border-[#2e2e2e] pt-3">
+                  <button
+                    type="button"
+                    onClick={() => setCondAbierto((v) => !v)}
+                    className="flex w-full items-center justify-between font-mono text-[9px] uppercase tracking-widest text-[#a0a0a0] hover:text-[#ff9e1b]"
+                  >
+                    <span>{t("terminal.conditional")}</span>
+                    <span className="text-[#ff9e1b]">{condAbierto ? "−" : "+"}</span>
+                  </button>
+                  {condAbierto && (
+                    <div className="mt-2 space-y-2">
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={precioTrigger}
+                        onChange={(e) => setPrecioTrigger(e.target.value)}
+                        placeholder={t("terminal.triggerPrice")}
+                        className="w-full border border-[#4a4a4a] bg-[#0a0a0a] px-3 py-2 font-mono text-sm tabular-nums text-[#e8e8e8] outline-none focus:border-[#ff9e1b] placeholder:text-[#8c8c8c]"
+                      />
+                      <div className="grid grid-cols-2 gap-1">
+                        <button
+                          type="button"
+                          disabled={operando}
+                          onClick={() => crearCondicional("stop_loss")}
+                          className="border border-[#8a2a2a] py-2 font-mono text-[11px] font-bold uppercase tracking-wide text-[#ff7a7a] hover:bg-[#8a2a2a] hover:text-white disabled:opacity-40"
+                        >
+                          {t("terminal.stopLoss")}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={operando}
+                          onClick={() => crearCondicional("take_profit")}
+                          className="border border-[#1f7a4d] py-2 font-mono text-[11px] font-bold uppercase tracking-wide text-[#7ee0ad] hover:bg-[#1f7a4d] hover:text-white disabled:opacity-40"
+                        >
+                          {t("terminal.takeProfit")}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {error && <p className="font-mono text-[10px] text-[#ff4d4d]">{error}</p>}
