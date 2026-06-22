@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import Navbar from "@/components/Navbar";
@@ -58,6 +58,22 @@ interface GrupoDetalle {
   memberships: Membership[];
   holdings: Holding[];
   ordenes: Orden[];
+}
+
+interface HoldingConPrecio {
+  id: string;
+  ticker: string;
+  cantidad: string;
+  precio_promedio: string;
+  precio_actual: string;
+  pnl: string;
+  pnl_porcentaje: string;
+  es_corto: boolean;
+  apalancamiento: string;
+}
+
+interface Portafolio {
+  holdings: HoldingConPrecio[];
 }
 
 interface EvaluacionEntry {
@@ -127,6 +143,9 @@ export default function DetalleGrupoPage() {
   const [msgConfig, setMsgConfig] = useState<string | null>(null);
   const [configOk, setConfigOk] = useState(false);
   const [ordenExpandida, setOrdenExpandida] = useState<string | null>(null);
+  const [posExpandida, setPosExpandida] = useState<string | null>(null);
+  const [posiciones, setPosiciones] = useState<Record<string, HoldingConPrecio[]>>({});
+  const [posLoading, setPosLoading] = useState<string | null>(null);
   const [pageOrdenes, setPageOrdenes] = useState(1);
   const ORDENES_PER_PAGE = 30;
 
@@ -225,6 +244,25 @@ export default function DetalleGrupoPage() {
       // silent
     } finally {
       setPendingDelete(null);
+    }
+  }
+
+  async function togglePosiciones(alumnoId: string) {
+    if (posExpandida === alumnoId) {
+      setPosExpandida(null);
+      return;
+    }
+    setPosExpandida(alumnoId);
+    if (!posiciones[alumnoId]) {
+      setPosLoading(alumnoId);
+      try {
+        const data = await api.get<Portafolio>(`/alumnos/${alumnoId}/portafolio?grupo_id=${params.id}`);
+        setPosiciones((prev) => ({ ...prev, [alumnoId]: data.holdings }));
+      } catch {
+        setPosiciones((prev) => ({ ...prev, [alumnoId]: [] }));
+      } finally {
+        setPosLoading(null);
+      }
     }
   }
 
@@ -545,8 +583,11 @@ export default function DetalleGrupoPage() {
                     {evaluacion.map((e) => {
                       const m = membershipByAlumno[e.alumno_id];
                       const rend = Number(e.rendimiento_porcentaje);
+                      const posAbierta = posExpandida === e.alumno_id;
+                      const holdings = posiciones[e.alumno_id];
                       return (
-                        <tr key={e.alumno_id} className={`border-t border-fg/5 ${e.pausado ? "opacity-50" : "hover:bg-fg/5"}`}>
+                        <React.Fragment key={e.alumno_id}>
+                        <tr className={`border-t border-fg/5 ${e.pausado ? "opacity-50" : "hover:bg-fg/5"}`}>
                           <td className="px-3 py-3 font-mono text-xs font-bold text-fg/60">#{e.posicion}</td>
                           <td className="px-3 py-3">
                             <div className="flex items-center gap-2">
@@ -573,24 +614,81 @@ export default function DetalleGrupoPage() {
                             {[e.ciudad, e.estado].filter(Boolean).join(", ") || "—"}
                           </td>
                           <td className="px-3 py-3">
-                            {m && (
-                              <div className="flex items-center gap-1.5">
-                                <button
-                                  onClick={() => setPendingPause({ membershipId: m.id, alumnoNombre: e.nombre, pausado: e.pausado })}
-                                  className={`px-2 py-1 font-mono text-[10px] font-bold uppercase transition-colors ${e.pausado ? "bg-ganancia/10 text-ganancia hover:bg-ganancia/20" : "bg-perdida/10 text-perdida hover:bg-perdida/20"}`}
-                                >
-                                  {e.pausado ? t("maestro.detail.resume") : t("maestro.detail.pause")}
-                                </button>
-                                <button
-                                  onClick={() => setPendingDelete({ membershipId: m.id, alumnoNombre: e.nombre })}
-                                  className="border border-perdida/30 px-2 py-1 font-mono text-[10px] font-bold uppercase text-perdida transition-colors hover:bg-perdida/10"
-                                >
-                                  {t("maestro.detail.delete")}
-                                </button>
-                              </div>
-                            )}
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={() => togglePosiciones(e.alumno_id)}
+                                className={`px-2 py-1 font-mono text-[10px] font-bold uppercase transition-colors ${posAbierta ? "bg-accent text-black" : "border border-fg/20 text-fg/60 hover:text-fg"}`}
+                              >
+                                {posAbierta ? t("maestro.positions.hide") : t("maestro.positions.view")}
+                              </button>
+                              {m && (
+                                <>
+                                  <button
+                                    onClick={() => setPendingPause({ membershipId: m.id, alumnoNombre: e.nombre, pausado: e.pausado })}
+                                    className={`px-2 py-1 font-mono text-[10px] font-bold uppercase transition-colors ${e.pausado ? "bg-ganancia/10 text-ganancia hover:bg-ganancia/20" : "bg-perdida/10 text-perdida hover:bg-perdida/20"}`}
+                                  >
+                                    {e.pausado ? t("maestro.detail.resume") : t("maestro.detail.pause")}
+                                  </button>
+                                  <button
+                                    onClick={() => setPendingDelete({ membershipId: m.id, alumnoNombre: e.nombre })}
+                                    className="border border-perdida/30 px-2 py-1 font-mono text-[10px] font-bold uppercase text-perdida transition-colors hover:bg-perdida/10"
+                                  >
+                                    {t("maestro.detail.delete")}
+                                  </button>
+                                </>
+                              )}
+                            </div>
                           </td>
                         </tr>
+                        {posAbierta && (
+                          <tr key={`${e.alumno_id}-pos`} className="border-t border-fg/5 bg-fg/2">
+                            <td colSpan={11} className="px-3 py-3">
+                              <h4 className="mb-2 font-mono text-[10px] uppercase tracking-widest text-fg/40">
+                                {t("maestro.positions.title")} — {e.nombre}
+                              </h4>
+                              {posLoading === e.alumno_id ? (
+                                <p className="font-mono text-xs text-fg/40">{t("common.loading")}</p>
+                              ) : !holdings || holdings.length === 0 ? (
+                                <p className="font-mono text-xs text-fg/40">{t("maestro.positions.none")}</p>
+                              ) : (
+                                <table className="w-full border border-fg/10 bg-panel text-sm">
+                                  <thead className="bg-fg/5">
+                                    <tr>
+                                      {[t("maestro.detail.colTicker"), t("maestro.detail.colQuantity"), "Precio prom.", "Precio actual", "P&L", "Apal."].map((h, i) => (
+                                        <th key={i} className="px-3 py-2 text-left font-mono text-[10px] uppercase tracking-wider text-fg/40">{h}</th>
+                                      ))}
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {holdings.map((h) => {
+                                      const hpnl = Number(h.pnl);
+                                      const hpct = Number(h.pnl_porcentaje);
+                                      const apal = Number(h.apalancamiento);
+                                      return (
+                                        <tr key={h.id} className="border-t border-fg/5">
+                                          <td className="px-3 py-2 font-mono font-bold text-fg">
+                                            {h.ticker}
+                                            {h.es_corto && (
+                                              <span className="ml-1.5 bg-perdida/10 px-1 py-0.5 font-mono text-[9px] font-bold uppercase text-perdida">Short</span>
+                                            )}
+                                          </td>
+                                          <td className="px-3 py-2 font-mono text-xs text-fg/70">{Number(h.cantidad).toFixed(4)}</td>
+                                          <td className="px-3 py-2 font-mono text-xs text-fg/70">{fmt(h.precio_promedio)}</td>
+                                          <td className="px-3 py-2 font-mono text-xs text-fg/70">{fmt(h.precio_actual)}</td>
+                                          <td className={`px-3 py-2 font-mono text-xs font-semibold ${hpnl >= 0 ? "text-ganancia" : "text-perdida"}`}>
+                                            {hpnl >= 0 ? "+" : ""}{fmt(h.pnl)} ({hpct >= 0 ? "+" : ""}{hpct.toFixed(2)}%)
+                                          </td>
+                                          <td className="px-3 py-2 font-mono text-xs text-fg/60">{apal.toFixed(2)}x</td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              )}
+                            </td>
+                          </tr>
+                        )}
+                        </React.Fragment>
                       );
                     })}
                   </tbody>
