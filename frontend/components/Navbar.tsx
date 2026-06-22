@@ -78,7 +78,7 @@ export default function Navbar() {
   return (
     <header className="sticky top-0 z-40 border-b-2 border-accent bg-canvas">
       {/* Main bar */}
-      <div className="mx-auto flex h-12 max-w-6xl items-center px-4">
+      <div className="mx-auto flex h-12 max-w-[1600px] items-center px-4">
         {/* Logo */}
         <span className="flex shrink-0 items-center gap-2 font-mono text-[12px] font-bold uppercase tracking-widest text-accent">
           <span className="inline-block size-2 bg-accent" aria-hidden />
@@ -88,15 +88,15 @@ export default function Navbar() {
         {/* Desktop nav */}
         {sesion && (
           <>
-            <span className="mx-3 hidden h-4 w-px bg-fg/20 md:block" aria-hidden />
-            <nav className="hidden items-center md:flex">
+            <span className="mx-2 hidden h-4 w-px shrink-0 bg-fg/20 md:block" aria-hidden />
+            <nav className="hidden min-w-0 items-center md:flex">
               {enlaces.map((enlace) => {
                 const activo = pathname?.startsWith(enlace.href);
                 return (
                   <Link
                     key={enlace.href}
                     href={enlace.href}
-                    className={`inline-flex h-12 items-center px-3 font-mono text-[11px] font-semibold uppercase tracking-wider transition-colors ${
+                    className={`inline-flex h-12 shrink-0 items-center px-2.5 font-mono text-[11px] font-semibold uppercase tracking-wider transition-colors ${
                       activo ? "bg-accent text-black" : "text-fg/60 hover:bg-fg/5 hover:text-fg"
                     }`}
                   >
@@ -110,8 +110,8 @@ export default function Navbar() {
 
         {/* Desktop search */}
         {sesion && sesion.rol === "alumno" && !enReto && (
-          <form onSubmit={ejecutarComando} className="ml-3 hidden items-center md:flex">
-            <div className="flex w-36 items-center border border-fg/20 bg-panel">
+          <form onSubmit={ejecutarComando} className="ml-2 hidden shrink-0 items-center md:flex">
+            <div className="flex w-28 items-center border border-fg/20 bg-panel">
               <span className="px-1.5 font-mono text-[11px] text-fg/40">$</span>
               <input
                 value={comando}
@@ -131,25 +131,27 @@ export default function Navbar() {
 
         {/* Desktop user info */}
         {sesion && (
-          <div className="ml-auto hidden items-center gap-3 border-l border-fg/15 pl-3 md:flex">
+          <div className="ml-auto hidden shrink-0 items-center gap-3 whitespace-nowrap pl-3 md:flex">
             {sesion.rol === "alumno" && (
-              <BarraNivelHUD grupoId={getGrupoActivo()} />
+              <>
+                <BarraNivelHUD grupoId={getGrupoActivo()} />
+                <span className="h-6 w-px shrink-0 bg-fg/15" aria-hidden />
+              </>
             )}
-            <div className="h-4 w-px bg-fg/15" aria-hidden />
-            <Link href="/perfil" className="font-mono text-[11px] text-fg/60 hover:text-fg">
+            <Link href="/perfil" className="shrink-0 font-mono text-[11px] text-fg/60 hover:text-fg">
               {sesion.nombre} · {rolLabel}
             </Link>
             <button
               onClick={() => setLang(lang === "es" ? "en" : "es")}
               title={lang === "es" ? "Switch to English" : "Cambiar a Español"}
-              className="flex items-center gap-1 font-mono text-[10px] font-bold uppercase tracking-widest text-fg/50 hover:text-fg transition-colors"
+              className="flex shrink-0 items-center gap-1 font-mono text-[10px] font-bold uppercase tracking-widest text-fg/50 hover:text-fg transition-colors"
             >
               <span className={`inline-block h-1.5 w-1.5 rounded-full ${lang === "es" ? "bg-fg/25" : "bg-accent"}`} />
               {lang === "es" ? "EN" : "ES"}
             </button>
             <button
               onClick={salir}
-              className="font-mono text-[11px] uppercase tracking-wider text-fg/40 hover:text-fg/80 transition-colors"
+              className="shrink-0 font-mono text-[11px] uppercase tracking-wider text-fg/40 hover:text-fg/80 transition-colors"
             >
               {t("nav.logout")}
             </button>
