@@ -104,12 +104,39 @@ def mis_insignias(
     return [
         {
             "codigo": i.codigo,
-            "descripcion": BADGES.get(i.codigo, ""),
+            "descripcion": BADGES.get(i.codigo, {}).get("descripcion", ""),
+            "nivel": BADGES.get(i.codigo, {}).get("nivel", "facil"),
             "grupo_id": str(i.grupo_id) if i.grupo_id else None,
             "otorgada_at": i.otorgada_at.isoformat(),
         }
         for i in insignias
     ]
+
+
+@router.get("/catalogo")
+def catalogo_insignias():
+    """Catálogo completo de insignias disponibles, para la vitrina de trofeos
+    (muestra también las que el alumno todavía no ha obtenido)."""
+    return [
+        {
+            "codigo": codigo,
+            "descripcion": meta.get("descripcion", ""),
+            "nivel": meta.get("nivel", "facil"),
+        }
+        for codigo, meta in BADGES.items()
+    ]
+
+
+@router.get("/progreso")
+def mi_progreso(
+    grupo_id: uuid.UUID | None = Query(None),
+    db: Session = Depends(get_db),
+    alumno: User = Depends(require_alumno),
+):
+    """XP, nivel, título y desglose de insignias por rareza del alumno."""
+    evaluar_y_otorgar_insignias(db, alumno.id, grupo_id)
+    from progreso_engine import calcular_progreso
+    return calcular_progreso(db, alumno.id, grupo_id)
 
 
 @router.get("/alumno/{alumno_id}")
