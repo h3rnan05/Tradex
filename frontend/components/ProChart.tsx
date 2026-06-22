@@ -60,11 +60,14 @@ const RANGOS: { label: string; dias: number }[] = [
   { label: "5A", dias: 1825 },
 ];
 
-const COLOR_SUBE = "#007a2e";
-const COLOR_BAJA = "#cc1a1a";
-const COLOR_FONDO = "#faf6ed";
-const COLOR_TEXTO = "rgba(26,14,0,0.55)";
-const COLOR_GRID = "rgba(26,14,0,0.06)";
+const COLOR_SUBE = "#22c55e";
+const COLOR_BAJA = "#ef4444";
+const COLOR_FONDO_LIGHT = "#faf6ed";
+const COLOR_TEXTO_LIGHT = "rgba(26,14,0,0.55)";
+const COLOR_GRID_LIGHT = "rgba(26,14,0,0.06)";
+const COLOR_FONDO_DARK = "#0d0d0d";
+const COLOR_TEXTO_DARK = "rgba(220,220,220,0.85)";
+const COLOR_GRID_DARK = "rgba(255,255,255,0.05)";
 
 export default function ProChart({
   ticker,
@@ -73,6 +76,7 @@ export default function ProChart({
   cambioPorcentaje,
   destacados = [],
   onSeleccionarTicker,
+  dark = false,
 }: {
   ticker: string;
   noticias?: Noticia[];
@@ -80,6 +84,7 @@ export default function ProChart({
   cambioPorcentaje?: number | null;
   destacados?: Destacado[];
   onSeleccionarTicker?: (ticker: string) => void;
+  dark?: boolean;
 }) {
   const contenedorRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -139,27 +144,36 @@ export default function ProChart({
   useEffect(() => {
     if (!contenedorRef.current) return;
 
+    const fondo = dark ? COLOR_FONDO_DARK : COLOR_FONDO_LIGHT;
+    const texto = dark ? COLOR_TEXTO_DARK : COLOR_TEXTO_LIGHT;
+    const grid = dark ? COLOR_GRID_DARK : COLOR_GRID_LIGHT;
+    const borde = dark ? "rgba(255,255,255,0.08)" : "rgba(26,14,0,0.15)";
+    const crosshairColor = dark ? "rgba(255,255,255,0.25)" : "rgba(26,14,0,0.3)";
+    const crosshairBg = dark ? "#1e1e1e" : "#1a0e00";
+    const sepColor = dark ? "rgba(255,255,255,0.06)" : "rgba(26,14,0,0.12)";
+    const sepHover = dark ? "rgba(255,158,27,0.2)" : "rgba(255,102,0,0.15)";
+
     const chart = createChart(contenedorRef.current, {
       layout: {
-        background: { type: ColorType.Solid, color: COLOR_FONDO },
-        textColor: COLOR_TEXTO,
+        background: { type: ColorType.Solid, color: fondo },
+        textColor: texto,
         fontFamily: "IBM Plex Mono, monospace",
         fontSize: 11,
         panes: {
-          separatorColor: "rgba(26,14,0,0.12)",
-          separatorHoverColor: "rgba(255,102,0,0.15)",
+          separatorColor: sepColor,
+          separatorHoverColor: sepHover,
           enableResize: true,
         },
       },
       grid: {
-        vertLines: { color: COLOR_GRID },
-        horzLines: { color: COLOR_GRID },
+        vertLines: { color: grid },
+        horzLines: { color: grid },
       },
-      rightPriceScale: { borderColor: "rgba(26,14,0,0.15)" },
-      timeScale: { borderColor: "rgba(26,14,0,0.15)", timeVisible: false },
+      rightPriceScale: { borderColor: borde },
+      timeScale: { borderColor: borde, timeVisible: false },
       crosshair: {
-        vertLine: { color: "rgba(26,14,0,0.3)", labelBackgroundColor: "#1a0e00" },
-        horzLine: { color: "rgba(26,14,0,0.3)", labelBackgroundColor: "#1a0e00" },
+        vertLine: { color: crosshairColor, labelBackgroundColor: crosshairBg },
+        horzLine: { color: crosshairColor, labelBackgroundColor: crosshairBg },
       },
       handleScroll: true,
       handleScale: true,
@@ -191,7 +205,8 @@ export default function ProChart({
       puntoInicioTrazoRef.current = null;
       setNumTrazos(0);
     };
-  }, [pantallaCompleta]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pantallaCompleta, dark]);
 
   useEffect(() => {
     const chart = chartRef.current;
@@ -455,17 +470,32 @@ export default function ProChart({
   const subiendo = (cambioPorcentaje ?? 0) >= 0;
   const indicadoresActivosInfo = INDICADORES_DISPONIBLES.filter((i) => indicadoresActivos.includes(i.key));
 
+  // Clases de color adaptadas al tema
+  const dk = dark;
+  const wrap = dk ? "bg-[#0d0d0d] border-[#1f1f1f]" : "bg-canvas border-fg/10";
+  const txt = dk ? "text-[#dcdcdc]" : "text-fg";
+  const txt50 = dk ? "text-[#7a7a7a]" : "text-fg/50";
+  const border = dk ? "border-[#2a2a2a]" : "border-fg/15";
+  const panelBg = dk ? "bg-[#131313]" : "bg-panel";
+  const hov = dk ? "hover:bg-[#1a1a1a]" : "hover:bg-fg/5";
+  const sep = dk ? "border-[#1f1f1f]" : "border-fg/10";
+  const sepLight = dk ? "border-[#191919]" : "border-fg/5";
+  const activoBg = dk ? "bg-[#ff9e1b]/10" : "bg-accent/10";
+  const btnActive = dk ? "bg-[#ff9e1b] text-black" : "bg-accent text-white";
+  const indActive = dk ? "border-[#ff9e1b] bg-[#ff9e1b]/10 text-[#ff9e1b]" : "border-accent bg-accent/10 text-accent";
+  const drawActive = dk ? "border-[#ff9e1b] bg-[#ff9e1b]/10 text-[#ff9e1b]" : "border-accent bg-accent/10 text-accent";
+
   return (
     <div
       className={
         pantallaCompleta
-          ? "fixed inset-0 z-50 flex bg-canvas"
-          : "rounded-md border border-fg/10 bg-canvas shadow-sm"
+          ? `fixed inset-0 z-50 flex ${dk ? "bg-[#0a0a0a]" : "bg-canvas"}`
+          : `rounded-md border ${wrap} shadow-sm`
       }
     >
       {pantallaCompleta && (
-        <div className="hidden w-56 shrink-0 flex-col overflow-y-auto border-r border-fg/10 lg:flex">
-          <p className="border-b border-fg/10 px-3 py-2.5 font-mono text-[11px] uppercase tracking-widest text-fg/40">
+        <div className={`hidden w-56 shrink-0 flex-col overflow-y-auto border-r ${sep} lg:flex`}>
+          <p className={`border-b ${sep} px-3 py-2.5 font-mono text-[11px] uppercase tracking-widest ${txt50}`}>
             Watchlist
           </p>
           {destacados.map((d) => {
@@ -475,14 +505,14 @@ export default function ProChart({
               <button
                 key={d.ticker}
                 onClick={() => onSeleccionarTicker?.(d.ticker)}
-                className={`flex items-center justify-between border-b border-fg/5 px-3 py-2 text-left ${
-                  activo ? "bg-accent/10" : "hover:bg-fg/5"
+                className={`flex items-center justify-between border-b ${sepLight} px-3 py-2 text-left ${
+                  activo ? activoBg : hov
                 }`}
               >
-                <span className="font-mono text-xs font-bold text-fg">{d.ticker}</span>
+                <span className={`font-mono text-xs font-bold ${txt}`}>{d.ticker}</span>
                 <span
                   className={`font-mono text-[11px] font-semibold tabular-nums ${
-                    sube ? "text-ganancia" : "text-perdida"
+                    sube ? "text-[#22c55e]" : "text-[#ef4444]"
                   }`}
                 >
                   {sube ? "▲" : "▼"} {d.cambio_porcentaje.toFixed(2)}%
@@ -494,16 +524,16 @@ export default function ProChart({
       )}
 
       <div className="flex min-w-0 flex-1 flex-col p-3">
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-3 border-b border-fg/10 pb-2">
+        <div className={`mb-2 flex flex-wrap items-center justify-between gap-3 border-b ${sep} pb-2`}>
           <div className="flex items-baseline gap-2">
-            <p className="font-mono text-sm font-bold tracking-wide text-fg">{ticker.toUpperCase()}</p>
+            <p className={`font-mono text-sm font-bold tracking-wide ${txt}`}>{ticker.toUpperCase()}</p>
             {precio && (
-              <p className="font-mono text-lg font-bold tabular-nums text-fg">${Number(precio).toFixed(2)}</p>
+              <p className={`font-mono text-lg font-bold tabular-nums ${txt}`}>${Number(precio).toFixed(2)}</p>
             )}
             {cambioPorcentaje != null && (
               <span
                 className={`rounded-sm px-1.5 py-0.5 font-mono text-[11px] font-semibold tabular-nums ${
-                  subiendo ? "bg-ganancia/10 text-ganancia" : "bg-perdida/10 text-perdida"
+                  subiendo ? "bg-[#22c55e]/15 text-[#22c55e]" : "bg-[#ef4444]/15 text-[#ef4444]"
                 }`}
               >
                 {subiendo ? "▲" : "▼"} {subiendo ? "+" : ""}
@@ -513,13 +543,13 @@ export default function ProChart({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex gap-0.5 rounded-md border border-fg/15 p-0.5">
+            <div className={`flex gap-0.5 rounded-md border ${border} p-0.5`}>
               {RANGOS.map((r) => (
                 <button
                   key={r.label}
                   onClick={() => setDias(r.dias)}
                   className={`rounded-sm px-2 py-1 font-mono text-[11px] font-semibold uppercase tracking-wide transition ${
-                    dias === r.dias ? "bg-accent text-white" : "text-fg/50 hover:bg-fg/5"
+                    dias === r.dias ? btnActive : `${txt50} ${hov}`
                   }`}
                 >
                   {r.label}
@@ -527,11 +557,11 @@ export default function ProChart({
               ))}
             </div>
 
-            <div className="flex gap-0.5 rounded-md border border-fg/15 p-0.5">
+            <div className={`flex gap-0.5 rounded-md border ${border} p-0.5`}>
               <button
                 onClick={() => setTipo("area")}
                 className={`rounded-sm px-2 py-1 font-mono text-[11px] font-semibold uppercase tracking-wide transition ${
-                  tipo === "area" ? "bg-accent text-white" : "text-fg/50 hover:bg-fg/5"
+                  tipo === "area" ? btnActive : `${txt50} ${hov}`
                 }`}
               >
                 Línea
@@ -539,7 +569,7 @@ export default function ProChart({
               <button
                 onClick={() => setTipo("velas")}
                 className={`rounded-sm px-2 py-1 font-mono text-[11px] font-semibold uppercase tracking-wide transition ${
-                  tipo === "velas" ? "bg-accent text-white" : "text-fg/50 hover:bg-fg/5"
+                  tipo === "velas" ? btnActive : `${txt50} ${hov}`
                 }`}
               >
                 Velas
@@ -551,22 +581,22 @@ export default function ProChart({
                 onClick={() => setMenuIndicadoresAbierto((v) => !v)}
                 className={`rounded-md border px-2.5 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-wide transition ${
                   menuIndicadoresAbierto || indicadoresActivos.length > 0
-                    ? "border-accent bg-accent/10 text-accent"
-                    : "border-fg/15 text-fg/50 hover:bg-fg/5"
+                    ? indActive
+                    : `${border} ${txt50} ${hov}`
                 }`}
               >
                 Indicadores {indicadoresActivos.length > 0 ? `(${indicadoresActivos.length})` : ""} ▾
               </button>
               {menuIndicadoresAbierto && (
-                <div className="absolute right-0 top-full z-10 mt-1 w-56 rounded-md border border-fg/15 bg-panel p-2 shadow-lg">
+                <div className={`absolute right-0 top-full z-10 mt-1 w-56 rounded-md border ${border} ${panelBg} p-2 shadow-lg`}>
                   {INDICADORES_DISPONIBLES.map((ind) => (
                     <label
                       key={ind.key}
-                      className="flex cursor-pointer items-center justify-between gap-2 rounded-sm px-2 py-1.5 hover:bg-fg/5"
+                      className={`flex cursor-pointer items-center justify-between gap-2 rounded-sm px-2 py-1.5 ${hov}`}
                     >
                       <span className="flex items-center gap-2">
                         <span className="h-2 w-2 rounded-full" style={{ backgroundColor: ind.color }} />
-                        <span className="text-xs font-medium text-fg">{ind.label}</span>
+                        <span className={`text-xs font-medium ${txt}`}>{ind.label}</span>
                       </span>
                       <input
                         type="checkbox"
@@ -582,15 +612,15 @@ export default function ProChart({
             <button
               onClick={() => setDibujando((v) => !v)}
               className={`rounded-md border px-2.5 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-wide transition ${
-                dibujando ? "border-accent bg-accent/10 text-accent" : "border-fg/15 text-fg/50 hover:bg-fg/5"
+                dibujando ? drawActive : `${border} ${txt50} ${hov}`
               }`}
             >
-              ✎ Dibujar
+              Dibujar
             </button>
             {numTrazos > 0 && (
               <button
                 onClick={borrarTrazos}
-                className="rounded-md border border-fg/15 px-2.5 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-wide text-fg/50 transition hover:bg-fg/5"
+                className={`rounded-md border ${border} px-2.5 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-wide ${txt50} transition ${hov}`}
               >
                 Borrar líneas
               </button>
@@ -598,15 +628,15 @@ export default function ProChart({
 
             <button
               onClick={() => setPantallaCompleta((v) => !v)}
-              className="rounded-md border border-fg/15 px-2.5 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-wide text-fg/50 transition hover:bg-fg/5"
+              className={`rounded-md border ${border} px-2.5 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-wide ${txt50} transition ${hov}`}
             >
-              {pantallaCompleta ? "Cerrar ✕" : "Pantalla completa ⛶"}
+              {pantallaCompleta ? "Cerrar ✕" : "Pantalla completa"}
             </button>
           </div>
         </div>
 
         {dibujando && (
-          <p className="mb-2 font-mono text-[11px] text-accent">
+          <p className={`mb-2 font-mono text-[11px] ${dk ? "text-[#ff9e1b]" : "text-accent"}`}>
             Modo dibujo activo: haz clic en dos puntos de cualquier panel de la gráfica para trazar una línea.
           </p>
         )}
@@ -614,7 +644,7 @@ export default function ProChart({
         {indicadoresActivosInfo.length > 0 && (
           <div className="mb-2 flex flex-wrap gap-3">
             {indicadoresActivosInfo.map((ind) => (
-              <span key={ind.key} className="flex items-center gap-1.5 font-mono text-[10px] text-fg/50">
+              <span key={ind.key} className={`flex items-center gap-1.5 font-mono text-[10px] ${txt50}`}>
                 <span className="h-2 w-2 rounded-full" style={{ backgroundColor: ind.color }} />
                 {ind.label}
               </span>
@@ -622,15 +652,15 @@ export default function ProChart({
           </div>
         )}
 
-        {cargando && <p className="text-sm text-fg/40">Cargando gráfica...</p>}
-        {error && <p className="text-sm text-perdida">{error}</p>}
+        {cargando && <p className={`text-sm ${txt50}`}>Cargando gráfica...</p>}
+        {error && <p className="text-sm text-[#ef4444]">{error}</p>}
 
         <div ref={contenedorRef} className={pantallaCompleta ? "min-h-0 flex-1" : "h-[440px] w-full"} />
       </div>
 
       {pantallaCompleta && (
-        <div className="hidden w-80 shrink-0 overflow-y-auto border-l border-fg/10 p-4 lg:block">
-          <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">Noticias · {ticker}</p>
+        <div className={`hidden w-80 shrink-0 overflow-y-auto border-l ${sep} p-4 lg:block`}>
+          <p className={`mb-2 font-mono text-[11px] uppercase tracking-widest ${txt50}`}>Noticias · {ticker}</p>
           <div className="flex flex-col gap-3">
             {noticias.map((n, i) => (
               <a
@@ -638,10 +668,10 @@ export default function ProChart({
                 href={n.link}
                 target="_blank"
                 rel="noreferrer"
-                className="block border-b border-fg/10 pb-3 text-sm hover:text-accent"
+                className={`block border-b ${sep} pb-3 text-sm ${dk ? "hover:text-[#ff9e1b]" : "hover:text-accent"}`}
               >
-                <p className="font-medium text-fg">{n.titulo}</p>
-                <p className="mt-1 font-mono text-[10px] uppercase tracking-wide text-fg/40">
+                <p className={`font-medium ${txt}`}>{n.titulo}</p>
+                <p className={`mt-1 font-mono text-[10px] uppercase tracking-wide ${txt50}`}>
                   {n.fuente} {n.fecha ? `· ${new Date(n.fecha).toLocaleDateString()}` : ""}
                 </p>
               </a>

@@ -232,32 +232,17 @@ function TerminalInterna() {
     <div className="min-h-screen bg-[#0a0a0a] text-[#e8e8e8]">
       <Navbar />
 
-      {/* Cinta de cotización superior */}
-      <div className="overflow-hidden border-b border-[#1f1f1f] bg-black">
-        <div className="flex animate-[scroll_40s_linear_infinite] whitespace-nowrap py-1.5">
-          {[...watchlist, ...watchlist].map((d, i) => (
-            <span key={`${d.ticker}-${i}`} className="mx-4 font-mono text-[11px]">
-              <span className="text-[#ff9e1b] font-bold">{limpiar(d.ticker)}</span>{" "}
-              <span className="text-[#cfcfcf]">{money(d.precio)}</span>{" "}
-              <span className={d.cambio_porcentaje >= 0 ? "text-[#26d07c]" : "text-[#ff4d4d]"}>
-                {d.cambio_porcentaje >= 0 ? "+" : ""}{d.cambio_porcentaje.toFixed(2)}%
-              </span>
-            </span>
-          ))}
-        </div>
-      </div>
-
       <div className="mx-auto max-w-[1400px] p-3">
         {/* Encabezado de cuenta */}
         <div className="mb-3 grid grid-cols-2 gap-px overflow-hidden border border-[#1f1f1f] bg-[#1f1f1f] sm:grid-cols-4">
           {[
             { l: t("terminal.equity"), v: `$${money(valorTotal)}`, c: "text-[#e8e8e8]" },
             { l: t("terminal.cash"), v: `$${money(capitalDisponible)}`, c: "text-[#e8e8e8]" },
-            { l: t("terminal.marginUsed"), v: `$${money(prestamoTotal)}`, c: Number(prestamoTotal) > 0 ? "text-[#ff9e1b]" : "text-[#7a7a7a]" },
+            { l: t("terminal.marginUsed"), v: `$${money(prestamoTotal)}`, c: Number(prestamoTotal) > 0 ? "text-[#ff9e1b]" : "text-[#a0a0a0]" },
             { l: t("terminal.return"), v: `${rendNum >= 0 ? "+" : ""}${rendNum.toFixed(2)}%`, c: rendNum >= 0 ? "text-[#26d07c]" : "text-[#ff4d4d]" },
           ].map((s) => (
             <div key={s.l} className="bg-[#111] px-3 py-2">
-              <p className="font-mono text-[9px] uppercase tracking-widest text-[#6a6a6a]">{s.l}</p>
+              <p className="font-mono text-[9px] uppercase tracking-widest text-[#a0a0a0]">{s.l}</p>
               <p className={`font-mono text-lg font-bold tabular-nums ${s.c}`}>{s.v}</p>
             </div>
           ))}
@@ -282,7 +267,7 @@ function TerminalInterna() {
                     >
                       <span className="font-bold text-[#dcdcdc]">{limpiar(d.ticker)}</span>
                       <span className="flex flex-col items-end">
-                        <span className="tabular-nums text-[#bdbdbd]">{money(d.precio)}</span>
+                        <span className="tabular-nums text-[#d4d4d4]">{money(d.precio)}</span>
                         <span className={`tabular-nums ${d.cambio_porcentaje >= 0 ? "text-[#26d07c]" : "text-[#ff4d4d]"}`}>
                           {d.cambio_porcentaje >= 0 ? "+" : ""}{d.cambio_porcentaje.toFixed(2)}%
                         </span>
@@ -292,7 +277,7 @@ function TerminalInterna() {
                 );
               })}
               {watchlist.length === 0 && (
-                <li className="px-3 py-4 font-mono text-[10px] text-[#5a5a5a]">{t("terminal.loading")}</li>
+                <li className="px-3 py-4 font-mono text-[10px] text-[#8c8c8c]">{t("terminal.loading")}</li>
               )}
             </ul>
           </div>
@@ -308,7 +293,7 @@ function TerminalInterna() {
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
                 placeholder={t("terminal.symbol")}
-                className="w-28 border-l border-[#1f1f1f] bg-transparent px-3 py-2 font-mono text-[12px] uppercase tracking-wide text-[#e8e8e8] outline-none placeholder:text-[#5a5a5a]"
+                className="w-28 border-l border-[#1f1f1f] bg-transparent px-3 py-2 font-mono text-[12px] uppercase tracking-wide text-[#e8e8e8] outline-none placeholder:text-[#8c8c8c]"
               />
               <button type="submit" className="bg-[#ff9e1b] px-3 py-2 font-mono text-[10px] font-bold uppercase text-black">
                 {t("nav.go")}
@@ -322,6 +307,7 @@ function TerminalInterna() {
                 precio={precio}
                 destacados={destacados}
                 onSeleccionarTicker={seleccionar}
+                dark
               />
             </div>
           </div>
@@ -335,7 +321,7 @@ function TerminalInterna() {
               <div className="space-y-3 p-3">
                 {/* Cantidad */}
                 <div>
-                  <label className="font-mono text-[9px] uppercase tracking-widest text-[#6a6a6a]">{t("terminal.quantity")}</label>
+                  <label className="font-mono text-[9px] uppercase tracking-widest text-[#a0a0a0]">{t("terminal.quantity")}</label>
                   <input
                     type="number"
                     min="0"
@@ -351,7 +337,7 @@ function TerminalInterna() {
                         key={f}
                         type="button"
                         onClick={() => maxAccionesMargen > 0 && setCantidad(String(Math.floor(maxAccionesMargen * f)))}
-                        className="flex-1 border border-[#2a2a2a] py-1 font-mono text-[10px] text-[#9a9a9a] hover:border-[#ff9e1b] hover:text-[#ff9e1b]"
+                        className="flex-1 border border-[#2a2a2a] py-1 font-mono text-[10px] text-[#b0b0b0] hover:border-[#ff9e1b] hover:text-[#ff9e1b]"
                       >
                         {f === 1 ? t("terminal.max") : `${f * 100}%`}
                       </button>
@@ -361,7 +347,7 @@ function TerminalInterna() {
 
                 {/* Apalancamiento */}
                 <div>
-                  <label className="font-mono text-[9px] uppercase tracking-widest text-[#6a6a6a]">
+                  <label className="font-mono text-[9px] uppercase tracking-widest text-[#a0a0a0]">
                     {t("terminal.leverage")}
                   </label>
                   <div className="mt-1 flex gap-1">
@@ -373,14 +359,14 @@ function TerminalInterna() {
                         className={`flex-1 border py-2 font-mono text-[12px] font-bold transition-colors ${
                           apalancamiento === n
                             ? "border-[#ff9e1b] bg-[#ff9e1b] text-black"
-                            : "border-[#2a2a2a] text-[#9a9a9a] hover:border-[#ff9e1b]"
+                            : "border-[#2a2a2a] text-[#b0b0b0] hover:border-[#ff9e1b]"
                         }`}
                       >
                         {n}x
                       </button>
                     ))}
                   </div>
-                  <p className="mt-1 font-mono text-[9px] text-[#6a6a6a]">
+                  <p className="mt-1 font-mono text-[9px] text-[#a0a0a0]">
                     {t("terminal.buyingPower")}: <span className="text-[#26d07c]">${money(poderCompra)}</span>
                     {precioNum ? ` · ${t("terminal.maxShares")} ${maxAccionesMargen}` : ""}
                   </p>
@@ -435,7 +421,7 @@ function TerminalInterna() {
           </p>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[760px] font-mono text-[11px]">
-              <thead className="text-[#6a6a6a]">
+              <thead className="text-[#a0a0a0]">
                 <tr className="border-b border-[#1f1f1f]">
                   <th className="px-3 py-2 text-left">{t("terminal.symbol")}</th>
                   <th className="px-3 py-2 text-right">{t("terminal.quantity")}</th>
@@ -457,13 +443,13 @@ function TerminalInterna() {
                         {limpiar(h.ticker)}
                         {h.es_corto && <span className="ml-2 bg-[#8a2a2a] px-1 text-[9px] text-white">{t("terminal.short")}</span>}
                       </td>
-                      <td className="px-3 py-2 text-right tabular-nums text-[#bdbdbd]">{money(h.cantidad, 0)}</td>
-                      <td className="px-3 py-2 text-right tabular-nums text-[#bdbdbd]">{money(h.precio_promedio)}</td>
-                      <td className="px-3 py-2 text-right tabular-nums text-[#bdbdbd]">{money(h.precio_actual)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-[#d4d4d4]">{money(h.cantidad, 0)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-[#d4d4d4]">{money(h.precio_promedio)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-[#d4d4d4]">{money(h.precio_actual)}</td>
                       <td className="px-3 py-2 text-right tabular-nums">
-                        <span className={lev > 1 ? "text-[#ff9e1b]" : "text-[#5a5a5a]"}>{lev.toFixed(lev % 1 ? 1 : 0)}x</span>
+                        <span className={lev > 1 ? "text-[#ff9e1b]" : "text-[#8c8c8c]"}>{lev.toFixed(lev % 1 ? 1 : 0)}x</span>
                       </td>
-                      <td className="px-3 py-2 text-right tabular-nums text-[#bdbdbd]">${money(h.valor_mercado)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-[#d4d4d4]">${money(h.valor_mercado)}</td>
                       <td className={`px-3 py-2 text-right tabular-nums ${pnl >= 0 ? "text-[#26d07c]" : "text-[#ff4d4d]"}`}>
                         {pnl >= 0 ? "+" : ""}{money(h.pnl)} ({Number(h.pnl_porcentaje).toFixed(1)}%)
                       </td>
@@ -471,7 +457,7 @@ function TerminalInterna() {
                         <button
                           disabled={operando}
                           onClick={() => cerrarPosicion(h)}
-                          className="whitespace-nowrap border border-[#2a2a2a] px-2 py-1 text-[10px] text-[#9a9a9a] hover:border-[#ff9e1b] hover:text-[#ff9e1b] disabled:opacity-40"
+                          className="whitespace-nowrap border border-[#2a2a2a] px-2 py-1 text-[10px] text-[#b0b0b0] hover:border-[#ff9e1b] hover:text-[#ff9e1b] disabled:opacity-40"
                         >
                           {t("terminal.close")}
                         </button>
@@ -481,7 +467,7 @@ function TerminalInterna() {
                 })}
                 {holdings.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-3 py-6 text-center text-[10px] text-[#5a5a5a]">
+                    <td colSpan={8} className="px-3 py-6 text-center text-[10px] text-[#8c8c8c]">
                       {t("terminal.noPositions")}
                     </td>
                   </tr>
@@ -491,13 +477,6 @@ function TerminalInterna() {
           </div>
         </div>
       </div>
-
-      <style jsx global>{`
-        @keyframes scroll {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
-      `}</style>
     </div>
   );
 }
