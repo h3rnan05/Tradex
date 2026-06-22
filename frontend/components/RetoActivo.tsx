@@ -535,16 +535,17 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
                     </button>
                   )}
                 </div>
-                <table className="w-full text-sm">
+                <div className="overflow-x-auto">
+                <table className="w-full min-w-[640px] text-sm">
                   <thead className="bg-fg/5 text-left text-fg/60">
                     <tr>
-                      <th className="px-4 py-3">{t("challenge.ticker")}</th>
-                      <th className="px-4 py-3">{t("challenge.quantity")}</th>
-                      <th className="px-4 py-3">{t("challenge.avgPrice")}</th>
-                      <th className="px-4 py-3">{t("challenge.currentPrice")}</th>
-                      <th className="px-4 py-3">P&L</th>
-                      <th className="px-4 py-3">{t("challenge.marketValue")}</th>
-                      {!terminado && <th className="px-4 py-3" />}
+                      <th className="px-3 py-3">{t("challenge.ticker")}</th>
+                      <th className="px-3 py-3 text-right">{t("challenge.quantity")}</th>
+                      <th className="px-3 py-3 text-right">{t("challenge.avgPrice")}</th>
+                      <th className="px-3 py-3 text-right">{t("challenge.currentPrice")}</th>
+                      <th className="px-3 py-3 text-right">P&L</th>
+                      <th className="px-3 py-3 text-right">{t("challenge.marketValue")}</th>
+                      {!terminado && <th className="px-3 py-3" />}
                     </tr>
                   </thead>
                   <tbody>
@@ -556,7 +557,7 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
                           : 0;
                       return (
                         <tr key={h.ticker} className="border-t border-fg/5">
-                          <td className="px-4 py-3 font-mono font-bold text-fg">
+                          <td className="whitespace-nowrap px-3 py-3 font-mono font-bold text-fg">
                             {limpiar(h.ticker)}
                             {Number(h.cantidad) < 0 && (
                               <span className="ml-2 rounded-none bg-perdida/15 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase text-perdida">
@@ -564,23 +565,23 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
                               </span>
                             )}
                           </td>
-                          <td className="px-4 py-3 tabular-nums">{Number(h.cantidad).toFixed(4)}</td>
-                          <td className="px-4 py-3 tabular-nums">{formatoMoneda(h.precio_promedio)}</td>
-                          <td className="px-4 py-3 tabular-nums">{formatoMoneda(h.precio_actual)}</td>
-                          <td className={`px-4 py-3 font-mono font-bold tabular-nums ${pl < 0 ? "text-perdida" : "text-ganancia"}`}>
+                          <td className="px-3 py-3 text-right tabular-nums">{Number(h.cantidad).toFixed(2)}</td>
+                          <td className="px-3 py-3 text-right tabular-nums">{formatoMoneda(h.precio_promedio)}</td>
+                          <td className="px-3 py-3 text-right tabular-nums">{formatoMoneda(h.precio_actual)}</td>
+                          <td className={`whitespace-nowrap px-3 py-3 text-right font-mono font-bold tabular-nums ${pl < 0 ? "text-perdida" : "text-ganancia"}`}>
                             {pl >= 0 ? "+" : ""}
                             {formatoMoneda(pl.toFixed(2))}
                             <span className="ml-1 text-[10px] opacity-70">
                               ({plPct >= 0 ? "+" : ""}{plPct.toFixed(1)}%)
                             </span>
                           </td>
-                          <td className="px-4 py-3 tabular-nums">{formatoMoneda(h.valor_mercado)}</td>
+                          <td className="px-3 py-3 text-right tabular-nums">{formatoMoneda(h.valor_mercado)}</td>
                           {!terminado && (
-                            <td className="px-4 py-3 text-right">
+                            <td className="px-3 py-3 text-right">
                               <button
                                 onClick={() => liquidar(h.ticker)}
                                 disabled={operando}
-                                className="rounded-none border border-fg/20 px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-wider text-fg/60 hover:border-perdida hover:bg-perdida hover:text-white disabled:opacity-50"
+                                className="whitespace-nowrap rounded-none border border-fg/20 px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-wider text-fg/60 hover:border-perdida hover:bg-perdida hover:text-white disabled:opacity-50"
                               >
                                 {t("challenge.close")}
                               </button>
@@ -591,6 +592,7 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
                     })}
                   </tbody>
                 </table>
+                </div>
               </Card>
             )}
 
@@ -640,31 +642,35 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
               {t("challenge.ranking")}
             </p>
             <Card className="overflow-hidden p-0">
-              <table className="w-full text-sm">
-                <tbody>
-                  {ranking.map((r, i) => (
-                    <tr key={r.alumno_id} className="border-t border-fg/5 first:border-t-0">
-                      <td className="px-3 py-2.5 text-fg/40">{terminado && i === 0 ? "🏅" : i + 1}</td>
-                      <td className="px-3 py-2.5 font-medium text-fg">{r.nombre}</td>
-                      <td className="px-3 py-2.5 text-right font-mono tabular-nums">
-                        {formatoMoneda(r.valor_total)}
-                      </td>
-                      <td className="px-3 py-2.5 text-right">
-                        <Badge tone={Number(r.rendimiento_porcentaje) >= 0 ? "ganancia" : "perdida"}>
-                          {formatoPorcentaje(r.rendimiento_porcentaje)}
-                        </Badge>
-                      </td>
-                    </tr>
-                  ))}
-                  {ranking.length === 0 && (
-                    <tr>
-                      <td colSpan={4} className="px-4 py-6 text-center font-mono text-sm text-fg/30">
-                        {t("challenge.noParticipants")}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+              <ul className="divide-y divide-fg/5">
+                {ranking.map((r, i) => {
+                  const positivo = Number(r.rendimiento_porcentaje) >= 0;
+                  return (
+                    <li key={r.alumno_id} className="flex items-center gap-2 px-3 py-2.5">
+                      <span className="w-5 shrink-0 text-center font-mono text-xs text-fg/40">
+                        {terminado && i === 0 ? "🏅" : i + 1}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-fg">{r.nombre}</p>
+                        <p className="font-mono text-[11px] tabular-nums text-fg/50">{formatoMoneda(r.valor_total)}</p>
+                      </div>
+                      <span
+                        className={`shrink-0 font-mono text-xs font-bold tabular-nums ${
+                          positivo ? "text-ganancia" : "text-perdida"
+                        }`}
+                      >
+                        {positivo ? "+" : ""}
+                        {Number(r.rendimiento_porcentaje).toFixed(1)}%
+                      </span>
+                    </li>
+                  );
+                })}
+                {ranking.length === 0 && (
+                  <li className="px-4 py-6 text-center font-mono text-sm text-fg/30">
+                    {t("challenge.noParticipants")}
+                  </li>
+                )}
+              </ul>
             </Card>
           </div>
         </div>
