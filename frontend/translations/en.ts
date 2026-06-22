@@ -723,7 +723,7 @@ export const en = {
   "badge.sin_rendirse.desc":              "Trade on 5 different days",
 
   // ── Market Times (Tradex Times) ─────────────────────────────
-  "news.masthead":          "TRADEX TIMES",
+  "news.masthead":          "NEWS",
   "news.tagline":           "Money talks, we translate",
   "news.edition":           "Investor's Edition",
   "news.frontPage":         "Market Front Page",

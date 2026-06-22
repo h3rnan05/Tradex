@@ -54,14 +54,14 @@ export default function Navbar() {
             ]
           : [
               { href: "/alumno/portafolio", label: t("nav.portfolio") },
+              { href: "/alumno/mercados", label: t("nav.markets") },
               { href: "/alumno/operar", label: t("nav.trade") },
               { href: "/alumno/terminal", label: t("nav.terminal") },
-              { href: "/alumno/historial", label: t("nav.history") },
-              { href: "/alumno/ranking", label: t("nav.ranking") },
-              { href: "/alumno/mercados", label: t("nav.markets") },
-              { href: "/alumno/clase", label: t("nav.class") },
-              { href: "/alumno/plantillas", label: t("nav.templates") },
               { href: "/alumno/retos", label: t("nav.challenges") },
+              { href: "/alumno/ranking", label: t("nav.ranking") },
+              { href: "/alumno/historial", label: t("nav.history") },
+              { href: "/alumno/plantillas", label: t("nav.templates") },
+              { href: "/alumno/clase", label: t("nav.class") },
             ]);
 
   const rolLabel =

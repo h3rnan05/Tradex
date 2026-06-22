@@ -696,7 +696,7 @@ function OperarPageInterna() {
               className="mb-3 flex w-full items-center gap-2 border border-fg/15 bg-panel px-3 py-2 font-mono text-[11px] uppercase tracking-wider text-fg/50 hover:border-accent hover:text-accent transition-colors"
             >
               <span className="text-base leading-none">⌂</span>
-              {lang === "en" ? "Tradex Times" : "Tradex Times"}
+              {lang === "en" ? "News" : "Noticias"}
             </button>
 
             <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">{t("trade.myPortfolio")}</p>
