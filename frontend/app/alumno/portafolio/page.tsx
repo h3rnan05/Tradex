@@ -30,6 +30,8 @@ interface HoldingConPrecio {
   pnl: string;
   pnl_porcentaje: string;
   es_corto: boolean;
+  prestamo?: string;
+  apalancamiento?: string;
 }
 
 interface Portafolio {
@@ -38,6 +40,7 @@ interface Portafolio {
   capital_inicial: string;
   holdings: HoldingConPrecio[];
   valor_total: string;
+  prestamo_total?: string;
   rendimiento: string;
   rendimiento_porcentaje: string;
 }
@@ -57,6 +60,14 @@ interface PuntoValor {
   valor: number;
 }
 
+interface MetricasRendimiento {
+  retorno_total: number;
+  max_drawdown: number;
+  volatilidad: number;
+  sharpe: number;
+  n_dias: number;
+}
+
 const COLORES_DONUT = ["#ff6600", "#0077b6", "#6d28d9", "#0096a0", "#cc5200", "#007a2e"];
 
 export default function PortafolioPage() {
@@ -70,6 +81,7 @@ export default function PortafolioPage() {
   const [insignias, setInsignias] = useState<{ codigo: string; otorgada_at: string }[]>([]);
   const [clases, setClases] = useState<ClaseResumen[]>([]);
   const [grupoId, setGrupoId] = useState<string | null>(null);
+  const [metricas, setMetricas] = useState<MetricasRendimiento | null>(null);
 
   async function cargar(gid: string | null) {
     const sesion = obtenerSesion();
@@ -104,6 +116,17 @@ export default function PortafolioPage() {
     }
   }
 
+  async function cargarMetricas(gid: string | null) {
+    const sesion = obtenerSesion();
+    if (!sesion || !gid) return;
+    try {
+      const data = await api.get<MetricasRendimiento>(`/alumnos/${sesion.userId}/grupos/${gid}/metricas`);
+      setMetricas(data);
+    } catch {
+      // silent — métricas opcionales
+    }
+  }
+
   // Resuelve la clase activa: prioridad ?grupo_id= en la URL, luego localStorage.
   useEffect(() => {
     const sesion = obtenerSesion();
@@ -125,12 +148,14 @@ export default function PortafolioPage() {
     setPortafolio(null);
     cargar(gid);
     cargarHistorial(gid);
+    cargarMetricas(gid);
   }
 
   useEffect(() => {
     if (grupoId === undefined) return;
     cargar(grupoId);
     cargarHistorial(grupoId);
+    cargarMetricas(grupoId);
     const interval = setInterval(() => cargar(grupoId), 10000);
     return () => clearInterval(interval);
   }, [grupoId]);
@@ -201,6 +226,27 @@ export default function PortafolioPage() {
       <div className="mx-auto max-w-7xl p-4 md:p-6">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-2xl font-bold text-fg">{t("portfolio.title")}</h1>
+          <button
+            onClick={() => {
+              if (!portafolio) return;
+              const rows = [
+                ["Ticker", "Cantidad", "Precio Promedio", "Precio Actual", "Valor Mercado", "P&L", "P&L %", "Corto", "Apalancamiento"],
+                ...portafolio.holdings.map((h) => [
+                  h.ticker, h.cantidad, h.precio_promedio, h.precio_actual,
+                  h.valor_mercado, h.pnl, h.pnl_porcentaje,
+                  h.es_corto ? "Si" : "No", `${Number(h.apalancamiento).toFixed(1)}x`,
+                ]),
+              ];
+              const csv = rows.map((r) => r.join(",")).join("\n");
+              const a = document.createElement("a");
+              a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+              a.download = `portafolio_${new Date().toISOString().slice(0, 10)}.csv`;
+              a.click();
+            }}
+            className="font-mono text-[11px] uppercase tracking-wider border border-fg/20 px-3 py-1.5 text-fg/50 hover:text-fg hover:border-fg/40 transition-colors"
+          >
+            {t("portfolio.exportCsv")}
+          </button>
           {clases.length > 1 && (
             <select
               value={grupoId ?? portafolio.grupo_id}
@@ -215,6 +261,17 @@ export default function PortafolioPage() {
             </select>
           )}
         </div>
+
+        {/* Margin call alert */}
+        {portafolio.prestamo_total && Number(portafolio.prestamo_total) > 0 &&
+          Number(portafolio.valor_total) < Number(portafolio.prestamo_total) * 1.1 && (
+          <div className="mb-4 bg-red-900/30 border border-red-700 text-red-300 px-4 py-3">
+            <p className="font-mono text-[11px] uppercase tracking-wider font-bold">
+              {t("reto.marginCallTitle")}
+            </p>
+            <p className="mt-1 font-mono text-[11px]">{t("reto.marginCallBody")}</p>
+          </div>
+        )}
 
         {/* KPIs */}
         <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -573,6 +630,39 @@ export default function PortafolioPage() {
             </div>
           </div>
         </div>
+
+        {/* Métricas de Rendimiento */}
+        {metricas && metricas.n_dias >= 2 && (
+          <div className="mt-8">
+            <p className="mb-3 font-mono text-[11px] uppercase tracking-widest text-fg/40">{t("portfolio.metrics")}</p>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="border border-fg/15 bg-panel p-3">
+                <p className="font-mono text-[10px] uppercase tracking-widest text-fg/40">{t("portfolio.totalReturn")}</p>
+                <p className={`font-mono text-xl font-bold tabular-nums ${metricas.retorno_total >= 0 ? "text-ganancia" : "text-perdida"}`}>
+                  {metricas.retorno_total >= 0 ? "+" : ""}{(metricas.retorno_total * 100).toFixed(2)}%
+                </p>
+              </div>
+              <div className="border border-fg/15 bg-panel p-3">
+                <p className="font-mono text-[10px] uppercase tracking-widest text-fg/40">{t("portfolio.maxDrawdown")}</p>
+                <p className={`font-mono text-xl font-bold tabular-nums ${metricas.max_drawdown <= -0.1 ? "text-perdida" : "text-orange-500"}`}>
+                  {(metricas.max_drawdown * 100).toFixed(2)}%
+                </p>
+              </div>
+              <div className="border border-fg/15 bg-panel p-3">
+                <p className="font-mono text-[10px] uppercase tracking-widest text-fg/40">{t("portfolio.volatility")}</p>
+                <p className="font-mono text-xl font-bold tabular-nums text-fg">
+                  {(metricas.volatilidad * 100).toFixed(2)}%
+                </p>
+              </div>
+              <div className="border border-fg/15 bg-panel p-3">
+                <p className="font-mono text-[10px] uppercase tracking-widest text-fg/40">{t("portfolio.sharpe")}</p>
+                <p className={`font-mono text-xl font-bold tabular-nums ${metricas.sharpe > 1 ? "text-ganancia" : metricas.sharpe >= 0 ? "text-yellow-500" : "text-perdida"}`}>
+                  {metricas.sharpe.toFixed(2)}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Insignias */}
         <div className="mt-8">

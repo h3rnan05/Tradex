@@ -28,16 +28,15 @@ def _get_membership(db: Session, alumno: User, grupo_id) -> Membership:
     return membership
 
 
-def _normalizar_apalancamiento(apalancamiento: Decimal | None) -> Decimal:
-    """Acota el apalancamiento al rango permitido (1x–5x)."""
+def _normalizar_apalancamiento(apalancamiento: Decimal | None, max_lev: int = 5) -> Decimal:
+    """Acota el apalancamiento al rango permitido (1x–max_lev)."""
     if apalancamiento is None:
         return Decimal("1")
     lev = Decimal(apalancamiento)
     if lev < 1:
         return Decimal("1")
-    if lev > 5:
-        return Decimal("5")
-    return lev
+    tope = Decimal(max(1, min(max_lev, 5)))
+    return min(lev, tope)
 
 
 def ejecutar_compra(
@@ -47,7 +46,8 @@ def ejecutar_compra(
     if cantidad <= 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La cantidad debe ser mayor a cero")
 
-    lev = _normalizar_apalancamiento(apalancamiento)
+    max_lev = getattr(grupo, "max_apalancamiento", 5) or 5
+    lev = _normalizar_apalancamiento(apalancamiento, max_lev)
     ticker = validar_ticker(ticker)
 
     tipo_activo = clasificar_ticker(ticker)
@@ -224,7 +224,8 @@ def abrir_corto(payload: OrdenCreate, db: Session = Depends(get_db), alumno: Use
     if not grupo:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Grupo no encontrado")
 
-    lev = _normalizar_apalancamiento(payload.apalancamiento)
+    max_lev = getattr(grupo, "max_apalancamiento", 5) or 5
+    lev = _normalizar_apalancamiento(payload.apalancamiento, max_lev)
     ticker = validar_ticker(payload.ticker)
     precio = obtener_precio_actual(ticker)
     valor_posicion = precio * payload.cantidad

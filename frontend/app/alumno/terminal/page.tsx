@@ -420,7 +420,7 @@ function TerminalInterna() {
             {t("terminal.positions")}
           </p>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] font-mono text-[11px]">
+            <table className="w-full min-w-[540px] font-mono text-[11px]">
               <thead className="text-[#a0a0a0]">
                 <tr className="border-b border-[#3a3a3a]">
                   <th className="px-3 py-2 text-left">{t("terminal.symbol")}</th>

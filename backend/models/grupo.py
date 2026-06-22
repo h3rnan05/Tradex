@@ -28,6 +28,7 @@ class Grupo(Base):
     activos_permitidos = Column(ARRAY(String), nullable=False, server_default="{acciones}")
     limite_orden_valor = Column(Numeric(14, 2), nullable=True)
     comision_porcentaje = Column(Numeric(5, 4), nullable=False, server_default="0")
+    max_apalancamiento = Column(Integer, nullable=False, server_default="5")
     sponsor_id = Column(UUID(as_uuid=True), nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 

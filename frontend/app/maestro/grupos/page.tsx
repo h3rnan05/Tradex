@@ -76,6 +76,7 @@ export default function GruposPage() {
   const [activosPermitidos, setActivosPermitidos] = useState<string[]>(["acciones"]);
   const [limiteOrden, setLimiteOrden] = useState("");
   const [comisionPorcentaje, setComisionPorcentaje] = useState("");
+  const [maxApalancamiento, setMaxApalancamiento] = useState(5);
   const [fechasActivacion, setFechasActivacion] = useState<Record<string, string>>({});
   const [guardando, setGuardando] = useState(false);
 
@@ -113,6 +114,7 @@ export default function GruposPage() {
         activos_permitidos: activosPermitidos,
         limite_orden_valor: limiteOrden || null,
         comision_porcentaje: comisionPorcentaje ? Number(comisionPorcentaje) / 100 : 0,
+        max_apalancamiento: maxApalancamiento,
         fases_activo: activosPermitidos
           .filter((tipo) => fechasActivacion[tipo])
           .map((tipo) => ({
@@ -123,7 +125,7 @@ export default function GruposPage() {
       setNombre(""); setFechaInicio(""); setFechaFin("");
       setCapitalInicial("10000"); setMaxAlumnos("");
       setActivosPermitidos(["acciones"]); setLimiteOrden("");
-      setComisionPorcentaje(""); setFechasActivacion({});
+      setComisionPorcentaje(""); setMaxApalancamiento(5); setFechasActivacion({});
       setMostrarForm(false);
       await cargarGrupos();
     } catch (err) {
@@ -210,6 +212,25 @@ export default function GruposPage() {
                   <input type="number" min="0" step="0.01" value={comisionPorcentaje} onChange={(e) => setComisionPorcentaje(e.target.value)}
                     placeholder="0"
                     className="w-full rounded-none border border-fg/20 bg-canvas px-3 py-2.5 text-sm focus:border-accent focus:outline-none" />
+                </div>
+                <div>
+                  <label className="mb-2 block font-mono text-[11px] uppercase tracking-widest text-fg/50">{t("maestro.groups.maxLeverage")}</label>
+                  <div className="flex gap-2">
+                    {[1, 2, 3, 5].map((lev) => (
+                      <button
+                        key={lev}
+                        type="button"
+                        onClick={() => setMaxApalancamiento(lev)}
+                        className={`flex-1 rounded-none border py-2 font-mono text-sm font-bold transition-colors ${
+                          maxApalancamiento === lev
+                            ? "border-accent bg-accent/10 text-fg"
+                            : "border-fg/15 text-fg/40 hover:border-fg/30 hover:text-fg/70"
+                        }`}
+                      >
+                        {lev}x
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="md:col-span-2">

@@ -28,3 +28,5 @@ class OrdenPendiente(Base):
     estado = Column(Enum(EstadoOrdenEnum), nullable=False, default=EstadoOrdenEnum.pendiente)
     creada_en = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     ejecutada_en = Column(DateTime(timezone=True), nullable=True)
+    sl_tp_tipo = Column(String, nullable=True)   # "stop_loss" | "take_profit"
+    precio_trigger = Column(Numeric(14, 4), nullable=True)

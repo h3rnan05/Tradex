@@ -41,6 +41,7 @@ interface RetoEstado {
   capital_disponible: string;
   holdings: RetoHolding[];
   valor_total: string;
+  prestamo_total?: string;
   rendimiento_porcentaje: string;
   progreso_porcentaje: number;
 }
@@ -133,6 +134,7 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
   const [serie, setSerie] = useState<number[]>([]);
   const [ticker, setTicker] = useState<string | null>(null);
   const [cantidad, setCantidad] = useState("1");
+  const [apalancamiento, setApalancamiento] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [operando, setOperando] = useState(false);
@@ -222,7 +224,9 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
     setMensaje(null);
     setOperando(true);
     try {
-      await api.post(`/retos/${retoId}/${tipo}`, { ticker, cantidad });
+      const body: Record<string, string> = { ticker, cantidad };
+      if (tipo === "comprar") body.apalancamiento = String(apalancamiento);
+      await api.post(`/retos/${retoId}/${tipo}`, body);
       const msg = tipo === "comprar" ? t("challenge.buyDone") : t("challenge.sellDone");
       setMensaje(msg);
       toast(`${msg}: ${cantidad} ${limpiar(ticker)}`, "success");
@@ -447,6 +451,17 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
           />
         </div>
 
+        {/* Margin call alert */}
+        {estado.prestamo_total && Number(estado.prestamo_total) > 0 &&
+          Number(estado.valor_total) < Number(estado.prestamo_total) * 1.1 && (
+          <div className="mb-4 bg-red-900/30 border border-red-700 text-red-300 px-4 py-3">
+            <p className="font-mono text-[11px] uppercase tracking-wider font-bold">
+              {t("reto.marginCallTitle")}
+            </p>
+            <p className="mt-1 font-mono text-[11px]">{t("reto.marginCallBody")}</p>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
           <div className="lg:col-span-8">
             {/* Periódico ficticio: narra el escenario conforme avanza */}
@@ -625,18 +640,40 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
                       </div>
                     )}
 
-                    <div className="flex items-end gap-3">
-                      <div>
-                        <label className="mb-1 block text-sm font-medium text-fg/70">{t("challenge.quantity")}</label>
-                        <input
-                          type="number"
-                          min="0.0001"
-                          step="0.0001"
-                          value={cantidad}
-                          onChange={(e) => setCantidad(e.target.value)}
-                          className="w-28 rounded-none border border-fg/20 bg-canvas px-3 py-2 text-sm tabular-nums"
-                        />
-                      </div>
+                    <div className="mb-3">
+                      <label className="mb-1 block text-sm font-medium text-fg/70">{t("challenge.quantity")}</label>
+                      <input
+                        type="number"
+                        min="0.0001"
+                        step="0.0001"
+                        value={cantidad}
+                        onChange={(e) => setCantidad(e.target.value)}
+                        className="w-28 rounded-none border border-fg/20 bg-canvas px-3 py-2 text-sm tabular-nums"
+                      />
+                    </div>
+
+                    {/* Leverage selector */}
+                    <div className="mb-3 flex flex-wrap items-center gap-2">
+                      <span className="font-mono text-[10px] uppercase tracking-wider text-fg/40">
+                        {t("terminal.leverage")}:
+                      </span>
+                      {[1, 2, 3, 5].map((lev) => (
+                        <button
+                          key={lev}
+                          type="button"
+                          onClick={() => setApalancamiento(lev)}
+                          className={`rounded-none px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-wider transition-colors ${
+                            apalancamiento === lev
+                              ? "bg-accent text-black"
+                              : "border border-fg/20 text-fg/50 hover:text-fg"
+                          }`}
+                        >
+                          {lev}x
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="flex items-center gap-3">
                       <button
                         onClick={() => operar("comprar")}
                         disabled={operando}

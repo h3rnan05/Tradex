@@ -131,6 +131,11 @@ export const en = {
   "portfolio.entryPrice":      "Entry Price",
   "portfolio.pnlShort":        "Short P&L",
   "portfolio.shortTag":        "short",
+  "portfolio.metrics":         "Performance Metrics",
+  "portfolio.totalReturn":     "Total Return",
+  "portfolio.maxDrawdown":     "Max. Drawdown",
+  "portfolio.volatility":      "Volatility",
+  "portfolio.sharpe":          "Sharpe Ratio",
 
   // ── Trade / Operar ────────────────────────────────────────────
   "trade.title":              "Trade",
@@ -332,6 +337,8 @@ export const en = {
   "maestro.groups.groupName":   "Group name",
   "maestro.groups.initialCapital": "Initial capital",
   "maestro.groups.commission":  "Commission (%)",
+  "maestro.groups.maxLeverage": "Max leverage",
+  "portfolio.exportCsv": "Export CSV",
   "maestro.groups.startDate":   "Start date",
   "maestro.groups.endDate":     "End date",
   "maestro.groups.markets":     "Allowed markets",
@@ -595,6 +602,9 @@ export const en = {
   "sponsor.ops":                   "Ops",
 
   // ── Retos detalle ──────────────────────────────────────────────
+  "reto.leverage":                 "Leverage",
+  "reto.marginCallTitle":          "ALERT: Minimum margin",
+  "reto.marginCallBody":           "Your account is close to the minimum margin. Close positions to avoid further losses.",
   "challenge.scenario":            "Scenario",
   "challenge.finished":            "Challenge finished",
   "challenge.progress":            "Progress",

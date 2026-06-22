@@ -19,6 +19,15 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from precios_utils import obtener_historial_precios_rango, obtener_precio_actual
 from schemas.holding import HoldingConPrecio, MisGruposEntry, PortafolioOut
 from schemas.orden import OrdenOut
+from pydantic import BaseModel
+
+
+class MetricasOut(BaseModel):
+    retorno_total: float
+    max_drawdown: float
+    volatilidad: float
+    sharpe: float
+    n_dias: int
 from sqlalchemy.orm import joinedload
 from models.grupo import Grupo
 
@@ -242,6 +251,85 @@ def historial_valor_portafolio(
 ):
     _check_alumno_access(db, current_user, alumno_id)
     return _historial_valor_impl(alumno_id, grupo_id, db)
+
+
+@router.get("/{alumno_id}/grupos/{grupo_id}/metricas", response_model=MetricasOut)
+def metricas_portafolio(
+    alumno_id: str,
+    grupo_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    import math
+    import statistics as stats
+
+    _check_alumno_access(db, current_user, alumno_id)
+
+    q = db.query(Membership).filter(
+        Membership.alumno_id == alumno_id, Membership.grupo_id == grupo_id
+    )
+    membership = q.first()
+    if not membership:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Membresía no encontrada")
+
+    capital_inicial = float(membership.grupo.capital_inicial)
+
+    serie = _historial_valor_impl(alumno_id, grupo_id, db)
+
+    if len(serie) < 2:
+        return MetricasOut(
+            retorno_total=0.0,
+            max_drawdown=0.0,
+            volatilidad=0.0,
+            sharpe=0.0,
+            n_dias=len(serie),
+        )
+
+    valores = [p["valor"] for p in serie]
+    valor_final = valores[-1]
+
+    # Retorno total
+    retorno_total = (valor_final - capital_inicial) / capital_inicial if capital_inicial else 0.0
+
+    # Max drawdown
+    peak = valores[0]
+    max_dd = 0.0
+    for v in valores:
+        if v > peak:
+            peak = v
+        dd = (v - peak) / peak if peak else 0.0
+        if dd < max_dd:
+            max_dd = dd
+
+    # Daily returns
+    retornos_diarios = [
+        valores[i] / valores[i - 1] - 1
+        for i in range(1, len(valores))
+        if valores[i - 1] != 0
+    ]
+
+    if len(retornos_diarios) < 2:
+        return MetricasOut(
+            retorno_total=retorno_total,
+            max_drawdown=max_dd,
+            volatilidad=0.0,
+            sharpe=0.0,
+            n_dias=len(serie),
+        )
+
+    media = stats.mean(retornos_diarios)
+    desv = stats.stdev(retornos_diarios)
+
+    volatilidad = desv * math.sqrt(252)
+    sharpe = (media / desv) * math.sqrt(252) if desv != 0 else 0.0
+
+    return MetricasOut(
+        retorno_total=retorno_total,
+        max_drawdown=max_dd,
+        volatilidad=volatilidad,
+        sharpe=sharpe,
+        n_dias=len(serie),
+    )
 
 
 @router.get("/{alumno_id}/metricas-riesgo")

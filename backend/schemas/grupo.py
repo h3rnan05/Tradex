@@ -19,6 +19,7 @@ class GrupoCreate(BaseModel):
     activos_permitidos: list[str] = ["acciones"]
     limite_orden_valor: Decimal | None = None
     comision_porcentaje: Decimal = Decimal("0")
+    max_apalancamiento: int = 5
     fases_activo: list[FaseActivoCreate] = []
 
 
@@ -33,6 +34,7 @@ class GrupoOut(BaseModel):
     activos_permitidos: list[str]
     limite_orden_valor: Decimal | None
     comision_porcentaje: Decimal
+    max_apalancamiento: int = 5
     codigo: str | None
     created_at: datetime
 
@@ -58,6 +60,7 @@ class GrupoUpdate(BaseModel):
     comision_porcentaje: Decimal | None = None
     limite_orden_valor: Decimal | None = None
     max_alumnos: int | None = None
+    max_apalancamiento: int | None = None
 
 
 class EvaluacionEntry(BaseModel):
