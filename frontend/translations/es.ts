@@ -524,6 +524,7 @@ export const es = {
   "maestro.retos.newChallenge":   "Nuevo reto",
   "maestro.retos.name":           "Nombre del reto",
   "maestro.retos.namePlaceholder": "Ej. Lunes de mercados asiáticos",
+  "maestro.retos.duration":       "Duración rápida",
   "maestro.retos.start":          "Inicio",
   "maestro.retos.end":            "Fin",
   "maestro.retos.capital":        "Capital virtual",
@@ -618,6 +619,10 @@ export const es = {
   "challenge.buyDone":             "Compra ejecutada",
   "challenge.sellDone":            "Venta ejecutada",
   "challenge.noParticipants":      "Nadie ha participado todavía",
+  "challenge.buyCover":            "Comprar / Cubrir",
+  "challenge.sellShort":           "Vender / Shortear",
+  "challenge.short":               "Corto",
+  "challenge.shortHint":           "💡 En una crisis puedes VENDER en corto un activo que crees que caerá: recibes el efectivo ahora y lo recompras más barato (Cubrir) para quedarte la diferencia. Si el precio sube, pierdes. Límite de margen: 1x tu capital inicial.",
 
   // ── Comparador ─────────────────────────────────────────────────
   "comparador.title":              "Comparador de Estrategias",

@@ -524,6 +524,7 @@ export const en = {
   "maestro.retos.newChallenge":   "New challenge",
   "maestro.retos.name":           "Challenge name",
   "maestro.retos.namePlaceholder": "e.g. Asian markets Monday",
+  "maestro.retos.duration":       "Quick duration",
   "maestro.retos.start":          "Start",
   "maestro.retos.end":            "End",
   "maestro.retos.capital":        "Virtual capital",
@@ -618,6 +619,10 @@ export const en = {
   "challenge.buyDone":             "Buy executed",
   "challenge.sellDone":            "Sell executed",
   "challenge.noParticipants":      "Nobody has participated yet",
+  "challenge.buyCover":            "Buy / Cover",
+  "challenge.sellShort":           "Sell / Short",
+  "challenge.short":               "Short",
+  "challenge.shortHint":           "💡 In a crisis you can SHORT-sell an asset you expect to fall: you get the cash now and buy it back cheaper (Cover) to keep the difference. If the price rises, you lose. Margin limit: 1x your initial capital.",
 
   // ── Comparador ─────────────────────────────────────────────────
   "comparador.title":              "Strategy Comparator",

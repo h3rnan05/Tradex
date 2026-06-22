@@ -49,6 +49,20 @@ export default function PanelRetosMaestro({ grupoId }: { grupoId: string }) {
     api.get<Reto[]>(`/grupos/${grupoId}/retos`).then(setRetos).catch(() => setRetos([]));
   }
 
+  // Formatea una fecha al formato que espera <input type="datetime-local">.
+  function paraInput(d: Date) {
+    const off = d.getTimezoneOffset() * 60000;
+    return new Date(d.getTime() - off).toISOString().slice(0, 16);
+  }
+
+  // Atajos de duración: arranca ahora y calcula el fin automáticamente.
+  function aplicarDuracion(minutos: number) {
+    const ahora = new Date();
+    const fin = new Date(ahora.getTime() + minutos * 60000);
+    setInicio(paraInput(ahora));
+    setFin(paraInput(fin));
+  }
+
   useEffect(cargar, [grupoId]);
   useEffect(() => {
     api.get<Escenario[]>("/precios/escenarios").then(setEscenarios).catch(() => setEscenarios([]));
@@ -117,6 +131,24 @@ export default function PanelRetosMaestro({ grupoId }: { grupoId: string }) {
           placeholder={t("maestro.retos.namePlaceholder")}
           className="mb-3 w-full border border-fg/20 bg-canvas px-3 py-2 text-sm focus:border-accent focus:outline-none"
         />
+        {/* Atajos de duración */}
+        <label className="mb-1 block font-mono text-[10px] uppercase tracking-wider text-fg/50">{t("maestro.retos.duration")}</label>
+        <div className="mb-3 flex gap-1">
+          {[
+            { label: "30 min", min: 30 },
+            { label: "1 hora", min: 60 },
+            { label: "1 día", min: 1440 },
+          ].map((d) => (
+            <button
+              key={d.min}
+              type="button"
+              onClick={() => aplicarDuracion(d.min)}
+              className="flex-1 border border-fg/20 px-2 py-1.5 font-mono text-[10px] uppercase tracking-wider text-fg/60 hover:border-accent hover:text-fg"
+            >
+              {d.label}
+            </button>
+          ))}
+        </div>
         <div className="mb-3 grid grid-cols-2 gap-3">
           <div>
             <label className="mb-1 block font-mono text-[10px] uppercase tracking-wider text-fg/50">{t("maestro.retos.start")}</label>

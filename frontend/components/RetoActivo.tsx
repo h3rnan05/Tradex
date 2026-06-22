@@ -219,15 +219,15 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
                   <span className={`font-mono text-xs font-bold ${m.cambio_porcentaje < 0 ? "text-perdida" : "text-ganancia"}`}>
                     {m.cambio_porcentaje >= 0 ? "+" : ""}{m.cambio_porcentaje.toFixed(1)}%
                   </span>
-                  {/* Caída total histórica del escenario */}
+                  {/* Caída máxima proyectada (el fondo del escenario) */}
                   <span className="font-mono text-[10px] text-fg/30">
-                    (eventual: {m.cambio_total >= 0 ? "+" : ""}{m.cambio_total.toFixed(0)}%)
+                    (fondo: {m.cambio_total >= 0 ? "+" : ""}{m.cambio_total.toFixed(0)}%)
                   </span>
                 </div>
               ))}
             </div>
             <p className="mt-2 font-mono text-[10px] text-perdida/70">
-              Caída proyectada del mercado: {caídaTotalPromedio.toFixed(0)}% · Caída actual: {cambioActualPromedio.toFixed(1)}%
+              Fondo proyectado del mercado: {caídaTotalPromedio.toFixed(0)}% · Caída actual: {cambioActualPromedio.toFixed(1)}% · El mercado se recupera en la 2ª mitad
             </p>
           </div>
         )}
@@ -322,8 +322,9 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
                         </div>
                         <div className="bg-fg/5 p-3">
                           <p className="mb-0.5 font-mono text-[10px] uppercase text-fg/40">En mi portafolio</p>
-                          <p className="font-mono text-sm font-bold text-fg">
+                          <p className={`font-mono text-sm font-bold ${holdingSeleccionado && Number(holdingSeleccionado.cantidad) < 0 ? "text-perdida" : "text-fg"}`}>
                             {holdingSeleccionado ? Number(holdingSeleccionado.cantidad).toFixed(2) : "0"} acc.
+                            {holdingSeleccionado && Number(holdingSeleccionado.cantidad) < 0 && " (corto)"}
                           </p>
                         </div>
                         <div className="bg-fg/5 p-3">
@@ -352,16 +353,21 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
                         disabled={operando}
                         className="rounded-none bg-ganancia px-5 py-2 text-sm font-bold text-white hover:opacity-90 disabled:opacity-50"
                       >
-                        ▲ {t("challenge.buy")}
+                        ▲ {t("challenge.buyCover")}
                       </button>
                       <button
                         onClick={() => operar("vender")}
                         disabled={operando}
                         className="rounded-none bg-perdida px-5 py-2 text-sm font-bold text-white hover:opacity-90 disabled:opacity-50"
                       >
-                        ▼ {t("challenge.sell")}
+                        ▼ {t("challenge.sellShort")}
                       </button>
                     </div>
+                    {esCrisis && (
+                      <p className="mt-3 font-mono text-[10px] leading-relaxed text-fg/40">
+                        {t("challenge.shortHint")}
+                      </p>
+                    )}
                   </>
                 )}
                 {error && <p className="mt-3 text-sm text-perdida">{error}</p>}
@@ -395,7 +401,14 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
                           : 0;
                       return (
                         <tr key={h.ticker} className="border-t border-fg/5">
-                          <td className="px-4 py-3 font-mono font-bold text-fg">{limpiar(h.ticker)}</td>
+                          <td className="px-4 py-3 font-mono font-bold text-fg">
+                            {limpiar(h.ticker)}
+                            {Number(h.cantidad) < 0 && (
+                              <span className="ml-2 rounded-none bg-perdida/15 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase text-perdida">
+                                {t("challenge.short")}
+                              </span>
+                            )}
+                          </td>
                           <td className="px-4 py-3 tabular-nums">{Number(h.cantidad).toFixed(4)}</td>
                           <td className="px-4 py-3 tabular-nums">{formatoMoneda(h.precio_promedio)}</td>
                           <td className="px-4 py-3 tabular-nums">{formatoMoneda(h.precio_actual)}</td>

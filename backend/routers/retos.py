@@ -48,6 +48,78 @@ def _precio_reto(reto: Reto, ticker: str):
     return precio_simulado(ticker, reto.escenario_id, reto.fecha_inicio, reto.fecha_fin)
 
 
+def _notional_cortos(db: Session, reto: Reto, alumno_id, excluir_ticker: str) -> Decimal:
+    """Suma del valor nocional de todas las posiciones en corto del alumno
+    (excepto la que se está modificando). Sirve para limitar el apalancamiento."""
+    holdings = db.query(RetoHolding).filter(
+        RetoHolding.reto_id == reto.id, RetoHolding.alumno_id == alumno_id
+    ).all()
+    total = Decimal("0")
+    for h in holdings:
+        if h.ticker == excluir_ticker or h.cantidad >= 0:
+            continue
+        try:
+            precio = _precio_reto(reto, h.ticker)
+        except Exception:
+            precio = h.precio_promedio
+        total += abs(h.cantidad) * precio
+    return total
+
+
+def _nuevo_promedio(q: Decimal, avg: Decimal, signed: Decimal, precio: Decimal, nuevo_q: Decimal) -> Decimal:
+    """Precio promedio de entrada tras aplicar una operación, válido para
+    posiciones largas y cortas."""
+    if nuevo_q == 0:
+        return Decimal("0")
+    # Abrir posición o aumentar en la misma dirección: promedio ponderado.
+    if q == 0 or (q > 0) == (signed > 0):
+        return (avg * abs(q) + precio * abs(signed)) / abs(nuevo_q)
+    # Reducir sin cambiar de lado: se conserva el promedio.
+    if (nuevo_q > 0) == (q > 0):
+        return avg
+    # Invierte de largo a corto (o viceversa): el residuo abre al precio actual.
+    return precio
+
+
+def _ejecutar_operacion(
+    db: Session, reto: Reto, participante: RetoParticipante, ticker: str, cantidad: Decimal, precio: Decimal, es_compra: bool
+) -> None:
+    """Aplica una compra o venta al portafolio del reto. Permite ventas en corto
+    (la posición puede quedar negativa) con un tope de margen de 1x el capital
+    inicial. Comprar resta efectivo; vender lo suma; cubrir/cerrar es automático."""
+    signed = cantidad if es_compra else -cantidad
+    holding = db.query(RetoHolding).filter(
+        RetoHolding.reto_id == reto.id, RetoHolding.alumno_id == participante.alumno_id, RetoHolding.ticker == ticker
+    ).first()
+    q = holding.cantidad if holding else Decimal("0")
+    avg = holding.precio_promedio if holding else Decimal("0")
+    nuevo_q = q + signed
+
+    if es_compra:
+        costo = precio * cantidad
+        if costo > participante.capital_disponible:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Capital disponible insuficiente")
+    elif nuevo_q < 0:
+        # Abrir o ampliar una posición en corto: revisar el límite de margen.
+        notional = _notional_cortos(db, reto, participante.alumno_id, ticker) + abs(nuevo_q) * precio
+        if notional > reto.capital_inicial:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Superas el límite de margen para ventas en corto",
+            )
+
+    nuevo_avg = _nuevo_promedio(q, avg, signed, precio, nuevo_q)
+    participante.capital_disponible -= precio * signed
+
+    if holding:
+        holding.cantidad = nuevo_q
+        holding.precio_promedio = nuevo_avg
+    else:
+        db.add(RetoHolding(
+            reto_id=reto.id, alumno_id=participante.alumno_id, ticker=ticker, cantidad=nuevo_q, precio_promedio=nuevo_avg
+        ))
+
+
 def _participante(db: Session, reto: Reto, alumno: User) -> RetoParticipante:
     participante = db.query(RetoParticipante).filter(
         RetoParticipante.reto_id == reto.id, RetoParticipante.alumno_id == alumno.id
@@ -294,26 +366,8 @@ def comprar_reto(
     if reto.activos_permitidos and ticker not in _activos_lista(reto):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Este activo no está permitido en el reto")
     precio = _precio_reto(reto, ticker)
-    costo_total = precio * payload.cantidad
 
-    if costo_total > participante.capital_disponible:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Capital disponible insuficiente")
-
-    holding = db.query(RetoHolding).filter(
-        RetoHolding.reto_id == reto_id, RetoHolding.alumno_id == alumno.id, RetoHolding.ticker == ticker
-    ).first()
-    if holding:
-        cantidad_total = holding.cantidad + payload.cantidad
-        costo_previo = holding.precio_promedio * holding.cantidad
-        holding.precio_promedio = (costo_previo + costo_total) / cantidad_total
-        holding.cantidad = cantidad_total
-    else:
-        holding = RetoHolding(
-            reto_id=reto_id, alumno_id=alumno.id, ticker=ticker, cantidad=payload.cantidad, precio_promedio=precio
-        )
-        db.add(holding)
-
-    participante.capital_disponible -= costo_total
+    _ejecutar_operacion(db, reto, participante, ticker, payload.cantidad, precio, es_compra=True)
 
     orden = RetoOrden(
         reto_id=reto_id,
@@ -347,21 +401,11 @@ def vender_reto(
 
     participante = _participante(db, reto, alumno)
     ticker = normalizar_ticker(payload.ticker) if reto.activos_permitidos else payload.ticker.upper().strip()
-
-    holding = db.query(RetoHolding).filter(
-        RetoHolding.reto_id == reto_id, RetoHolding.alumno_id == alumno.id, RetoHolding.ticker == ticker
-    ).first()
-    if not holding or holding.cantidad < payload.cantidad:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No tienes suficientes acciones para vender")
-
+    if reto.activos_permitidos and ticker not in _activos_lista(reto):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Este activo no está permitido en el reto")
     precio = _precio_reto(reto, ticker)
-    monto_total = precio * payload.cantidad
 
-    holding.cantidad -= payload.cantidad
-    if holding.cantidad == 0:
-        holding.precio_promedio = Decimal("0")
-
-    participante.capital_disponible += monto_total
+    _ejecutar_operacion(db, reto, participante, ticker, payload.cantidad, precio, es_compra=False)
 
     orden = RetoOrden(
         reto_id=reto_id,
