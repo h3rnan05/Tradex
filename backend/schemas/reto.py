@@ -82,6 +82,17 @@ class RetoMercadoEntry(BaseModel):
     cambio_total: float = 0.0
 
 
+class RetoNoticia(BaseModel):
+    fecha: str
+    titular: str
+    cuerpo: str
+
+
+class RetoNoticiasOut(BaseModel):
+    periodico: str
+    noticias: list[RetoNoticia]
+
+
 class RetoRankingEntry(BaseModel):
     alumno_id: uuid.UUID
     nombre: str

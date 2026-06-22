@@ -6,7 +6,14 @@ from sqlalchemy.orm import Session, joinedload
 
 from auth_utils import get_current_user, require_alumno, require_maestro
 from database import get_db
-from escenarios_historicos import obtener_escenario, precio_simulado, precio_y_cambio_simulado
+from escenarios_historicos import (
+    NOTICIERO,
+    _progreso,
+    noticias_escenario,
+    obtener_escenario,
+    precio_simulado,
+    precio_y_cambio_simulado,
+)
 from insignias_engine import _otorgar
 from models.grupo import Grupo
 from models.membership import Membership
@@ -18,6 +25,7 @@ from schemas.reto import (
     RetoEstadoOut,
     RetoHoldingOut,
     RetoMercadoEntry,
+    RetoNoticiasOut,
     RetoOrdenCreate,
     RetoOrdenOut,
     RetoOut,
@@ -342,7 +350,23 @@ def mercado_reto(reto_id: str, db: Session = Depends(get_db), alumno: User = Dep
             except Exception:
                 continue
             entradas.append(RetoMercadoEntry(ticker=ticker, precio=precio, cambio_porcentaje=cambio, cambio_total=cambio_total))
+    db.commit()
     return entradas
+
+
+@router.get("/retos/{reto_id}/noticias", response_model=RetoNoticiasOut)
+def noticias_reto(reto_id: str, db: Session = Depends(get_db), alumno: User = Depends(require_alumno)):
+    """Titulares del periódico ficticio que narra el escenario, desbloqueados
+    según el avance del reto. Da contexto e inmersión a la crisis."""
+    reto = db.query(Reto).filter(Reto.id == reto_id).first()
+    if not reto:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reto no encontrado")
+    _participante(db, reto, alumno)
+    if not reto.escenario_id:
+        return RetoNoticiasOut(periodico=NOTICIERO, noticias=[])
+    db.commit()
+    progreso = _progreso(reto.fecha_inicio, reto.fecha_fin)
+    return RetoNoticiasOut(periodico=NOTICIERO, noticias=noticias_escenario(reto.escenario_id, progreso))
 
 
 @router.post("/retos/{reto_id}/comprar", response_model=RetoOrdenOut, status_code=status.HTTP_201_CREATED)

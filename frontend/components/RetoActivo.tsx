@@ -64,6 +64,17 @@ interface MercadoEntry {
   cambio_total: number;
 }
 
+interface Noticia {
+  fecha: string;
+  titular: string;
+  cuerpo: string;
+}
+
+interface NoticiasResp {
+  periodico: string;
+  noticias: Noticia[];
+}
+
 function limpiar(t: string) {
   return t.replace("-USD", "").replace("=X", "").replace(".MX", "");
 }
@@ -75,6 +86,7 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
   const [ranking, setRanking] = useState<RankingEntry[]>([]);
   const [ordenes, setOrdenes] = useState<RetoOrden[]>([]);
   const [mercado, setMercado] = useState<MercadoEntry[]>([]);
+  const [noticias, setNoticias] = useState<NoticiasResp | null>(null);
   const [ticker, setTicker] = useState<string | null>(null);
   const [cantidad, setCantidad] = useState("1");
   const [error, setError] = useState<string | null>(null);
@@ -97,16 +109,21 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
   function cargarMercado() {
     api.get<MercadoEntry[]>(`/retos/${retoId}/mercado`).then(setMercado).catch(() => {});
   }
+  function cargarNoticias() {
+    api.get<NoticiasResp>(`/retos/${retoId}/noticias`).then(setNoticias).catch(() => {});
+  }
 
   useEffect(() => {
     cargarEstado();
     cargarRanking();
     cargarOrdenes();
     cargarMercado();
+    cargarNoticias();
     const interval = setInterval(() => {
       cargarEstado();
       cargarRanking();
       cargarMercado();
+      cargarNoticias();
     }, 5000);
     return () => clearInterval(interval);
   }, [retoId]);
@@ -253,6 +270,43 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
           <div className="lg:col-span-8">
+            {/* Periódico ficticio: narra el escenario conforme avanza */}
+            {esCrisis && noticias && noticias.noticias.length > 0 && (
+              <Card className="mb-4 border-2 border-fg/80 bg-[#f4f1e8] p-0">
+                {/* Cabecera del periódico */}
+                <div className="border-b-2 border-fg/80 px-4 py-3 text-center">
+                  <p className="font-mono text-[9px] uppercase tracking-[0.3em] text-fg/50">
+                    Edición extraordinaria · Mercados
+                  </p>
+                  <h2 className="font-serif text-2xl font-black uppercase tracking-tight text-fg" style={{ fontFamily: "Georgia, serif" }}>
+                    {noticias.periodico}
+                  </h2>
+                </div>
+                {/* Titulares */}
+                <div className="divide-y divide-fg/15">
+                  {noticias.noticias.map((n, i) => (
+                    <article key={`${n.fecha}-${i}`} className={`px-4 py-3 ${i === 0 ? "bg-perdida/5" : ""}`}>
+                      <div className="mb-1 flex items-baseline gap-2">
+                        <span className="font-mono text-[9px] uppercase tracking-wider text-fg/40">{n.fecha}</span>
+                        {i === 0 && (
+                          <span className="bg-perdida px-1.5 py-0.5 font-mono text-[8px] font-bold uppercase tracking-wider text-white">
+                            Última hora
+                          </span>
+                        )}
+                      </div>
+                      <h3
+                        className={`font-bold leading-tight text-fg ${i === 0 ? "text-lg" : "text-sm"}`}
+                        style={{ fontFamily: "Georgia, serif" }}
+                      >
+                        {n.titular}
+                      </h3>
+                      {i === 0 && <p className="mt-1 text-xs leading-relaxed text-fg/60">{n.cuerpo}</p>}
+                    </article>
+                  ))}
+                </div>
+              </Card>
+            )}
+
             {/* Panel de trading mejorado */}
             {!terminado && tickersOperables.length > 0 && (
               <Card className="mb-4">
