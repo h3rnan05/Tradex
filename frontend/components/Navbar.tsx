@@ -90,14 +90,14 @@ export default function Navbar() {
         {sesion && (
           <>
             <span className="mx-2 hidden h-4 w-px shrink-0 bg-fg/20 md:block" aria-hidden />
-            <nav className="hidden min-w-0 items-center md:flex">
+            <nav className="hidden flex-1 min-w-0 items-center md:flex">
               {(sesion.rol === "alumno" && !enReto ? enlaces.slice(0, 4) : enlaces).map((enlace) => {
                 const activo = pathname?.startsWith(enlace.href);
                 return (
                   <Link
                     key={enlace.href}
                     href={enlace.href}
-                    className={`inline-flex h-12 shrink-0 items-center px-4 lg:px-5 font-mono text-[11px] font-semibold uppercase tracking-wider transition-colors ${
+                    className={`flex flex-1 h-12 items-center justify-center font-mono text-[11px] font-semibold uppercase tracking-wider transition-colors ${
                       activo ? "bg-accent text-black" : "text-fg/60 hover:bg-fg/5 hover:text-fg"
                     }`}
                   >
@@ -108,10 +108,10 @@ export default function Navbar() {
 
               {/* "Más" dropdown for alumno tabs 5-9 */}
               {sesion.rol === "alumno" && !enReto && enlaces.length > 4 && (
-                <div className="relative">
+                <div className="relative flex-1">
                   <button
                     onClick={() => setMasAbierto(!masAbierto)}
-                    className={`inline-flex h-12 shrink-0 items-center gap-0.5 px-4 lg:px-5 font-mono text-[11px] font-semibold uppercase tracking-wider transition-colors ${
+                    className={`flex w-full h-12 items-center justify-center gap-0.5 font-mono text-[11px] font-semibold uppercase tracking-wider transition-colors ${
                       masAbierto || enlaces.slice(4).some(e => pathname?.startsWith(e.href))
                         ? "bg-accent text-black"
                         : "text-fg/60 hover:bg-fg/5 hover:text-fg"

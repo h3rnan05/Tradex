@@ -98,7 +98,7 @@ export default function PanelInsigniasMaestro({
         const delNivel = BADGES_DEF.filter((b) => b.nivel === nivel);
         return (
           <div key={nivel} className="mb-4">
-            <p className="mb-2 font-mono text-[10px] uppercase tracking-widest" style={{ color: c.border }}>
+            <p className="mb-2 font-mono text-[10px] uppercase tracking-widest" style={{ color: c.accent }}>
               {c.label}
             </p>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
