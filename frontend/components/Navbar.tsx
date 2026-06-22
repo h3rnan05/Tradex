@@ -47,11 +47,9 @@ export default function Navbar() {
       : sesion?.rol === "maestro"
       ? [{ href: "/maestro/grupos", label: t("nav.groups") }]
       : (enReto
-          ? // En modo reto solo quedan las secciones que forman parte del reto.
+          ? // En modo reto solo quedan la interfaz del reto y el ranking.
             [
               { href: "/alumno/portafolio", label: t("nav.portfolio") },
-              { href: "/alumno/operar", label: t("nav.trade") },
-              { href: "/alumno/historial", label: t("nav.history") },
               { href: "/alumno/ranking", label: t("nav.ranking") },
             ]
           : [

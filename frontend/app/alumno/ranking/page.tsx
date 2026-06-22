@@ -8,7 +8,7 @@ import { api, ApiError } from "@/lib/api";
 import { obtenerSesion } from "@/lib/auth";
 import { conGrupo } from "@/lib/clase";
 import { useRetoActivo } from "@/lib/retoContext";
-import RetoActivo from "@/components/RetoActivo";
+import RetoRanking from "@/components/RetoRanking";
 import { useLanguage } from "@/lib/i18n";
 import ErrorState from "@/components/ErrorState";
 
@@ -61,7 +61,7 @@ export default function RankingPage() {
 
   useEffect(() => { cargar(); }, []);
 
-  if (retoActivo) return <RetoActivo retoId={retoActivo.id} />;
+  if (retoActivo) return <RetoRanking retoId={retoActivo.id} />;
 
   return (
     <main className="min-h-screen bg-canvas">
