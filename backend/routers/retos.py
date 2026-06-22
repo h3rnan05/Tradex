@@ -43,6 +43,18 @@ def _grupo_del_maestro(db: Session, grupo_id: str, maestro: User) -> Grupo:
     return grupo
 
 
+def _norm_lev(apalancamiento: Decimal | None) -> Decimal:
+    """Acota el apalancamiento al rango permitido (1x–5x)."""
+    if apalancamiento is None:
+        return Decimal("1")
+    lev = Decimal(apalancamiento)
+    if lev < 1:
+        return Decimal("1")
+    if lev > 5:
+        return Decimal("5")
+    return lev
+
+
 def _activos_lista(reto: Reto) -> list[str]:
     if not reto.activos_permitidos:
         return []
@@ -91,41 +103,84 @@ def _nuevo_promedio(q: Decimal, avg: Decimal, signed: Decimal, precio: Decimal, 
 
 
 def _ejecutar_operacion(
-    db: Session, reto: Reto, participante: RetoParticipante, ticker: str, cantidad: Decimal, precio: Decimal, es_compra: bool
+    db: Session, reto: Reto, participante: RetoParticipante, ticker: str, cantidad: Decimal,
+    precio: Decimal, es_compra: bool, apalancamiento: Decimal = Decimal("1"),
 ) -> None:
     """Aplica una compra o venta al portafolio del reto. Permite ventas en corto
     (la posición puede quedar negativa) con un tope de margen de 1x el capital
-    inicial. Comprar resta efectivo; vender lo suma; cubrir/cerrar es automático."""
+    inicial (escalado por el apalancamiento).
+
+    Apalancamiento (1x–5x): para las posiciones largas solo se exige como margen
+    el nocional dividido entre el multiplicador y el resto se registra como
+    préstamo (`holding.prestamo`), que se devuelve proporcionalmente al cerrar.
+    Las ventas en corto usan el modelo de ingresos en efectivo, así que el
+    apalancamiento solo amplía su límite de margen.
+    """
+    lev = _norm_lev(apalancamiento)
     signed = cantidad if es_compra else -cantidad
     holding = db.query(RetoHolding).filter(
         RetoHolding.reto_id == reto.id, RetoHolding.alumno_id == participante.alumno_id, RetoHolding.ticker == ticker
     ).first()
     q = holding.cantidad if holding else Decimal("0")
     avg = holding.precio_promedio if holding else Decimal("0")
+    prestamo = (holding.prestamo if holding else Decimal("0")) or Decimal("0")
     nuevo_q = q + signed
 
-    if es_compra:
-        costo = precio * cantidad
-        if costo > participante.capital_disponible:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Capital disponible insuficiente")
-    elif nuevo_q < 0:
-        # Abrir o ampliar una posición en corto: revisar el límite de margen.
-        notional = _notional_cortos(db, reto, participante.alumno_id, ticker) + abs(nuevo_q) * precio
-        if notional > reto.capital_inicial:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Superas el límite de margen para ventas en corto",
-            )
+    # Separa la operación en la parte que reduce la posición existente (lado
+    # opuesto) y la parte que abre/amplía exposición en el lado resultante.
+    if q == 0 or (q > 0) == (signed > 0):
+        reduce = Decimal("0")
+    else:
+        reduce = min(abs(signed), abs(q))
+    abrir = abs(signed) - reduce
+
+    cap = participante.capital_disponible
+
+    # 1) Cerrar (parcialmente) la posición existente.
+    if reduce > 0:
+        if q > 0:
+            # Vender un largo: devuelve el préstamo proporcional + producto.
+            frac = reduce / abs(q)
+            prestamo_liberado = prestamo * frac
+            cap += precio * reduce - prestamo_liberado
+            prestamo -= prestamo_liberado
+        else:
+            # Cubrir un corto: recompra al precio actual (modelo de efectivo).
+            cap -= precio * reduce
+
+    # 2) Abrir/ampliar exposición en el lado resultante.
+    if abrir > 0:
+        if nuevo_q > 0:
+            # Largo apalancado: solo se exige el margen; el resto es préstamo.
+            costo = precio * abrir
+            margen = costo / lev
+            if margen > cap:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Capital disponible insuficiente")
+            cap -= margen
+            prestamo += costo - margen
+        else:
+            # Corto: ingresa el efectivo y revisa el tope de margen (×lev).
+            notional = _notional_cortos(db, reto, participante.alumno_id, ticker) + abs(nuevo_q) * precio
+            if notional > reto.capital_inicial * lev:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Superas el límite de margen para ventas en corto",
+                )
+            cap += precio * abrir
 
     nuevo_avg = _nuevo_promedio(q, avg, signed, precio, nuevo_q)
-    participante.capital_disponible -= precio * signed
+    if nuevo_q == 0:
+        prestamo = Decimal("0")
+    participante.capital_disponible = cap
 
     if holding:
         holding.cantidad = nuevo_q
         holding.precio_promedio = nuevo_avg
+        holding.prestamo = prestamo
     else:
         db.add(RetoHolding(
-            reto_id=reto.id, alumno_id=participante.alumno_id, ticker=ticker, cantidad=nuevo_q, precio_promedio=nuevo_avg
+            reto_id=reto.id, alumno_id=participante.alumno_id, ticker=ticker,
+            cantidad=nuevo_q, precio_promedio=nuevo_avg, prestamo=prestamo,
         ))
 
 
@@ -257,6 +312,7 @@ def _calcular_estado(db: Session, reto: Reto, participante: RetoParticipante) ->
 
     holdings_out = []
     valor_holdings = Decimal("0")
+    prestamo_total = Decimal("0")
     for h in holdings:
         if h.cantidad == 0:
             continue
@@ -268,6 +324,12 @@ def _calcular_estado(db: Session, reto: Reto, participante: RetoParticipante) ->
             precio_actual = h.precio_promedio
         valor_mercado = precio_actual * h.cantidad
         valor_holdings += valor_mercado
+        prestamo = (getattr(h, "prestamo", None) or Decimal("0"))
+        prestamo_total += prestamo
+        # Apalancamiento de la posición larga: nocional / margen propio.
+        notional_entrada = h.precio_promedio * h.cantidad
+        margen = notional_entrada - prestamo
+        apalancamiento = (notional_entrada / margen) if (h.cantidad > 0 and margen > 0) else Decimal("1")
         holdings_out.append(
             RetoHoldingOut(
                 ticker=h.ticker,
@@ -275,10 +337,13 @@ def _calcular_estado(db: Session, reto: Reto, participante: RetoParticipante) ->
                 precio_promedio=h.precio_promedio,
                 precio_actual=precio_actual,
                 valor_mercado=valor_mercado,
+                prestamo=prestamo,
+                apalancamiento=apalancamiento,
             )
         )
 
-    valor_total = participante.capital_disponible + valor_holdings
+    # El préstamo (parte apalancada de los largos) es deuda: se resta al patrimonio.
+    valor_total = participante.capital_disponible + valor_holdings - prestamo_total
     rendimiento_porcentaje = (
         (valor_total - reto.capital_inicial) / reto.capital_inicial * 100 if reto.capital_inicial else Decimal("0")
     )
@@ -295,6 +360,7 @@ def _calcular_estado(db: Session, reto: Reto, participante: RetoParticipante) ->
         valor_total=valor_total,
         rendimiento_porcentaje=rendimiento_porcentaje,
         progreso_porcentaje=progreso * 100,
+        prestamo_total=prestamo_total,
     )
 
 
@@ -406,7 +472,7 @@ def comprar_reto(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Este activo no está permitido en el reto")
     precio = _precio_reto(reto, ticker)
 
-    _ejecutar_operacion(db, reto, participante, ticker, payload.cantidad, precio, es_compra=True)
+    _ejecutar_operacion(db, reto, participante, ticker, payload.cantidad, precio, es_compra=True, apalancamiento=payload.apalancamiento)
 
     orden = RetoOrden(
         reto_id=reto_id,
@@ -444,7 +510,7 @@ def vender_reto(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Este activo no está permitido en el reto")
     precio = _precio_reto(reto, ticker)
 
-    _ejecutar_operacion(db, reto, participante, ticker, payload.cantidad, precio, es_compra=False)
+    _ejecutar_operacion(db, reto, participante, ticker, payload.cantidad, precio, es_compra=False, apalancamiento=payload.apalancamiento)
 
     orden = RetoOrden(
         reto_id=reto_id,
@@ -493,10 +559,16 @@ def liquidar_reto(
             precio = h.precio_promedio
         cantidad = abs(h.cantidad)
         es_compra = h.cantidad < 0  # los cortos se cierran comprando (cubrir)
-        signed = cantidad if es_compra else -cantidad
-        participante.capital_disponible -= precio * signed
+        prestamo = (getattr(h, "prestamo", None) or Decimal("0"))
+        if es_compra:
+            # Cubrir un corto: recompra al precio actual (modelo de efectivo).
+            participante.capital_disponible -= precio * cantidad
+        else:
+            # Vender un largo: producto menos el préstamo (deuda) a devolver.
+            participante.capital_disponible += precio * cantidad - prestamo
         h.cantidad = Decimal("0")
         h.precio_promedio = Decimal("0")
+        h.prestamo = Decimal("0")
         db.add(RetoOrden(
             reto_id=reto_id,
             alumno_id=alumno.id,

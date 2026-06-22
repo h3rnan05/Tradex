@@ -19,3 +19,6 @@ class Holding(Base):
     cantidad = Column(Numeric(14, 4), nullable=False, default=0)
     precio_promedio = Column(Numeric(14, 4), nullable=False, default=0)
     es_corto = Column(Boolean, nullable=False, server_default="false", default=False)
+    # Porción financiada de la posición apalancada: efectivo prestado (largos) o
+    # colateral comprometido (cortos). 0 = posición sin apalancamiento (1x).
+    prestamo = Column(Numeric(14, 2), nullable=False, server_default="0", default=0)

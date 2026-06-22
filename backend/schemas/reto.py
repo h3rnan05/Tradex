@@ -42,6 +42,8 @@ class RetoOut(BaseModel):
 class RetoOrdenCreate(BaseModel):
     ticker: str
     cantidad: Decimal
+    # Multiplicador de apalancamiento (1x–5x). 1 = sin apalancamiento.
+    apalancamiento: Decimal = Decimal("1")
 
 
 class RetoOrdenOut(BaseModel):
@@ -64,6 +66,8 @@ class RetoHoldingOut(BaseModel):
     precio_promedio: Decimal
     precio_actual: Decimal
     valor_mercado: Decimal
+    prestamo: Decimal = Decimal("0")
+    apalancamiento: Decimal = Decimal("1")
 
 
 class RetoEstadoOut(BaseModel):
@@ -73,6 +77,7 @@ class RetoEstadoOut(BaseModel):
     valor_total: Decimal
     rendimiento_porcentaje: Decimal
     progreso_porcentaje: float
+    prestamo_total: Decimal = Decimal("0")
 
 
 class RetoMercadoEntry(BaseModel):

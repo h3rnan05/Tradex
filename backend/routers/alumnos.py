@@ -70,22 +70,37 @@ def portafolio(
 
     holdings_con_precio = []
     valor_holdings = Decimal("0")
+    prestamo_total = Decimal("0")
     for h in holdings_activos:
         precio_actual = precios.get(h.ticker)
         if precio_actual is None:
             continue
         es_corto = getattr(h, "es_corto", False) or False
+        prestamo = getattr(h, "prestamo", None) or Decimal("0")
+        notional_entrada = h.precio_promedio * h.cantidad
         if es_corto:
-            costo = h.precio_promedio * h.cantidad
+            costo = notional_entrada
             pnl = (h.precio_promedio - precio_actual) * h.cantidad
             pnl_porcentaje = (pnl / costo * 100) if costo else Decimal("0")
             valor_mercado = precio_actual * h.cantidad
+            # Colateral comprometido: el préstamo registrado o, para cortos
+            # antiguos (anteriores al apalancamiento), el 100% del nocional.
+            colateral = prestamo if prestamo > 0 else notional_entrada
+            # Aporte al patrimonio: colateral comprometido + P&L del corto.
+            valor_holdings += colateral + pnl
+            # margen = colateral; apalancamiento = nocional / colateral.
+            apalancamiento = (notional_entrada / prestamo) if prestamo else Decimal("1")
         else:
             valor_mercado = precio_actual * h.cantidad
-            costo = h.precio_promedio * h.cantidad
+            costo = notional_entrada
             pnl = valor_mercado - costo
             pnl_porcentaje = (pnl / costo * 100) if costo else Decimal("0")
-            valor_holdings += valor_mercado
+            # Aporte al patrimonio: valor de mercado menos el préstamo (deuda).
+            valor_holdings += valor_mercado - prestamo
+            # margen propio = nocional - préstamo; apalancamiento = nocional / margen.
+            margen = notional_entrada - prestamo
+            apalancamiento = (notional_entrada / margen) if margen > 0 else Decimal("1")
+        prestamo_total += prestamo
         holdings_con_precio.append(
             HoldingConPrecio(
                 id=h.id,
@@ -99,6 +114,8 @@ def portafolio(
                 pnl=pnl,
                 pnl_porcentaje=pnl_porcentaje,
                 es_corto=es_corto,
+                prestamo=prestamo,
+                apalancamiento=apalancamiento,
             )
         )
 
@@ -120,6 +137,7 @@ def portafolio(
         valor_total=valor_total,
         rendimiento=rendimiento,
         rendimiento_porcentaje=rendimiento_porcentaje,
+        prestamo_total=prestamo_total,
         activos_disponibles=activos_disponibles,
         activos_proximos=activos_proximos,
     )

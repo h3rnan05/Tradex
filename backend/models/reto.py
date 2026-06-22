@@ -59,6 +59,10 @@ class RetoHolding(Base):
     ticker = Column(String, nullable=False)
     cantidad = Column(Numeric(14, 4), nullable=False, default=0)
     precio_promedio = Column(Numeric(14, 4), nullable=False, default=0)
+    # Efectivo prestado para la parte apalancada de las posiciones largas.
+    # 0 = posición sin apalancamiento (1x). Los cortos del reto usan el modelo
+    # de ingresos en efectivo (no usan préstamo).
+    prestamo = Column(Numeric(14, 2), nullable=False, server_default="0", default=0)
 
 
 class RetoOrden(Base):

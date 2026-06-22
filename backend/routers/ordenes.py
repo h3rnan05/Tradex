@@ -28,10 +28,26 @@ def _get_membership(db: Session, alumno: User, grupo_id) -> Membership:
     return membership
 
 
-def ejecutar_compra(db: Session, alumno: User, membership: Membership, grupo: Grupo, ticker: str, cantidad: Decimal) -> Orden:
+def _normalizar_apalancamiento(apalancamiento: Decimal | None) -> Decimal:
+    """Acota el apalancamiento al rango permitido (1x–5x)."""
+    if apalancamiento is None:
+        return Decimal("1")
+    lev = Decimal(apalancamiento)
+    if lev < 1:
+        return Decimal("1")
+    if lev > 5:
+        return Decimal("5")
+    return lev
+
+
+def ejecutar_compra(
+    db: Session, alumno: User, membership: Membership, grupo: Grupo, ticker: str,
+    cantidad: Decimal, apalancamiento: Decimal = Decimal("1"),
+) -> Orden:
     if cantidad <= 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La cantidad debe ser mayor a cero")
 
+    lev = _normalizar_apalancamiento(apalancamiento)
     ticker = validar_ticker(ticker)
 
     tipo_activo = clasificar_ticker(ticker)
@@ -45,6 +61,11 @@ def ejecutar_compra(db: Session, alumno: User, membership: Membership, grupo: Gr
     precio = obtener_precio_actual(ticker)
     costo_total = precio * cantidad
     comision = costo_total * grupo.comision_porcentaje
+
+    # El apalancamiento solo financia el nocional: el margen requerido es el
+    # nocional dividido entre el multiplicador y el resto es efectivo prestado.
+    margen = costo_total / lev
+    prestamo_nuevo = costo_total - margen
 
     if grupo.limite_orden_valor is not None and costo_total > grupo.limite_orden_valor:
         raise HTTPException(
@@ -60,7 +81,7 @@ def ejecutar_compra(db: Session, alumno: User, membership: Membership, grupo: Gr
         .first()
     )
 
-    if costo_total + comision > membership.capital_disponible:
+    if margen + comision > membership.capital_disponible:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Capital disponible insuficiente")
 
     holding = (
@@ -75,6 +96,7 @@ def ejecutar_compra(db: Session, alumno: User, membership: Membership, grupo: Gr
         costo_previo = holding.precio_promedio * holding.cantidad
         holding.precio_promedio = (costo_previo + costo_total) / cantidad_total
         holding.cantidad = cantidad_total
+        holding.prestamo = (holding.prestamo or Decimal("0")) + prestamo_nuevo
     else:
         holding = Holding(
             alumno_id=alumno.id,
@@ -82,10 +104,11 @@ def ejecutar_compra(db: Session, alumno: User, membership: Membership, grupo: Gr
             ticker=ticker,
             cantidad=cantidad,
             precio_promedio=precio,
+            prestamo=prestamo_nuevo,
         )
         db.add(holding)
 
-    membership.capital_disponible -= costo_total + comision
+    membership.capital_disponible -= margen + comision
 
     orden = Orden(
         alumno_id=alumno.id,
@@ -109,7 +132,7 @@ def comprar(payload: OrdenCreate, db: Session = Depends(get_db), alumno: User = 
     if not grupo:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Grupo no encontrado")
 
-    orden = ejecutar_compra(db, alumno, membership, grupo, payload.ticker, payload.cantidad)
+    orden = ejecutar_compra(db, alumno, membership, grupo, payload.ticker, payload.cantidad, payload.apalancamiento)
     db.commit()
     db.refresh(orden)
     try:
@@ -154,11 +177,18 @@ def vender(payload: OrdenCreate, db: Session = Depends(get_db), alumno: User = D
     monto_total = precio * payload.cantidad
     comision = monto_total * grupo.comision_porcentaje
 
+    # Al vender se devuelve la parte del préstamo proporcional a las acciones
+    # vendidas; el resto del producto (margen + P&L) regresa al efectivo.
+    prestamo_actual = holding.prestamo or Decimal("0")
+    prestamo_a_pagar = prestamo_actual * (payload.cantidad / holding.cantidad)
+
     holding.cantidad -= payload.cantidad
+    holding.prestamo = prestamo_actual - prestamo_a_pagar
     if holding.cantidad == 0:
         holding.precio_promedio = Decimal("0")
+        holding.prestamo = Decimal("0")
 
-    membership.capital_disponible += monto_total - comision
+    membership.capital_disponible += monto_total - prestamo_a_pagar - comision
 
     orden = Orden(
         alumno_id=alumno.id,
@@ -194,17 +224,18 @@ def abrir_corto(payload: OrdenCreate, db: Session = Depends(get_db), alumno: Use
     if not grupo:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Grupo no encontrado")
 
+    lev = _normalizar_apalancamiento(payload.apalancamiento)
     ticker = validar_ticker(payload.ticker)
     precio = obtener_precio_actual(ticker)
     valor_posicion = precio * payload.cantidad
     comision = valor_posicion * grupo.comision_porcentaje
 
-    # Require capital as collateral (100% of position value + commission)
-    colateral = valor_posicion + comision
+    # Colateral requerido = nocional / apalancamiento (100% del valor a 1x).
+    colateral = valor_posicion / lev
 
     membership = db.query(Membership).with_for_update().filter(Membership.id == membership.id).first()
-    if colateral > membership.capital_disponible:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Capital insuficiente para abrir la posición corta (se requiere colateral del 100%)")
+    if colateral + comision > membership.capital_disponible:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Capital insuficiente para abrir la posición corta")
 
     holding_corto = (
         db.query(Holding).with_for_update()
@@ -217,15 +248,16 @@ def abrir_corto(payload: OrdenCreate, db: Session = Depends(get_db), alumno: Use
         costo_previo = holding_corto.precio_promedio * holding_corto.cantidad
         holding_corto.precio_promedio = (costo_previo + valor_posicion) / total_cant
         holding_corto.cantidad = total_cant
+        holding_corto.prestamo = (holding_corto.prestamo or Decimal("0")) + colateral
     else:
         holding_corto = Holding(
             alumno_id=alumno.id, grupo_id=membership.grupo_id,
             ticker=ticker, cantidad=payload.cantidad,
-            precio_promedio=precio, es_corto=True,
+            precio_promedio=precio, es_corto=True, prestamo=colateral,
         )
         db.add(holding_corto)
 
-    membership.capital_disponible -= colateral
+    membership.capital_disponible -= colateral + comision
 
     orden = Orden(
         alumno_id=alumno.id, grupo_id=membership.grupo_id,
@@ -269,15 +301,19 @@ def cubrir_corto(payload: OrdenCreate, db: Session = Depends(get_db), alumno: Us
     comision = precio_actual * payload.cantidad * grupo.comision_porcentaje
 
     precio_entrada = holding_corto.precio_promedio
-    colateral_liberado = precio_entrada * payload.cantidad
+    # Se libera el colateral proporcional a las acciones cubiertas más el P&L.
+    prestamo_actual = holding_corto.prestamo or Decimal("0")
+    colateral_liberado = prestamo_actual * (payload.cantidad / holding_corto.cantidad)
     pnl = (precio_entrada - precio_actual) * payload.cantidad
 
     devolucion = colateral_liberado + pnl - comision
     membership.capital_disponible += devolucion
 
     holding_corto.cantidad -= payload.cantidad
+    holding_corto.prestamo = prestamo_actual - colateral_liberado
     if holding_corto.cantidad == 0:
         holding_corto.precio_promedio = Decimal("0")
+        holding_corto.prestamo = Decimal("0")
 
     orden = Orden(
         alumno_id=alumno.id, grupo_id=payload.grupo_id,

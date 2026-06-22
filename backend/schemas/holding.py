@@ -24,6 +24,8 @@ class HoldingConPrecio(HoldingOut):
     valor_mercado: Decimal
     pnl: Decimal
     pnl_porcentaje: Decimal
+    prestamo: Decimal = Decimal("0")
+    apalancamiento: Decimal = Decimal("1")
 
 
 class PortafolioOut(BaseModel):
@@ -34,6 +36,7 @@ class PortafolioOut(BaseModel):
     valor_total: Decimal
     rendimiento: Decimal
     rendimiento_porcentaje: Decimal
+    prestamo_total: Decimal = Decimal("0")
     activos_disponibles: list[str] = []
     activos_proximos: list[dict] = []
 

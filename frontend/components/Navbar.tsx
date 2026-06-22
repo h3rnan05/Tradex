@@ -55,6 +55,7 @@ export default function Navbar() {
           : [
               { href: "/alumno/portafolio", label: t("nav.portfolio") },
               { href: "/alumno/operar", label: t("nav.trade") },
+              { href: "/alumno/terminal", label: t("nav.terminal") },
               { href: "/alumno/historial", label: t("nav.history") },
               { href: "/alumno/ranking", label: t("nav.ranking") },
               { href: "/alumno/mercados", label: t("nav.markets") },
