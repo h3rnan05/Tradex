@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session, joinedload
 from auth_utils import get_current_user, require_alumno, require_maestro
 from database import get_db
 from escenarios_historicos import (
+    ESCENARIOS_HISTORICOS,
     NOTICIERO,
     _progreso,
     noticias_escenario,
@@ -18,11 +19,13 @@ from escenarios_historicos import (
 from insignias_engine import _otorgar
 from models.grupo import Grupo
 from models.membership import Membership
-from models.reto import Reto, RetoHolding, RetoOrden, RetoParticipante, TipoOrdenRetoEnum
+from models.reto import Reto, RetoAdivinanza, RetoHolding, RetoOrden, RetoParticipante, TipoOrdenRetoEnum
 from models.user import RolEnum, User
 from precios_utils import normalizar_ticker, obtener_precio_actual
 from progreso_engine import calcular_comision, calcular_nivel, calcular_progreso
 from schemas.reto import (
+    RetoAdivinanzaCreate,
+    RetoAdivinanzaOut,
     RetoCreate,
     RetoEstadoOut,
     RetoHoldingOut,
@@ -32,6 +35,7 @@ from schemas.reto import (
     RetoOrdenOut,
     RetoOut,
     RetoParticipanteResumen,
+    RetoPreguntaFaseOut,
     RetoRankingEntry,
 )
 
@@ -710,3 +714,207 @@ def listar_retos_maestro(db: Session = Depends(get_db), current_user: User = Dep
     grupo_ids = [g.id for g in grupos]
     retos = db.query(Reto).filter(Reto.grupo_id.in_(grupo_ids)).order_by(Reto.fecha_inicio.desc()).all()
     return retos
+
+
+# ---------------------------------------------------------------------------
+# Juego de adivinanza: 4 fases basadas en el progreso del reto
+# Fase 0 (0-25%): elegir década
+# Fase 1 (25-50%): elegir país de origen
+# Fase 2 (50-75%): elegir causa
+# Fase 3 (75-100%): se revela la descripción histórica
+# ---------------------------------------------------------------------------
+
+OPCIONES_DECADA = [
+    "1890s", "1900s", "1910s", "1920s", "1930s", "1940s",
+    "1950s", "1960s", "1970s", "1980s", "1990s", "2000s", "2010s", "2020s",
+]
+
+OPCIONES_PAIS = [
+    "USA", "Canadá", "Japón", "China", "Alemania", "Italia", "España",
+    "México", "Rusia", "Brasil", "India", "Argentina", "Corea del Sur",
+    "Tailandia", "Venezuela",
+]
+
+OPCIONES_CAUSA = [
+    "moneda", "stock", "indice", "bonos", "tasa_interes", "crypto",
+    "banco", "empresa_quiebra", "golpe_estado", "guerra",
+    "desastre_natural", "elecciones",
+]
+
+
+def _fase_actual(progreso: float) -> int:
+    if progreso < 25:
+        return 0
+    if progreso < 50:
+        return 1
+    if progreso < 75:
+        return 2
+    return 3
+
+
+@router.get("/retos/{reto_id}/adivinanza", response_model=RetoAdivinanzaOut)
+def estado_adivinanza(reto_id: str, db: Session = Depends(get_db), alumno: User = Depends(require_alumno)):
+    reto = db.query(Reto).filter(Reto.id == reto_id).first()
+    if not reto:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reto no encontrado")
+    if not reto.escenario_id:
+        return RetoAdivinanzaOut(
+            fase_actual=-1, decada_guess=None, pais_guess=None,
+            causa_guess=None, puntos=None, descripcion=None,
+        )
+
+    participante = db.query(RetoParticipante).filter(
+        RetoParticipante.reto_id == reto_id, RetoParticipante.alumno_id == alumno.id
+    ).first()
+    if not participante:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No eres participante")
+
+    progreso = _progreso(reto.fecha_inicio, reto.fecha_fin)
+    fase = _fase_actual(progreso)
+
+    adivinanza = db.query(RetoAdivinanza).filter(
+        RetoAdivinanza.reto_id == reto_id, RetoAdivinanza.alumno_id == alumno.id
+    ).first()
+
+    escenario_data = ESCENARIOS_HISTORICOS.get(reto.escenario_id, {})
+    descripcion = escenario_data.get("descripcion") if fase >= 3 else None
+
+    return RetoAdivinanzaOut(
+        fase_actual=fase,
+        decada_guess=adivinanza.decada_guess if adivinanza else None,
+        pais_guess=adivinanza.pais_guess if adivinanza else None,
+        causa_guess=adivinanza.causa_guess if adivinanza else None,
+        puntos=int(adivinanza.puntos) if adivinanza and adivinanza.puntos is not None else None,
+        descripcion=descripcion,
+    )
+
+
+@router.get("/retos/{reto_id}/adivinanza-pregunta", response_model=RetoPreguntaFaseOut)
+def pregunta_fase(reto_id: str, db: Session = Depends(get_db), alumno: User = Depends(require_alumno)):
+    reto = db.query(Reto).filter(Reto.id == reto_id).first()
+    if not reto:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reto no encontrado")
+    if not reto.escenario_id:
+        return RetoPreguntaFaseOut(fase_actual=-1, opciones=[], descripcion=None)
+
+    progreso = _progreso(reto.fecha_inicio, reto.fecha_fin)
+    fase = _fase_actual(progreso)
+
+    opciones: list[str] = []
+    if fase == 0:
+        opciones = OPCIONES_DECADA
+    elif fase == 1:
+        opciones = OPCIONES_PAIS
+    elif fase == 2:
+        opciones = OPCIONES_CAUSA
+
+    escenario_data = ESCENARIOS_HISTORICOS.get(reto.escenario_id, {})
+    descripcion = escenario_data.get("descripcion") if fase >= 3 else None
+
+    return RetoPreguntaFaseOut(fase_actual=fase, opciones=opciones, descripcion=descripcion)
+
+
+@router.post("/retos/{reto_id}/adivinar", response_model=RetoAdivinanzaOut)
+def registrar_adivinanza(
+    reto_id: str, payload: RetoAdivinanzaCreate,
+    db: Session = Depends(get_db), alumno: User = Depends(require_alumno)
+):
+    reto = db.query(Reto).filter(Reto.id == reto_id).first()
+    if not reto:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reto no encontrado")
+    if not reto.escenario_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Este reto no tiene escenario histórico")
+
+    participante = db.query(RetoParticipante).filter(
+        RetoParticipante.reto_id == reto_id, RetoParticipante.alumno_id == alumno.id
+    ).first()
+    if not participante:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No eres participante")
+
+    progreso = _progreso(reto.fecha_inicio, reto.fecha_fin)
+    fase = _fase_actual(progreso)
+
+    adivinanza = db.query(RetoAdivinanza).filter(
+        RetoAdivinanza.reto_id == reto_id, RetoAdivinanza.alumno_id == alumno.id
+    ).first()
+    if not adivinanza:
+        adivinanza = RetoAdivinanza(reto_id=reto.id, alumno_id=alumno.id)
+        db.add(adivinanza)
+
+    # Solo se puede registrar la fase actual, y solo si no se respondió ya
+    if fase == 0 and payload.decada and not adivinanza.decada_guess:
+        adivinanza.decada_guess = payload.decada
+    elif fase == 1 and payload.pais and not adivinanza.pais_guess:
+        adivinanza.pais_guess = payload.pais
+    elif fase == 2 and payload.causa and not adivinanza.causa_guess:
+        adivinanza.causa_guess = payload.causa
+    else:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Fase incorrecta o ya respondida")
+
+    # Calcular puntos si el reto terminó o llegamos a fase 3
+    if fase >= 3 or progreso >= 100:
+        escenario_data = ESCENARIOS_HISTORICOS.get(reto.escenario_id, {})
+        correctos = sum([
+            adivinanza.decada_guess == escenario_data.get("decada"),
+            adivinanza.pais_guess == escenario_data.get("pais_origen"),
+            adivinanza.causa_guess == escenario_data.get("causa"),
+        ])
+        if correctos == 3:
+            adivinanza.puntos = 20
+        elif correctos == 2:
+            adivinanza.puntos = 10
+        elif correctos == 1:
+            adivinanza.puntos = 5
+        else:
+            adivinanza.puntos = 0
+
+    db.commit()
+    db.refresh(adivinanza)
+
+    escenario_data = ESCENARIOS_HISTORICOS.get(reto.escenario_id, {})
+    descripcion = escenario_data.get("descripcion") if fase >= 3 else None
+
+    return RetoAdivinanzaOut(
+        fase_actual=fase,
+        decada_guess=adivinanza.decada_guess,
+        pais_guess=adivinanza.pais_guess,
+        causa_guess=adivinanza.causa_guess,
+        puntos=int(adivinanza.puntos) if adivinanza.puntos is not None else None,
+        descripcion=descripcion,
+    )
+
+
+@router.post("/retos/{reto_id}/aplicar-boost")
+def aplicar_boost_adivinanza(
+    reto_id: str, db: Session = Depends(get_db), alumno: User = Depends(require_alumno)
+):
+    """Aplica el boost de adivinanza al portafolio del alumno al final del reto."""
+    reto = db.query(Reto).filter(Reto.id == reto_id).first()
+    if not reto:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reto no encontrado")
+
+    progreso = _progreso(reto.fecha_inicio, reto.fecha_fin)
+    if progreso < 100:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El reto aún no terminó")
+
+    adivinanza = db.query(RetoAdivinanza).filter(
+        RetoAdivinanza.reto_id == reto_id, RetoAdivinanza.alumno_id == alumno.id
+    ).first()
+    if not adivinanza or adivinanza.puntos is None or adivinanza.aplicado:
+        return {"boost_pct": 0, "aplicado": True}
+
+    participante = db.query(RetoParticipante).filter(
+        RetoParticipante.reto_id == reto_id, RetoParticipante.alumno_id == alumno.id
+    ).first()
+    if not participante:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No eres participante")
+
+    estado = _calcular_estado(db, reto, participante)
+    boost_pct = int(adivinanza.puntos)  # 20pts = 20%
+    boost_monto = estado.valor_total * boost_pct / 100
+
+    participante.capital_disponible = participante.capital_disponible + boost_monto
+    adivinanza.aplicado = True
+    db.commit()
+
+    return {"boost_pct": boost_pct, "boost_monto": float(boost_monto), "aplicado": True}

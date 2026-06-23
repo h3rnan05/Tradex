@@ -7,6 +7,7 @@ import { api, ApiError } from "@/lib/api";
 import { useLanguage } from "@/lib/i18n";
 import { useToast } from "@/components/Toast";
 import { obtenerSesion } from "@/lib/auth";
+import PanelAdivinanzaReto from "@/components/PanelAdivinanzaReto";
 
 /** Estado de ánimo del mercado según la caída actual promedio. */
 function sentimiento(cambio: number): { label: string; color: string; pos: number } {
@@ -320,7 +321,9 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
           {activosReto.length > 0
             ? `${t("challenges.assets")}: ${activosReto.map(limpiar).join(", ")}`
             : escenario
-            ? `${escenario.nombre} — ${escenario.descripcion}`
+            ? estado.progreso_porcentaje >= 75
+              ? `${escenario.nombre} — ${escenario.descripcion}`
+              : escenario.nombre
             : ""}
         </p>
 
@@ -499,6 +502,11 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
                   ))}
                 </div>
               </Card>
+            )}
+
+            {/* Juego de adivinanza (solo escenarios históricos) */}
+            {esCrisis && !terminado && (
+              <PanelAdivinanzaReto retoId={retoId} progreso={estado.progreso_porcentaje} />
             )}
 
             {/* Panel de trading mejorado */}

@@ -77,3 +77,21 @@ class RetoOrden(Base):
     cantidad = Column(Numeric(14, 4), nullable=False)
     precio_ejecucion = Column(Numeric(14, 4), nullable=False)
     timestamp = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class RetoAdivinanza(Base):
+    __tablename__ = "reto_adivinanzas"
+    __table_args__ = (UniqueConstraint("reto_id", "alumno_id", name="uq_reto_adivinanza_alumno"),)
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    reto_id = Column(UUID(as_uuid=True), ForeignKey("retos.id"), nullable=False)
+    alumno_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    # Respuestas del alumno (None = aún no respondió esa fase)
+    decada_guess = Column(String, nullable=True)
+    pais_guess = Column(String, nullable=True)
+    causa_guess = Column(String, nullable=True)
+    # Puntos obtenidos (None = aún no calculados)
+    puntos = Column(Numeric(5, 0), nullable=True)
+    # True cuando el boost ya fue aplicado al portafolio final
+    aplicado = Column(Boolean, nullable=False, server_default="false", default=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))

@@ -12,6 +12,9 @@ ESCENARIOS_HISTORICOS = {
         "fecha_inicio": date(2020, 2, 1),
         "fecha_fin": date(2020, 12, 31),
         "tickers_sugeridos": ["SPY", "AAPL", "AMZN", "TSLA", "ZM", "NFLX", "UAL", "CCL", "BA"],
+        "decada": "2020s",
+        "pais_origen": "USA",
+        "causa": "desastre_natural",
     },
     "inflacion_2022": {
         "nombre": "Selloff tecnologico 2022",
@@ -19,6 +22,9 @@ ESCENARIOS_HISTORICOS = {
         "fecha_inicio": date(2022, 1, 1),
         "fecha_fin": date(2022, 12, 31),
         "tickers_sugeridos": ["QQQ", "META", "NFLX", "TSLA", "NVDA", "AMZN", "COIN"],
+        "decada": "2020s",
+        "pais_origen": "USA",
+        "causa": "tasa_interes",
     },
     "rally_ia_2023": {
         "nombre": "Rally de inteligencia artificial",
@@ -26,6 +32,9 @@ ESCENARIOS_HISTORICOS = {
         "fecha_inicio": date(2023, 1, 1),
         "fecha_fin": date(2023, 12, 31),
         "tickers_sugeridos": ["NVDA", "MSFT", "GOOGL", "AMD", "META", "AMZN", "SMCI"],
+        "decada": "2020s",
+        "pais_origen": "USA",
+        "causa": "empresa_quiebra",
     },
     "crisis_2008": {
         "nombre": "Crisis financiera de 2008",
@@ -33,6 +42,9 @@ ESCENARIOS_HISTORICOS = {
         "fecha_inicio": date(2008, 9, 1),
         "fecha_fin": date(2009, 6, 30),
         "tickers_sugeridos": ["SPY", "XLF", "JPM", "GE", "BAC", "C", "GS", "MS", "F"],
+        "decada": "2000s",
+        "pais_origen": "USA",
+        "causa": "banco",
     },
     "puntocom_2000": {
         "nombre": "Estallido de la burbuja puntocom",
@@ -40,6 +52,9 @@ ESCENARIOS_HISTORICOS = {
         "fecha_inicio": date(2000, 3, 1),
         "fecha_fin": date(2003, 12, 31),
         "tickers_sugeridos": ["QQQ", "MSFT", "INTC", "CSCO", "AMZN", "ORCL", "AAPL", "EBAY"],
+        "decada": "2000s",
+        "pais_origen": "USA",
+        "causa": "stock",
     },
     "lunes_negro_1987": {
         "nombre": "Lunes Negro de 1987",
@@ -47,6 +62,9 @@ ESCENARIOS_HISTORICOS = {
         "fecha_inicio": date(1987, 9, 1),
         "fecha_fin": date(1988, 12, 31),
         "tickers_sugeridos": ["^GSPC", "^DJI", "IBM", "KO", "GE", "XOM", "MCD"],
+        "decada": "1980s",
+        "pais_origen": "USA",
+        "causa": "stock",
     },
     "bancos_2023": {
         "nombre": "Crisis bancaria de 2023",
@@ -54,6 +72,9 @@ ESCENARIOS_HISTORICOS = {
         "fecha_inicio": date(2023, 3, 1),
         "fecha_fin": date(2023, 9, 30),
         "tickers_sugeridos": ["KRE", "XLF", "SCHW", "JPM", "BAC", "WFC", "C", "COF"],
+        "decada": "2020s",
+        "pais_origen": "USA",
+        "causa": "banco",
     },
 }
 

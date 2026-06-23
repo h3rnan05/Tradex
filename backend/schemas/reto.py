@@ -113,3 +113,27 @@ class RetoParticipanteResumen(BaseModel):
     valor_total: Decimal
     n_operaciones: int
     pnl_pct: Decimal
+
+
+class RetoAdivinanzaCreate(BaseModel):
+    decada: str | None = None
+    pais: str | None = None
+    causa: str | None = None
+
+
+class RetoAdivinanzaOut(BaseModel):
+    fase_actual: int          # 0=decada 1=pais 2=causa 3=descripcion -1=no aplica
+    decada_guess: str | None
+    pais_guess: str | None
+    causa_guess: str | None
+    puntos: int | None
+    descripcion: str | None   # solo visible en fase 3+
+
+    class Config:
+        from_attributes = True
+
+
+class RetoPreguntaFaseOut(BaseModel):
+    fase_actual: int
+    opciones: list[str]       # opciones disponibles para esta fase
+    descripcion: str | None   # descripcion del escenario (solo en fase 3)
