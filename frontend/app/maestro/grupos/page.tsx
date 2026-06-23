@@ -76,6 +76,7 @@ export default function GruposPage() {
   const [activosPermitidos, setActivosPermitidos] = useState<string[]>(["acciones"]);
   const [limiteOrden, setLimiteOrden] = useState("");
   const [comisionPorcentaje, setComisionPorcentaje] = useState("");
+  const [comisionBase, setComisionBase] = useState<1 | 5 | 10>(1);
   const [maxApalancamiento, setMaxApalancamiento] = useState(5);
   const [fechasActivacion, setFechasActivacion] = useState<Record<string, string>>({});
   const [guardando, setGuardando] = useState(false);
@@ -114,6 +115,7 @@ export default function GruposPage() {
         activos_permitidos: activosPermitidos,
         limite_orden_valor: limiteOrden || null,
         comision_porcentaje: comisionPorcentaje ? Number(comisionPorcentaje) / 100 : 0,
+        comision_base: comisionBase,
         max_apalancamiento: maxApalancamiento,
         fases_activo: activosPermitidos
           .filter((tipo) => fechasActivacion[tipo])
@@ -208,10 +210,24 @@ export default function GruposPage() {
                     className="w-full rounded-none border border-fg/20 bg-canvas px-3 py-2.5 text-sm focus:border-accent focus:outline-none" />
                 </div>
                 <div>
-                  <label className="mb-1.5 block font-mono text-[11px] uppercase tracking-widest text-fg/50">{t("maestro.groups.commission")} <span className="normal-case text-fg/30">{t("maestro.groups.optional")}</span></label>
-                  <input type="number" min="0" step="0.01" value={comisionPorcentaje} onChange={(e) => setComisionPorcentaje(e.target.value)}
-                    placeholder="0"
-                    className="w-full rounded-none border border-fg/20 bg-canvas px-3 py-2.5 text-sm focus:border-accent focus:outline-none" />
+                  <label className="mb-1.5 block font-mono text-[11px] uppercase tracking-widest text-fg/50">{t("maestro.groups.commission")} <span className="normal-case text-fg/30 ml-1">— nivel base de comisión</span></label>
+                  <div className="flex gap-2">
+                    {([1, 5, 10] as const).map((pct) => (
+                      <button
+                        key={pct}
+                        type="button"
+                        onClick={() => setComisionBase(pct)}
+                        className={`flex-1 rounded-none border py-2 font-mono text-sm font-bold transition-colors ${
+                          comisionBase === pct
+                            ? "border-accent bg-accent/10 text-fg"
+                            : "border-fg/15 text-fg/40 hover:border-fg/30 hover:text-fg/70"
+                        }`}
+                      >
+                        {pct}%
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-1 font-mono text-[9px] text-fg/30">Bronce: {comisionBase}% · Plata: {comisionBase * 0.5}% · Oro: {(comisionBase * 0.1).toFixed(1)}%</p>
                 </div>
                 <div>
                   <label className="mb-2 block font-mono text-[11px] uppercase tracking-widest text-fg/50">{t("maestro.groups.maxLeverage")}</label>

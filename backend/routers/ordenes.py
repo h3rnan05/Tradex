@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 
 from activos_utils import activo_desbloqueado, clasificar_ticker
+from progreso_engine import calcular_comision, calcular_nivel, calcular_progreso
 from models.fase_activo import FaseActivo
 from auth_utils import require_alumno
 from database import get_db
@@ -110,6 +111,15 @@ def ejecutar_compra(
 
     membership.capital_disponible -= margen + comision
 
+    # Apply level-based commission on top of the fixed comision_porcentaje.
+    notional = precio * cantidad
+    _comision_base = getattr(grupo, "comision_base", 1) or 1
+    progreso = calcular_progreso(db, alumno.id, membership.grupo_id)
+    nivel = progreso["nivel"]
+    comision_rate = Decimal(str(calcular_comision(_comision_base, nivel)))
+    comision_monto = notional * comision_rate
+    membership.capital_disponible -= comision_monto
+
     orden = Orden(
         alumno_id=alumno.id,
         grupo_id=membership.grupo_id,
@@ -117,7 +127,7 @@ def ejecutar_compra(
         tipo=TipoOrdenEnum.compra,
         cantidad=cantidad,
         precio_ejecucion=precio,
-        comision=comision,
+        comision=comision + comision_monto,
     )
     db.add(orden)
     return orden
@@ -190,6 +200,14 @@ def vender(payload: OrdenCreate, db: Session = Depends(get_db), alumno: User = D
 
     membership.capital_disponible += monto_total - prestamo_a_pagar - comision
 
+    # Apply level-based commission after the trade.
+    _comision_base = getattr(grupo, "comision_base", 1) or 1
+    progreso = calcular_progreso(db, alumno.id, payload.grupo_id)
+    nivel = progreso["nivel"]
+    comision_rate = Decimal(str(calcular_comision(_comision_base, nivel)))
+    comision_monto = monto_total * comision_rate
+    membership.capital_disponible -= comision_monto
+
     orden = Orden(
         alumno_id=alumno.id,
         grupo_id=payload.grupo_id,
@@ -197,7 +215,7 @@ def vender(payload: OrdenCreate, db: Session = Depends(get_db), alumno: User = D
         tipo=TipoOrdenEnum.venta,
         cantidad=payload.cantidad,
         precio_ejecucion=precio,
-        comision=comision,
+        comision=comision + comision_monto,
     )
     db.add(orden)
     db.commit()

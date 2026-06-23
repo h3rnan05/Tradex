@@ -76,6 +76,21 @@ def calcular_nivel(xp_total: int) -> dict:
     }
 
 
+def calcular_comision(comision_base: int, nivel: int) -> float:
+    """
+    Returns the commission rate as a fraction (0.01 = 1%).
+    - Novato/Bronce (nivel < 8): full rate
+    - Plata (nivel 8-11): half rate
+    - Oro/Diamante (nivel >= 12): 0.1x rate
+    """
+    rate = comision_base / 100.0
+    if nivel >= 12:
+        return rate * 0.1
+    if nivel >= 8:
+        return rate * 0.5
+    return rate
+
+
 def calcular_progreso(db: Session, alumno_id: uuid.UUID, grupo_id: uuid.UUID | None = None) -> dict:
     """Calcula XP, nivel y desglose de insignias por rareza para un alumno."""
     q_ordenes = db.query(Orden).filter(Orden.alumno_id == alumno_id)

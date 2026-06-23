@@ -48,7 +48,7 @@ export default function Navbar() {
       : sesion?.rol === "sponsor"
       ? [{ href: "/sponsor/dashboard", label: t("nav.dashboard") }]
       : sesion?.rol === "maestro"
-      ? [{ href: "/maestro/grupos", label: t("nav.groups") }]
+      ? [{ href: "/maestro/grupos", label: t("nav.groups") }, { href: "/maestro/retos", label: t("nav.challenges") }]
       : (enReto
           ? // En modo reto solo quedan la interfaz del reto y el ranking.
             [

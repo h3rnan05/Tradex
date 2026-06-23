@@ -616,29 +616,20 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
                       </div>
                     )}
 
-                    {/* Atajos de cantidad según el capital disponible */}
-                    {precioTicker && Number(precioTicker.precio) > 0 && (
-                      <div className="mb-2 flex flex-wrap items-center gap-2">
-                        <span className="font-mono text-[10px] uppercase tracking-wider text-fg/40">
-                          Cantidad rápida:
-                        </span>
-                        {[0.25, 0.5, 1].map((frac) => {
-                          const max = Number(estado.capital_disponible) / Number(precioTicker.precio);
-                          const q = Math.floor(max * frac);
-                          return (
-                            <button
-                              key={frac}
-                              type="button"
-                              disabled={q <= 0}
-                              onClick={() => setCantidad(String(q))}
-                              className="rounded-none border border-fg/20 px-2 py-1 font-mono text-[10px] font-bold uppercase text-fg/60 hover:border-accent hover:text-fg disabled:opacity-30"
-                            >
-                              {frac === 1 ? "Máx" : `${frac * 100}%`}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
+                    {/* Lotes estándar */}
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                      <span className="font-mono text-[10px] uppercase tracking-wider text-fg/40">Lote:</span>
+                      {[10, 100, 1000].map((lote) => (
+                        <button
+                          key={lote}
+                          type="button"
+                          onClick={() => setCantidad(String(lote))}
+                          className={`rounded-none border px-2 py-1 font-mono text-[10px] font-bold uppercase transition-colors ${Number(cantidad) === lote ? "border-accent bg-accent text-black" : "border-fg/20 text-fg/60 hover:border-accent hover:text-fg"}`}
+                        >
+                          {lote.toLocaleString()}
+                        </button>
+                      ))}
+                    </div>
 
                     <div className="mb-3">
                       <label className="mb-1 block text-sm font-medium text-fg/70">{t("challenge.quantity")}</label>
@@ -650,6 +641,11 @@ export default function RetoActivo({ retoId }: { retoId: string }) {
                         onChange={(e) => setCantidad(e.target.value)}
                         className="w-28 rounded-none border border-fg/20 bg-canvas px-3 py-2 text-sm tabular-nums"
                       />
+                      {costoEstimado !== null && (
+                        <p className="mt-1 font-mono text-[9px] text-fg/40 tabular-nums">
+                          Notional ~{formatoMoneda(costoEstimado)} · Comisión ~{formatoMoneda(costoEstimado * 0.01)}
+                        </p>
+                      )}
                     </div>
 
                     {/* Leverage selector */}

@@ -21,6 +21,7 @@ from models.membership import Membership
 from models.reto import Reto, RetoHolding, RetoOrden, RetoParticipante, TipoOrdenRetoEnum
 from models.user import RolEnum, User
 from precios_utils import normalizar_ticker, obtener_precio_actual
+from progreso_engine import calcular_comision, calcular_nivel, calcular_progreso
 from schemas.reto import (
     RetoCreate,
     RetoEstadoOut,
@@ -30,6 +31,7 @@ from schemas.reto import (
     RetoOrdenCreate,
     RetoOrdenOut,
     RetoOut,
+    RetoParticipanteResumen,
     RetoRankingEntry,
 )
 
@@ -105,6 +107,7 @@ def _nuevo_promedio(q: Decimal, avg: Decimal, signed: Decimal, precio: Decimal, 
 def _ejecutar_operacion(
     db: Session, reto: Reto, participante: RetoParticipante, ticker: str, cantidad: Decimal,
     precio: Decimal, es_compra: bool, apalancamiento: Decimal = Decimal("1"),
+    comision_base: int = 1,
 ) -> None:
     """Aplica una compra o venta al portafolio del reto. Permite ventas en corto
     (la posición puede quedar negativa) con un tope de margen de 1x el capital
@@ -174,6 +177,15 @@ def _ejecutar_operacion(
     # Una pérdida catastrófica (p. ej. cubrir un corto en plena subida) no puede
     # dejar el efectivo negativo: el alumno pierde como máximo su capital.
     participante.capital_disponible = cap if cap > 0 else Decimal("0")
+
+    # Apply level-based commission on the notional of the operation.
+    notional = precio * cantidad
+    progreso = calcular_progreso(db, participante.alumno_id, reto.grupo_id)
+    nivel = progreso["nivel"]
+    comision_rate = Decimal(str(calcular_comision(comision_base, nivel)))
+    comision_monto = notional * comision_rate
+    nuevo_cap = participante.capital_disponible - comision_monto
+    participante.capital_disponible = nuevo_cap if nuevo_cap > 0 else Decimal("0")
 
     if holding:
         holding.cantidad = nuevo_q
@@ -474,7 +486,9 @@ def comprar_reto(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Este activo no está permitido en el reto")
     precio = _precio_reto(reto, ticker)
 
-    _ejecutar_operacion(db, reto, participante, ticker, payload.cantidad, precio, es_compra=True, apalancamiento=payload.apalancamiento)
+    grupo = db.query(Grupo).filter(Grupo.id == reto.grupo_id).first()
+    _comision_base = (getattr(grupo, "comision_base", 1) or 1) if grupo else 1
+    _ejecutar_operacion(db, reto, participante, ticker, payload.cantidad, precio, es_compra=True, apalancamiento=payload.apalancamiento, comision_base=_comision_base)
 
     orden = RetoOrden(
         reto_id=reto_id,
@@ -512,7 +526,9 @@ def vender_reto(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Este activo no está permitido en el reto")
     precio = _precio_reto(reto, ticker)
 
-    _ejecutar_operacion(db, reto, participante, ticker, payload.cantidad, precio, es_compra=False, apalancamiento=payload.apalancamiento)
+    grupo = db.query(Grupo).filter(Grupo.id == reto.grupo_id).first()
+    _comision_base = (getattr(grupo, "comision_base", 1) or 1) if grupo else 1
+    _ejecutar_operacion(db, reto, participante, ticker, payload.cantidad, precio, es_compra=False, apalancamiento=payload.apalancamiento, comision_base=_comision_base)
 
     orden = RetoOrden(
         reto_id=reto_id,
@@ -625,3 +641,72 @@ def ranking_reto(reto_id: str, db: Session = Depends(get_db), current_user: User
                 db.commit()
 
     return entradas
+
+
+@router.post("/retos/{reto_id}/pausar", response_model=RetoOut)
+def pausar_reto(reto_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_maestro)):
+    reto = db.query(Reto).filter(Reto.id == reto_id).first()
+    if not reto:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reto no encontrado")
+    grupo = db.query(Grupo).filter(Grupo.id == reto.grupo_id).first()
+    if grupo.maestro_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No autorizado")
+    reto.pausado = True
+    db.commit()
+    db.refresh(reto)
+    return reto
+
+
+@router.post("/retos/{reto_id}/reanudar", response_model=RetoOut)
+def reanudar_reto(reto_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_maestro)):
+    reto = db.query(Reto).filter(Reto.id == reto_id).first()
+    if not reto:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reto no encontrado")
+    grupo = db.query(Grupo).filter(Grupo.id == reto.grupo_id).first()
+    if grupo.maestro_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No autorizado")
+    reto.pausado = False
+    db.commit()
+    db.refresh(reto)
+    return reto
+
+
+@router.get("/retos/{reto_id}/participantes-resumen", response_model=list[RetoParticipanteResumen])
+def resumen_participantes(reto_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_maestro)):
+    reto = db.query(Reto).filter(Reto.id == reto_id).first()
+    if not reto:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reto no encontrado")
+    grupo = db.query(Grupo).filter(Grupo.id == reto.grupo_id).first()
+    if grupo.maestro_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No autorizado")
+
+    participantes = db.query(RetoParticipante).options(joinedload(RetoParticipante.alumno)).filter(
+        RetoParticipante.reto_id == reto_id
+    ).all()
+
+    resultado = []
+    for p in participantes:
+        n_ops = db.query(RetoOrden).filter(
+            RetoOrden.reto_id == reto_id, RetoOrden.alumno_id == p.alumno_id
+        ).count()
+        estado = _calcular_estado(db, reto, p)
+        pnl = (estado.valor_total - reto.capital_inicial) / reto.capital_inicial * 100
+        resultado.append(RetoParticipanteResumen(
+            alumno_id=p.alumno_id,
+            nombre=p.alumno.nombre,
+            capital_disponible=p.capital_disponible,
+            valor_total=estado.valor_total,
+            n_operaciones=n_ops,
+            pnl_pct=pnl,
+        ))
+
+    resultado.sort(key=lambda r: r.valor_total, reverse=True)
+    return resultado
+
+
+@router.get("/maestro/retos", response_model=list[RetoOut])
+def listar_retos_maestro(db: Session = Depends(get_db), current_user: User = Depends(require_maestro)):
+    grupos = db.query(Grupo).filter(Grupo.maestro_id == current_user.id).all()
+    grupo_ids = [g.id for g in grupos]
+    retos = db.query(Reto).filter(Reto.grupo_id.in_(grupo_ids)).order_by(Reto.fecha_inicio.desc()).all()
+    return retos

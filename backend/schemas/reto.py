@@ -26,6 +26,7 @@ class RetoOut(BaseModel):
     fecha_inicio: datetime
     fecha_fin: datetime
     capital_inicial: Decimal
+    pausado: bool = False
 
     class Config:
         from_attributes = True
@@ -103,3 +104,12 @@ class RetoRankingEntry(BaseModel):
     nombre: str
     valor_total: Decimal
     rendimiento_porcentaje: Decimal
+
+
+class RetoParticipanteResumen(BaseModel):
+    alumno_id: uuid.UUID
+    nombre: str
+    capital_disponible: Decimal
+    valor_total: Decimal
+    n_operaciones: int
+    pnl_pct: Decimal

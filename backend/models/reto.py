@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, DateTime, Enum, ForeignKey, Numeric, String, UniqueConstraint
+from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKey, Numeric, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -28,6 +28,7 @@ class Reto(Base):
     fecha_inicio = Column(DateTime(timezone=True), nullable=False)
     fecha_fin = Column(DateTime(timezone=True), nullable=False)
     capital_inicial = Column(Numeric(14, 2), nullable=False)
+    pausado = Column(Boolean, nullable=False, server_default="false", default=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     grupo = relationship("Grupo")
