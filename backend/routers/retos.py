@@ -19,6 +19,7 @@ from escenarios_historicos import (
 from insignias_engine import _otorgar
 from models.grupo import Grupo
 from models.membership import Membership
+from models.insignia import InsigniaAlumno
 from models.reto import Reto, RetoAdivinanza, RetoHolding, RetoOrden, RetoParticipante, TipoOrdenRetoEnum
 from models.user import RolEnum, User
 from precios_utils import normalizar_ticker, obtener_precio_actual
@@ -695,6 +696,9 @@ def resumen_participantes(reto_id: str, db: Session = Depends(get_db), current_u
         ).count()
         estado = _calcular_estado(db, reto, p)
         pnl = (estado.valor_total - reto.capital_inicial) / reto.capital_inicial * 100
+        insignias = db.query(InsigniaAlumno.codigo).filter(
+            InsigniaAlumno.alumno_id == p.alumno_id
+        ).all()
         resultado.append(RetoParticipanteResumen(
             alumno_id=p.alumno_id,
             nombre=p.alumno.nombre,
@@ -702,6 +706,8 @@ def resumen_participantes(reto_id: str, db: Session = Depends(get_db), current_u
             valor_total=estado.valor_total,
             n_operaciones=n_ops,
             pnl_pct=pnl,
+            pausado=p.pausado,
+            insignias=[i.codigo for i in insignias],
         ))
 
     resultado.sort(key=lambda r: r.valor_total, reverse=True)
@@ -714,6 +720,48 @@ def listar_retos_maestro(db: Session = Depends(get_db), current_user: User = Dep
     grupo_ids = [g.id for g in grupos]
     retos = db.query(Reto).filter(Reto.grupo_id.in_(grupo_ids)).order_by(Reto.fecha_inicio.desc()).all()
     return retos
+
+
+@router.post("/retos/{reto_id}/participantes/{alumno_id}/pausar")
+def pausar_participante(
+    reto_id: str, alumno_id: str,
+    db: Session = Depends(get_db), current_user: User = Depends(require_maestro)
+):
+    reto = db.query(Reto).filter(Reto.id == reto_id).first()
+    if not reto:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reto no encontrado")
+    grupo = db.query(Grupo).filter(Grupo.id == reto.grupo_id).first()
+    if grupo.maestro_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No autorizado")
+    participante = db.query(RetoParticipante).filter(
+        RetoParticipante.reto_id == reto_id, RetoParticipante.alumno_id == alumno_id
+    ).first()
+    if not participante:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Participante no encontrado")
+    participante.pausado = True
+    db.commit()
+    return {"ok": True, "pausado": True}
+
+
+@router.post("/retos/{reto_id}/participantes/{alumno_id}/reanudar")
+def reanudar_participante(
+    reto_id: str, alumno_id: str,
+    db: Session = Depends(get_db), current_user: User = Depends(require_maestro)
+):
+    reto = db.query(Reto).filter(Reto.id == reto_id).first()
+    if not reto:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reto no encontrado")
+    grupo = db.query(Grupo).filter(Grupo.id == reto.grupo_id).first()
+    if grupo.maestro_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No autorizado")
+    participante = db.query(RetoParticipante).filter(
+        RetoParticipante.reto_id == reto_id, RetoParticipante.alumno_id == alumno_id
+    ).first()
+    if not participante:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Participante no encontrado")
+    participante.pausado = False
+    db.commit()
+    return {"ok": True, "pausado": False}
 
 
 # ---------------------------------------------------------------------------

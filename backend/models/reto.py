@@ -43,6 +43,7 @@ class RetoParticipante(Base):
     reto_id = Column(UUID(as_uuid=True), ForeignKey("retos.id"), nullable=False)
     alumno_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     capital_disponible = Column(Numeric(14, 2), nullable=False)
+    pausado = Column(Boolean, nullable=False, server_default="false", default=False)
 
     reto = relationship("Reto", back_populates="participantes")
     alumno = relationship("User")

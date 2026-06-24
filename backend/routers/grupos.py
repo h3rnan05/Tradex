@@ -49,6 +49,8 @@ def crear_grupo(payload: GrupoCreate, db: Session = Depends(get_db), maestro: Us
         limite_orden_valor=payload.limite_orden_valor,
         comision_porcentaje=payload.comision_porcentaje,
         max_apalancamiento=payload.max_apalancamiento,
+        comision_base=payload.comision_base,
+        derivados_nivel=payload.derivados_nivel,
         codigo=codigo,
     )
     db.add(grupo)

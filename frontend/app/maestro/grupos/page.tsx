@@ -76,7 +76,8 @@ export default function GruposPage() {
   const [activosPermitidos, setActivosPermitidos] = useState<string[]>(["acciones"]);
   const [limiteOrden, setLimiteOrden] = useState("");
   const [comisionPorcentaje, setComisionPorcentaje] = useState("");
-  const [comisionBase, setComisionBase] = useState<1 | 5 | 10>(1);
+  const [comisionBase, setComisionBase] = useState<1 | 5 | 10 | null>(null);
+  const [derivadosNivel, setDerivadosNivel] = useState<0 | 1 | 2>(0);
   const [maxApalancamiento, setMaxApalancamiento] = useState(5);
   const [fechasActivacion, setFechasActivacion] = useState<Record<string, string>>({});
   const [guardando, setGuardando] = useState(false);
@@ -103,6 +104,10 @@ export default function GruposPage() {
 
   async function crearGrupo(e: React.FormEvent) {
     e.preventDefault();
+    if (comisionBase === null) {
+      setError("Debes seleccionar un esquema de comisiones antes de crear el grupo.");
+      return;
+    }
     setGuardando(true);
     setError(null);
     try {
@@ -115,7 +120,8 @@ export default function GruposPage() {
         activos_permitidos: activosPermitidos,
         limite_orden_valor: limiteOrden || null,
         comision_porcentaje: comisionPorcentaje ? Number(comisionPorcentaje) / 100 : 0,
-        comision_base: comisionBase,
+        comision_base: comisionBase ?? 1,
+        derivados_nivel: derivadosNivel,
         max_apalancamiento: maxApalancamiento,
         fases_activo: activosPermitidos
           .filter((tipo) => fechasActivacion[tipo])
@@ -127,7 +133,8 @@ export default function GruposPage() {
       setNombre(""); setFechaInicio(""); setFechaFin("");
       setCapitalInicial("10000"); setMaxAlumnos("");
       setActivosPermitidos(["acciones"]); setLimiteOrden("");
-      setComisionPorcentaje(""); setMaxApalancamiento(5); setFechasActivacion({});
+      setComisionPorcentaje(""); setComisionBase(null); setDerivadosNivel(0);
+      setMaxApalancamiento(5); setFechasActivacion({});
       setMostrarForm(false);
       await cargarGrupos();
     } catch (err) {
@@ -209,26 +216,77 @@ export default function GruposPage() {
                     placeholder={t("maestro.groups.noLimit")}
                     className="w-full rounded-none border border-fg/20 bg-canvas px-3 py-2.5 text-sm focus:border-accent focus:outline-none" />
                 </div>
-                <div>
-                  <label className="mb-1.5 block font-mono text-[11px] uppercase tracking-widest text-fg/50">{t("maestro.groups.commission")} <span className="normal-case text-fg/30 ml-1">— nivel base de comisión</span></label>
+                {/* Commission — REQUIRED */}
+                <div className="md:col-span-2">
+                  <label className="mb-1.5 flex items-center gap-2 font-mono text-[11px] uppercase tracking-widest text-fg/50">
+                    Esquema de comisiones
+                    <span className="rounded bg-perdida/20 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-widest text-perdida">
+                      OBLIGATORIO
+                    </span>
+                  </label>
                   <div className="flex gap-2">
                     {([1, 5, 10] as const).map((pct) => (
                       <button
                         key={pct}
                         type="button"
                         onClick={() => setComisionBase(pct)}
-                        className={`flex-1 rounded-none border py-2 font-mono text-sm font-bold transition-colors ${
+                        className={`flex-1 rounded-none border py-3 font-mono text-sm font-bold transition-all ${
                           comisionBase === pct
-                            ? "border-accent bg-accent/10 text-fg"
-                            : "border-fg/15 text-fg/40 hover:border-fg/30 hover:text-fg/70"
+                            ? "border-accent bg-accent/15 text-fg shadow-[0_0_0_1px] shadow-accent"
+                            : "border-fg/20 text-fg/50 hover:border-fg/40 hover:text-fg/80"
                         }`}
                       >
                         {pct}%
                       </button>
                     ))}
                   </div>
-                  <p className="mt-1 font-mono text-[9px] text-fg/30">Bronce: {comisionBase}% · Plata: {comisionBase * 0.5}% · Oro: {(comisionBase * 0.1).toFixed(1)}%</p>
+                  {comisionBase === null && (
+                    <p className="mt-1 font-mono text-[10px] text-perdida/80">Selecciona un esquema de comisión para continuar.</p>
+                  )}
+                  {comisionBase !== null && (
+                    <div className="mt-2 grid grid-cols-3 gap-1">
+                      {[
+                        { rango: "Bronce", pct: comisionBase },
+                        { rango: "Plata", pct: comisionBase * 0.5 },
+                        { rango: "Oro / Diamante", pct: +(comisionBase * 0.1).toFixed(1) },
+                      ].map(({ rango, pct }) => (
+                        <div key={rango} className="border border-fg/10 px-2 py-1.5 text-center">
+                          <p className="font-mono text-[9px] text-fg/40">{rango}</p>
+                          <p className="font-mono text-sm font-black text-fg">{pct}%</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
+
+                {/* Derivatives level */}
+                <div className="md:col-span-2">
+                  <label className="mb-1.5 block font-mono text-[11px] uppercase tracking-widest text-fg/50">
+                    Nivel de derivados permitidos
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { nivel: 0, label: "Sin derivados", desc: "Solo spot (compra/venta)" },
+                      { nivel: 1, label: "Básicos", desc: "Shorts + Puts" },
+                      { nivel: 2, label: "Avanzados", desc: "Calls & Puts (long/short)" },
+                    ].map(({ nivel, label, desc }) => (
+                      <button
+                        key={nivel}
+                        type="button"
+                        onClick={() => setDerivadosNivel(nivel as 0 | 1 | 2)}
+                        className={`flex flex-col items-start rounded-none border px-3 py-2.5 text-left transition-colors ${
+                          derivadosNivel === nivel
+                            ? "border-accent bg-accent/10"
+                            : "border-fg/15 hover:border-fg/30"
+                        }`}
+                      >
+                        <span className={`font-mono text-[11px] font-bold ${derivadosNivel === nivel ? "text-fg" : "text-fg/50"}`}>{label}</span>
+                        <span className="mt-0.5 font-mono text-[9px] text-fg/30">{desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div>
                   <label className="mb-2 block font-mono text-[11px] uppercase tracking-widest text-fg/50">{t("maestro.groups.maxLeverage")}</label>
                   <div className="flex gap-2">

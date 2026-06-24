@@ -113,6 +113,8 @@ class RetoParticipanteResumen(BaseModel):
     valor_total: Decimal
     n_operaciones: int
     pnl_pct: Decimal
+    pausado: bool = False
+    insignias: list[str] = []  # lista de códigos de insignia obtenidos
 
 
 class RetoAdivinanzaCreate(BaseModel):
