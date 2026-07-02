@@ -1,3 +1,4 @@
+import logging
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -15,6 +16,8 @@ from models.orden import Orden, TipoOrdenEnum
 from models.user import User
 from precios_utils import obtener_precio_actual, validar_ticker
 from schemas.orden import OrdenCreate, OrdenOut
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/ordenes", tags=["ordenes"])
 
@@ -95,6 +98,8 @@ def comprar(payload: OrdenCreate, db: Session = Depends(get_db), alumno: User = 
     if membership.pausado:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tu participación está pausada")
     grupo = db.query(Grupo).filter(Grupo.id == payload.grupo_id).first()
+    if not grupo:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Grupo no encontrado")
 
     orden = ejecutar_compra(db, alumno, membership, grupo, payload.ticker, payload.cantidad)
     db.commit()
@@ -103,7 +108,7 @@ def comprar(payload: OrdenCreate, db: Session = Depends(get_db), alumno: User = 
         from insignias_engine import evaluar_y_otorgar_insignias
         evaluar_y_otorgar_insignias(db, alumno.id, payload.grupo_id)
     except Exception:
-        pass
+        logger.exception("Error evaluando insignias tras compra para alumno %s", alumno.id)
     return orden
 
 
@@ -116,6 +121,8 @@ def vender(payload: OrdenCreate, db: Session = Depends(get_db), alumno: User = D
     if membership.pausado:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tu participación está pausada")
     grupo = db.query(Grupo).filter(Grupo.id == payload.grupo_id).first()
+    if not grupo:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Grupo no encontrado")
     ticker = validar_ticker(payload.ticker)
 
     holding = db.query(Holding).filter(
@@ -151,5 +158,5 @@ def vender(payload: OrdenCreate, db: Session = Depends(get_db), alumno: User = D
         from insignias_engine import evaluar_y_otorgar_insignias
         evaluar_y_otorgar_insignias(db, alumno.id, payload.grupo_id)
     except Exception:
-        pass
+        logger.exception("Error evaluando insignias tras venta para alumno %s", alumno.id)
     return orden
