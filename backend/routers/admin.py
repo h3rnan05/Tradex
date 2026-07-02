@@ -1,3 +1,4 @@
+import logging
 import uuid
 from collections import defaultdict
 from decimal import Decimal
@@ -16,6 +17,8 @@ from models.orden import Orden
 from models.user import RolEnum, User
 from precios_utils import obtener_precio_actual
 from schemas.user import UserOut
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -179,6 +182,9 @@ def ranking_global(
                 try:
                     precios_cache[h.ticker] = obtener_precio_actual(h.ticker)
                 except Exception:
+                    logger.warning(
+                        "Usando precio_promedio como fallback para %s en ranking global", h.ticker
+                    )
                     precios_cache[h.ticker] = h.precio_promedio
             valor_holdings += precios_cache[h.ticker] * h.cantidad
 

@@ -389,7 +389,11 @@ def _fetch_earnings_ticker(ticker: str, crumb: str, cookies: dict, hoy, fin) -> 
             "momento": momento,
             "eps_estimado": eps_est,
         }
-    except Exception:
+    except httpx.HTTPError:
+        logger.debug("Error de red consultando earnings para %s", ticker)
+        return None
+    except (KeyError, TypeError, ValueError) as exc:
+        logger.debug("Error parseando earnings para %s: %s", ticker, exc)
         return None
 
 
@@ -537,9 +541,12 @@ def obtener_ficha_empresa(ticker: str) -> dict:
             f"{YF_SUMMARY_URL}{ticker}", params=params, headers=headers,
             cookies=cookies, timeout=15.0,
         )
-    except httpx.HTTPError:
+    except httpx.HTTPError as e:
         logger.exception("Error de red consultando ficha empresa %s", ticker)
-        return {}
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"No se pudo obtener la ficha de {ticker}: {e}",
+        ) from e
 
     if resp.status_code == 401:
         # Crumb expired — reset and retry once
@@ -553,16 +560,26 @@ def obtener_ficha_empresa(ticker: str) -> dict:
                 params={**params, "crumb": crumb},
                 headers=headers, cookies=cookies, timeout=15.0,
             )
-        except httpx.HTTPError:
-            return {}
+        except httpx.HTTPError as e:
+            logger.exception("Error de red en retry de ficha empresa %s", ticker)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"No se pudo obtener la ficha de {ticker}: {e}",
+            ) from e
 
     if resp.status_code != 200:
         logger.warning("quoteSummary status %s para %s", resp.status_code, ticker)
-        return {}
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Yahoo Finance devolvio un error al consultar la ficha de {ticker}",
+        )
 
     data = (resp.json() or {}).get("quoteSummary") or {}
     if data.get("error") or not data.get("result"):
-        return {}
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No se encontro informacion financiera para {ticker}",
+        )
 
     result = data["result"][0]
     sd = result.get("summaryDetail") or {}

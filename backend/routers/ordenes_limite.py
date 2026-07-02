@@ -1,3 +1,4 @@
+import logging
 import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
@@ -15,6 +16,8 @@ from models.orden_pendiente import EstadoOrdenEnum, OrdenPendiente
 from models.user import User
 from precios_utils import obtener_precio_actual
 from routers.ordenes import ejecutar_compra, _get_membership
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/ordenes-limite", tags=["ordenes-limite"])
 
@@ -48,6 +51,10 @@ def _procesar_ordenes_pendientes(db: Session, alumno: User) -> list[OrdenPendien
         try:
             precio_actual = obtener_precio_actual(op_pendiente.ticker)
         except Exception:
+            logger.warning(
+                "No se pudo obtener precio para orden limite %s (ticker=%s), se reintentara luego",
+                op_pendiente.id, op_pendiente.ticker,
+            )
             continue
 
         debe_ejecutar = False
@@ -104,7 +111,14 @@ def _procesar_ordenes_pendientes(db: Session, alumno: User) -> list[OrdenPendien
             op_pendiente.estado = EstadoOrdenEnum.ejecutada
             op_pendiente.ejecutada_en = datetime.now(timezone.utc)
             ejecutadas.append(op_pendiente)
+        except HTTPException as exc:
+            logger.warning(
+                "Orden limite %s no se pudo ejecutar (regla de negocio): %s",
+                op_pendiente.id, exc.detail,
+            )
+            continue
         except Exception:
+            logger.exception("Error inesperado ejecutando orden limite %s", op_pendiente.id)
             continue
 
     if ejecutadas:
@@ -126,6 +140,10 @@ def _procesar_alertas(db: Session, alumno: User) -> list[Alerta]:
             try:
                 tickers_vistos[alerta.ticker] = obtener_precio_actual(alerta.ticker)
             except Exception:
+                logger.warning(
+                    "No se pudo obtener precio para alerta %s (ticker=%s)",
+                    alerta.id, alerta.ticker,
+                )
                 continue
         precio = tickers_vistos[alerta.ticker]
         dispara = (
