@@ -15,3 +15,7 @@ services:
         sync: false
       - key: EODHD_API_KEY
         sync: false
+      - key: ENVIRONMENT
+        value: production
+      - key: ALLOWED_ORIGINS
+        sync: false
