@@ -14,6 +14,7 @@ from models.holding import Holding
 from models.membership import Membership
 from models.orden import Orden, TipoOrdenEnum
 from models.user import RolEnum, User
+from portfolio_utils import calcular_rendimiento
 from precios_utils import obtener_historial_precios_rango, obtener_precio_actual
 from schemas.holding import HoldingConPrecio, PortafolioOut
 from schemas.orden import OrdenOut
@@ -77,8 +78,7 @@ def portafolio(
 
     capital_inicial = membership.grupo.capital_inicial
     valor_total = membership.capital_disponible + valor_holdings
-    rendimiento = valor_total - capital_inicial
-    rendimiento_porcentaje = (rendimiento / capital_inicial * 100) if capital_inicial else Decimal("0")
+    rendimiento, rendimiento_porcentaje = calcular_rendimiento(valor_total, capital_inicial)
 
     fases_activo = db.query(FaseActivo).filter(FaseActivo.grupo_id == membership.grupo_id).all()
     activos_disponibles, activos_proximos = separar_activos_por_disponibilidad(

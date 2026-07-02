@@ -11,7 +11,7 @@ from models.holding import Holding
 from models.membership import Membership
 from models.orden import Orden
 from models.user import RolEnum, User
-from precios_utils import obtener_precio_actual
+from portfolio_utils import calcular_valor_holdings, calcular_rendimiento
 
 router = APIRouter(prefix="/sponsor", tags=["sponsor"])
 
@@ -66,20 +66,9 @@ def ranking_grupo_sponsor(
             Orden.alumno_id == m.alumno_id, Orden.grupo_id == grupo_id
         ).count()
 
-        valor_holdings = Decimal("0")
-        for h in holdings:
-            if h.ticker not in precios_cache:
-                try:
-                    precios_cache[h.ticker] = obtener_precio_actual(h.ticker)
-                except Exception:
-                    precios_cache[h.ticker] = h.precio_promedio
-            valor_holdings += precios_cache[h.ticker] * h.cantidad
-
+        valor_holdings = calcular_valor_holdings(holdings, precios_cache)
         valor_total = m.capital_disponible + valor_holdings
-        rendimiento_pct = (
-            (valor_total - grupo.capital_inicial) / grupo.capital_inicial * 100
-            if grupo.capital_inicial else Decimal("0")
-        )
+        _, rendimiento_pct = calcular_rendimiento(valor_total, grupo.capital_inicial)
         entradas.append({
             "posicion": 0,
             "nombre": m.alumno.nombre,

@@ -14,7 +14,7 @@ from models.membership import Membership
 from models.orden_pendiente import EstadoOrdenEnum, OrdenPendiente
 from models.user import User
 from precios_utils import obtener_precio_actual
-from routers.ordenes import ejecutar_compra, _get_membership
+from routers.ordenes import ejecutar_compra, ejecutar_venta, _get_membership
 
 router = APIRouter(prefix="/ordenes-limite", tags=["ordenes-limite"])
 
@@ -72,34 +72,8 @@ def _procesar_ordenes_pendientes(db: Session, alumno: User) -> list[OrdenPendien
 
             if op_pendiente.tipo == "compra":
                 ejecutar_compra(db, alumno, membership, grupo, op_pendiente.ticker, op_pendiente.cantidad)
-            # Venta límite: execute at market when price >= limit
             else:
-                from models.holding import Holding
-                from models.orden import Orden, TipoOrdenEnum
-                holding = db.query(Holding).filter(
-                    Holding.alumno_id == alumno.id,
-                    Holding.grupo_id == op_pendiente.grupo_id,
-                    Holding.ticker == op_pendiente.ticker,
-                ).first()
-                if not holding or holding.cantidad < op_pendiente.cantidad:
-                    op_pendiente.estado = EstadoOrdenEnum.cancelada
-                    continue
-                monto = precio_actual * op_pendiente.cantidad
-                comision = monto * grupo.comision_porcentaje
-                holding.cantidad -= op_pendiente.cantidad
-                if holding.cantidad == 0:
-                    holding.precio_promedio = Decimal("0")
-                membership.capital_disponible += monto - comision
-                orden = Orden(
-                    alumno_id=alumno.id,
-                    grupo_id=op_pendiente.grupo_id,
-                    ticker=op_pendiente.ticker,
-                    tipo=TipoOrdenEnum.venta,
-                    cantidad=op_pendiente.cantidad,
-                    precio_ejecucion=precio_actual,
-                    comision=comision,
-                )
-                db.add(orden)
+                ejecutar_venta(db, alumno, membership, grupo, op_pendiente.ticker, op_pendiente.cantidad)
 
             op_pendiente.estado = EstadoOrdenEnum.ejecutada
             op_pendiente.ejecutada_en = datetime.now(timezone.utc)
