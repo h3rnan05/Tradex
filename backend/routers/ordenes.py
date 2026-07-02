@@ -19,6 +19,15 @@ from schemas.orden import OrdenCreate, OrdenOut
 router = APIRouter(prefix="/ordenes", tags=["ordenes"])
 
 
+def evaluar_insignias_silencioso(db: Session, alumno_id, grupo_id) -> None:
+    """Evaluate and award badges silently (never raises)."""
+    try:
+        from insignias_engine import evaluar_y_otorgar_insignias
+        evaluar_y_otorgar_insignias(db, alumno_id, grupo_id)
+    except Exception:
+        pass
+
+
 def _get_membership(db: Session, alumno: User, grupo_id) -> Membership:
     membership = db.query(Membership).filter(
         Membership.alumno_id == alumno.id, Membership.grupo_id == grupo_id
@@ -99,37 +108,28 @@ def comprar(payload: OrdenCreate, db: Session = Depends(get_db), alumno: User = 
     orden = ejecutar_compra(db, alumno, membership, grupo, payload.ticker, payload.cantidad)
     db.commit()
     db.refresh(orden)
-    try:
-        from insignias_engine import evaluar_y_otorgar_insignias
-        evaluar_y_otorgar_insignias(db, alumno.id, payload.grupo_id)
-    except Exception:
-        pass
+    evaluar_insignias_silencioso(db, alumno.id, payload.grupo_id)
     return orden
 
 
-@router.post("/venta", response_model=OrdenOut, status_code=status.HTTP_201_CREATED)
-def vender(payload: OrdenCreate, db: Session = Depends(get_db), alumno: User = Depends(require_alumno)):
-    if payload.cantidad <= 0:
+def ejecutar_venta(db: Session, alumno: User, membership: Membership, grupo: Grupo, ticker: str, cantidad: Decimal) -> Orden:
+    if cantidad <= 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La cantidad debe ser mayor a cero")
 
-    membership = _get_membership(db, alumno, payload.grupo_id)
-    if membership.pausado:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tu participación está pausada")
-    grupo = db.query(Grupo).filter(Grupo.id == payload.grupo_id).first()
-    ticker = validar_ticker(payload.ticker)
+    ticker = validar_ticker(ticker)
 
     holding = db.query(Holding).filter(
-        Holding.alumno_id == alumno.id, Holding.grupo_id == payload.grupo_id, Holding.ticker == ticker
+        Holding.alumno_id == alumno.id, Holding.grupo_id == membership.grupo_id, Holding.ticker == ticker
     ).first()
 
-    if not holding or holding.cantidad < payload.cantidad:
+    if not holding or holding.cantidad < cantidad:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No tienes suficientes acciones para vender")
 
     precio = obtener_precio_actual(ticker)
-    monto_total = precio * payload.cantidad
+    monto_total = precio * cantidad
     comision = monto_total * grupo.comision_porcentaje
 
-    holding.cantidad -= payload.cantidad
+    holding.cantidad -= cantidad
     if holding.cantidad == 0:
         holding.precio_promedio = Decimal("0")
 
@@ -137,19 +137,26 @@ def vender(payload: OrdenCreate, db: Session = Depends(get_db), alumno: User = D
 
     orden = Orden(
         alumno_id=alumno.id,
-        grupo_id=payload.grupo_id,
+        grupo_id=membership.grupo_id,
         ticker=ticker,
         tipo=TipoOrdenEnum.venta,
-        cantidad=payload.cantidad,
+        cantidad=cantidad,
         precio_ejecucion=precio,
         comision=comision,
     )
     db.add(orden)
+    return orden
+
+
+@router.post("/venta", response_model=OrdenOut, status_code=status.HTTP_201_CREATED)
+def vender(payload: OrdenCreate, db: Session = Depends(get_db), alumno: User = Depends(require_alumno)):
+    membership = _get_membership(db, alumno, payload.grupo_id)
+    if membership.pausado:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tu participación está pausada")
+    grupo = db.query(Grupo).filter(Grupo.id == payload.grupo_id).first()
+
+    orden = ejecutar_venta(db, alumno, membership, grupo, payload.ticker, payload.cantidad)
     db.commit()
     db.refresh(orden)
-    try:
-        from insignias_engine import evaluar_y_otorgar_insignias
-        evaluar_y_otorgar_insignias(db, alumno.id, payload.grupo_id)
-    except Exception:
-        pass
+    evaluar_insignias_silencioso(db, alumno.id, payload.grupo_id)
     return orden

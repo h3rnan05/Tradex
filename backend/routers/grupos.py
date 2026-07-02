@@ -12,7 +12,7 @@ from models.grupo import Grupo
 from models.holding import Holding
 from models.membership import Membership
 from models.user import RolEnum, User
-from precios_utils import obtener_precio_actual
+from portfolio_utils import calcular_valor_holdings, calcular_rendimiento
 from schemas.grupo import EvaluacionEntry, GrupoCreate, GrupoDetalle, GrupoOut, GrupoUpdate, InvitarRequest
 from schemas.membership import MembershipOut
 from schemas.ranking import RankingEntry
@@ -198,20 +198,9 @@ def evaluacion_grupo(
         holdings = holdings_map[str(m.alumno_id)]
         ordenes = ordenes_map[str(m.alumno_id)]
 
-        valor_holdings = Decimal("0")
-        for h in holdings:
-            if h.cantidad == 0:
-                continue
-            if h.ticker not in precios_cache:
-                try:
-                    precios_cache[h.ticker] = obtener_precio_actual(h.ticker)
-                except Exception:
-                    precios_cache[h.ticker] = h.precio_promedio
-            valor_holdings += precios_cache[h.ticker] * h.cantidad
-
+        valor_holdings = calcular_valor_holdings(holdings, precios_cache)
         valor_total = m.capital_disponible + valor_holdings
-        rendimiento = valor_total - grupo.capital_inicial
-        rendimiento_porcentaje = (rendimiento / grupo.capital_inicial * 100) if grupo.capital_inicial else Decimal("0")
+        rendimiento, rendimiento_porcentaje = calcular_rendimiento(valor_total, grupo.capital_inicial)
         comisiones_pagadas = sum(Decimal(str(o.comision)) for o in ordenes)
         tickers = list({h.ticker for h in holdings if h.cantidad > 0})
         dias_activo = (hoy - m.created_at).days if m.created_at else 0
@@ -269,19 +258,9 @@ def ranking_grupo(grupo_id: str, db: Session = Depends(get_db), current_user: Us
             Holding.alumno_id == membership.alumno_id, Holding.grupo_id == grupo_id
         ).all()
 
-        valor_holdings = Decimal("0")
-        for h in holdings:
-            if h.cantidad == 0:
-                continue
-            if h.ticker not in precios_cache:
-                precios_cache[h.ticker] = obtener_precio_actual(h.ticker)
-            valor_holdings += precios_cache[h.ticker] * h.cantidad
-
+        valor_holdings = calcular_valor_holdings(holdings, precios_cache)
         valor_total = membership.capital_disponible + valor_holdings
-        rendimiento = valor_total - grupo.capital_inicial
-        rendimiento_porcentaje = (
-            (rendimiento / grupo.capital_inicial * 100) if grupo.capital_inicial else Decimal("0")
-        )
+        rendimiento, rendimiento_porcentaje = calcular_rendimiento(valor_total, grupo.capital_inicial)
 
         entradas.append(
             RankingEntry(
