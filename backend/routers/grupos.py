@@ -128,7 +128,10 @@ def actualizar_grupo(
     grupo = db.query(Grupo).filter(Grupo.id == grupo_id, Grupo.maestro_id == maestro.id).first()
     if not grupo:
         raise HTTPException(status_code=404, detail="Grupo no encontrado")
+    _ALLOWED_UPDATE_FIELDS = {"nombre", "fecha_fin", "activos_permitidos", "comision_porcentaje", "limite_orden_valor", "max_alumnos"}
     for field, value in payload.model_dump(exclude_none=True).items():
+        if field not in _ALLOWED_UPDATE_FIELDS:
+            continue
         setattr(grupo, field, value)
     db.commit()
     db.refresh(grupo)

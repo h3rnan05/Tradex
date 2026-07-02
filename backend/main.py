@@ -1,3 +1,4 @@
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -20,7 +21,16 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="Tradex API", description="Simulador educativo de inversion", lifespan=lifespan)
+_is_production = os.getenv("ENVIRONMENT", "development").lower() == "production"
+
+app = FastAPI(
+    title="Tradex API",
+    description="Simulador educativo de inversion",
+    lifespan=lifespan,
+    docs_url=None if _is_production else "/docs",
+    redoc_url=None if _is_production else "/redoc",
+    openapi_url=None if _is_production else "/openapi.json",
+)
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -29,8 +39,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 app.include_router(auth.router)
