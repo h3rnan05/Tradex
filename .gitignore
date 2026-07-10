@@ -5,6 +5,10 @@ backend/**/__pycache__/
 backend/*.db
 backend/.env
 
+# Load test (reportes generados por Locust)
+backend/loadtest/loadtest_report.html
+backend/loadtest/loadtest_*.csv
+
 # Frontend
 frontend/node_modules/
 frontend/.next/
