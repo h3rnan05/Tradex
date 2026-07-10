@@ -82,9 +82,10 @@ import json, sys
 a = json.load(sys.stdin)
 used = int(a.get("daytrade_count", 0))
 remaining = max(0, 3 - used)
+equity, cash = a.get("equity"), a.get("cash")
 print(f"daytrade_count (rolling 5 business days): {used}")
 print(f"day trades remaining before PDT block:    {remaining}")
-print(f"equity: {a.get(\"equity\")}  cash: {a.get(\"cash\")}")
+print(f"equity: {equity}  cash: {cash}")
 if remaining == 0:
     print("PDT: NO day trades available -> today is automatically HOLD.")
 '
