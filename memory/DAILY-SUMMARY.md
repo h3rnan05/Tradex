@@ -18,3 +18,14 @@ Because this file is committed, it is readable straight from GitHub.
 ```
 
 ---
+
+## 2026-07-10 — System setup (Day 0 smoke test)
+- Equity: $1,000.00 (baseline Day 0)
+- Cash: $1,000.00 (100%)
+- Trades today: none — system not yet live during market hours
+- daytrade_count: 0 (remaining: 3)
+- Notes: Smoke test PASS — `daytrades`, `positions` (empty), `orders` (empty),
+  `clock` OK; paper-only guard verified (exit 2 on live endpoint). The 6 cloud
+  routines were created (pre-market, market-open, midday, market-close,
+  daily-summary, weekly-review) with cron in UTC (CT+5 during CDT); they run
+  on this branch. First full trading cycle: Monday 2026-07-13.
