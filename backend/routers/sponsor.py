@@ -1,3 +1,4 @@
+import logging
 import uuid
 from decimal import Decimal
 
@@ -12,6 +13,8 @@ from models.membership import Membership
 from models.orden import Orden
 from models.user import RolEnum, User
 from precios_utils import obtener_precio_actual
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/sponsor", tags=["sponsor"])
 
@@ -72,6 +75,9 @@ def ranking_grupo_sponsor(
                 try:
                     precios_cache[h.ticker] = obtener_precio_actual(h.ticker)
                 except Exception:
+                    logger.warning(
+                        "Usando precio_promedio como fallback para %s en ranking sponsor", h.ticker
+                    )
                     precios_cache[h.ticker] = h.precio_promedio
             valor_holdings += precios_cache[h.ticker] * h.cantidad
 

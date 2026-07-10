@@ -1,3 +1,4 @@
+import logging
 import uuid
 from collections import defaultdict
 from datetime import date, timedelta, timezone
@@ -30,6 +31,8 @@ class MetricasOut(BaseModel):
     n_dias: int
 from sqlalchemy.orm import joinedload
 from models.grupo import Grupo
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/alumnos", tags=["alumnos"])
 
@@ -197,6 +200,9 @@ def _historial_valor_impl(alumno_id: str, grupo_id: str | None, db: Session) -> 
             historial = obtener_historial_precios_rango(ticker, fecha_inicio, fecha_fin)
             precios_por_ticker[ticker] = {p["fecha"]: p["precio"] for p in historial}
         except Exception:
+            logger.warning(
+                "No se pudo obtener historial de precios para %s en calculo de historial-valor", ticker
+            )
             precios_por_ticker[ticker] = {}
 
     resultado = []
@@ -359,7 +365,7 @@ def metricas_riesgo(
                 metricas["rendimiento_sp500_pct"] = round(sp_rendimiento, 2)
                 metricas["alpha"] = round(metricas.get("rendimiento_total_pct", 0) - sp_rendimiento, 2)
     except Exception:
-        pass
+        logger.warning("No se pudo calcular benchmark S&P500 para alumno %s", alumno_id)
 
     return metricas
 

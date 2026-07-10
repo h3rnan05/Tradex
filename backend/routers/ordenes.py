@@ -1,3 +1,4 @@
+import logging
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -16,6 +17,8 @@ from models.orden import Orden, TipoOrdenEnum
 from models.user import User
 from precios_utils import obtener_precio_actual, validar_ticker
 from schemas.orden import OrdenCreate, OrdenOut
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/ordenes", tags=["ordenes"])
 
@@ -149,7 +152,7 @@ def comprar(payload: OrdenCreate, db: Session = Depends(get_db), alumno: User = 
         from insignias_engine import evaluar_y_otorgar_insignias
         evaluar_y_otorgar_insignias(db, alumno.id, payload.grupo_id, capital_inicial=float(grupo.capital_inicial))
     except Exception:
-        pass
+        logger.exception("Error evaluando insignias tras compra para alumno %s", alumno.id)
     return orden
 
 
@@ -224,7 +227,7 @@ def vender(payload: OrdenCreate, db: Session = Depends(get_db), alumno: User = D
         from insignias_engine import evaluar_y_otorgar_insignias
         evaluar_y_otorgar_insignias(db, alumno.id, payload.grupo_id, capital_inicial=float(grupo.capital_inicial))
     except Exception:
-        pass
+        logger.exception("Error evaluando insignias tras venta para alumno %s", alumno.id)
     return orden
 
 

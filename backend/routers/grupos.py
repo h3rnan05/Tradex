@@ -1,3 +1,4 @@
+import logging
 from collections import defaultdict
 import csv
 import io
@@ -25,6 +26,8 @@ from precios_utils import obtener_precio_actual
 from schemas.grupo import EvaluacionEntry, GrupoCreate, GrupoDetalle, GrupoOut, GrupoUpdate, InvitarRequest
 from schemas.membership import MembershipOut
 from schemas.ranking import RankingEntry
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/grupos", tags=["grupos"])
 
@@ -314,6 +317,10 @@ def evaluacion_grupo(
                 try:
                     precios_cache[h.ticker] = obtener_precio_actual(h.ticker)
                 except Exception:
+                    logger.warning(
+                        "Usando precio_promedio como fallback para %s en evaluacion del grupo %s",
+                        h.ticker, grupo_id,
+                    )
                     precios_cache[h.ticker] = h.precio_promedio
             valor_holdings += precios_cache[h.ticker] * h.cantidad
 
@@ -430,7 +437,14 @@ def ranking_grupo(grupo_id: str, db: Session = Depends(get_db), current_user: Us
             if h.cantidad == 0:
                 continue
             if h.ticker not in precios_cache:
-                precios_cache[h.ticker] = obtener_precio_actual(h.ticker)
+                try:
+                    precios_cache[h.ticker] = obtener_precio_actual(h.ticker)
+                except Exception:
+                    logger.warning(
+                        "Usando precio_promedio como fallback para %s en ranking del grupo %s",
+                        h.ticker, grupo_id,
+                    )
+                    precios_cache[h.ticker] = h.precio_promedio
             valor_holdings += precios_cache[h.ticker] * h.cantidad
 
         valor_total = membership.capital_disponible + valor_holdings

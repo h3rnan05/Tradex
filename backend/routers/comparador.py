@@ -1,3 +1,4 @@
+import logging
 import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -12,6 +13,8 @@ from models.user import RolEnum, User
 from precios_utils import obtener_historial_precios
 from riesgo_utils import calcular_metricas
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/comparador", tags=["comparador"])
 
 _MODELOS = {
@@ -25,6 +28,7 @@ def _get_sp500_serie(dias: int) -> list[dict]:
     try:
         return obtener_historial_precios("^GSPC", dias=dias)
     except Exception:
+        logger.warning("No se pudo obtener historial S&P500 para comparador")
         return []
 
 
@@ -37,6 +41,7 @@ def _modelo_serie(nombre: str, dias: int, monto_base: float) -> list[dict]:
             hist = obtener_historial_precios(ticker, dias=dias)
             return (ticker, peso, hist) if hist else None
         except Exception:
+            logger.warning("No se pudo obtener historial de %s para modelo %s", ticker, nombre)
             return None
 
     series: list[list[dict]] = []
