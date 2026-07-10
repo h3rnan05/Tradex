@@ -3,11 +3,23 @@
 import { useEffect, useState } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid } from "recharts";
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 import MercadosMundo from "@/components/MercadosMundo";
 import PanelInsignias from "@/components/PanelInsignias";
+import BarraNivel from "@/components/BarraNivel";
 import { Card, StatTile, formatoMoneda, formatoPorcentaje } from "@/components/primitives";
 import { api, ApiError } from "@/lib/api";
 import { obtenerSesion } from "@/lib/auth";
+import { setGrupoActivo, getGrupoActivo, conGrupo } from "@/lib/clase";
+import { useRetoActivo } from "@/lib/retoContext";
+import RetoActivo from "@/components/RetoActivo";
+import { useLanguage } from "@/lib/i18n";
+import ErrorState from "@/components/ErrorState";
+
+interface ClaseResumen {
+  grupo_id: string;
+  nombre: string;
+}
 
 interface HoldingConPrecio {
   id: string;
@@ -18,6 +30,9 @@ interface HoldingConPrecio {
   valor_mercado: string;
   pnl: string;
   pnl_porcentaje: string;
+  es_corto: boolean;
+  prestamo?: string;
+  apalancamiento?: string;
 }
 
 interface Portafolio {
@@ -26,6 +41,7 @@ interface Portafolio {
   capital_inicial: string;
   holdings: HoldingConPrecio[];
   valor_total: string;
+  prestamo_total?: string;
   rendimiento: string;
   rendimiento_porcentaje: string;
 }
@@ -45,28 +61,41 @@ interface PuntoValor {
   valor: number;
 }
 
+interface MetricasRendimiento {
+  retorno_total: number;
+  max_drawdown: number;
+  volatilidad: number;
+  sharpe: number;
+  n_dias: number;
+}
+
 const COLORES_DONUT = ["#ff6600", "#0077b6", "#6d28d9", "#0096a0", "#cc5200", "#007a2e"];
 
 export default function PortafolioPage() {
+  const { t } = useLanguage();
+  const { reto: retoActivo } = useRetoActivo();
   const [portafolio, setPortafolio] = useState<Portafolio | null>(null);
   const [ordenes, setOrdenes] = useState<Orden[]>([]);
   const [historialValor, setHistorialValor] = useState<PuntoValor[]>([]);
   const [cargandoGrafica, setCargandoGrafica] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [insignias, setInsignias] = useState<{ codigo: string; otorgada_at: string }[]>([]);
+  const [clases, setClases] = useState<ClaseResumen[]>([]);
+  const [grupoId, setGrupoId] = useState<string | null>(null);
+  const [metricas, setMetricas] = useState<MetricasRendimiento | null>(null);
 
-  async function cargar() {
+  async function cargar(gid: string | null) {
     const sesion = obtenerSesion();
     if (!sesion) return;
     try {
       const [data, ordenesData] = await Promise.all([
-        api.get<Portafolio>(`/alumnos/${sesion.userId}/portafolio`),
-        api.get<Orden[]>(`/alumnos/${sesion.userId}/ordenes`).catch(() => [] as Orden[]),
+        api.get<Portafolio>(conGrupo(`/alumnos/${sesion.userId}/portafolio`, gid)),
+        api.get<Orden[]>(conGrupo(`/alumnos/${sesion.userId}/ordenes`, gid)).catch(() => [] as Orden[]),
       ]);
       setPortafolio(data);
       setOrdenes(ordenesData);
       if (data.grupo_id) {
-        localStorage.setItem("tradex_grupo_id", data.grupo_id);
+        setGrupoActivo(data.grupo_id);
         api.get<typeof insignias>(`/insignias/mis-insignias?grupo_id=${data.grupo_id}`).then(setInsignias).catch(() => {});
       }
     } catch (err) {
@@ -74,12 +103,12 @@ export default function PortafolioPage() {
     }
   }
 
-  async function cargarHistorial() {
+  async function cargarHistorial(gid: string | null) {
     const sesion = obtenerSesion();
     if (!sesion) return;
     setCargandoGrafica(true);
     try {
-      const data = await api.get<PuntoValor[]>(`/alumnos/${sesion.userId}/historial-valor`);
+      const data = await api.get<PuntoValor[]>(conGrupo(`/alumnos/${sesion.userId}/historial-valor`, gid));
       setHistorialValor(data);
     } catch {
       // silent — gráfica opcional
@@ -88,18 +117,60 @@ export default function PortafolioPage() {
     }
   }
 
+  async function cargarMetricas(gid: string | null) {
+    const sesion = obtenerSesion();
+    if (!sesion || !gid) return;
+    try {
+      const data = await api.get<MetricasRendimiento>(`/alumnos/${sesion.userId}/grupos/${gid}/metricas`);
+      setMetricas(data);
+    } catch {
+      // silent — métricas opcionales
+    }
+  }
+
+  // Resuelve la clase activa: prioridad ?grupo_id= en la URL, luego localStorage.
   useEffect(() => {
-    cargar();
-    cargarHistorial();
-    const interval = setInterval(cargar, 10000);
-    return () => clearInterval(interval);
+    const sesion = obtenerSesion();
+    if (!sesion) return;
+    const params = new URLSearchParams(window.location.search);
+    const fromUrl = params.get("grupo_id");
+    const inicial = fromUrl ?? getGrupoActivo();
+    if (fromUrl) setGrupoActivo(fromUrl);
+    setGrupoId(inicial);
+    api
+      .get<ClaseResumen[]>(`/alumnos/${sesion.userId}/grupos`)
+      .then(setClases)
+      .catch(() => {});
   }, []);
+
+  function cambiarClase(gid: string) {
+    setGrupoActivo(gid);
+    setGrupoId(gid);
+    setPortafolio(null);
+    cargar(gid);
+    cargarHistorial(gid);
+    cargarMetricas(gid);
+  }
+
+  useEffect(() => {
+    if (grupoId === undefined) return;
+    cargar(grupoId);
+    cargarHistorial(grupoId);
+    cargarMetricas(grupoId);
+    const interval = setInterval(() => cargar(grupoId), 10000);
+    return () => clearInterval(interval);
+  }, [grupoId]);
+
+  if (retoActivo) return <RetoActivo retoId={retoActivo.id} />;
 
   if (error) {
     return (
       <main className="min-h-screen bg-canvas">
         <Navbar />
-        <p className="p-6 text-sm text-perdida">{error}</p>
+        <div className="mx-auto max-w-6xl p-6">
+          <ErrorState message={error} onRetry={() => { setError(null); cargar(grupoId); }} />
+        </div>
+        <Footer />
       </main>
     );
   }
@@ -108,20 +179,24 @@ export default function PortafolioPage() {
     return (
       <main className="min-h-screen bg-canvas">
         <Navbar />
-        <p className="p-6 text-fg/40">Cargando...</p>
-      </main>
+        <p className="p-6 text-fg/40">{t("common.loading")}</p>
+        <Footer />
+    </main>
     );
   }
 
+  const holdings = (portafolio.holdings ?? []).filter((h) => !h.es_corto);
+  const holdingsCortos = (portafolio.holdings ?? []).filter((h) => h.es_corto);
+
   const distribucion = [
-    { nombre: "Efectivo", valor: Number(portafolio.capital_disponible) },
-    ...portafolio.holdings.map((h) => ({ nombre: h.ticker, valor: Number(h.valor_mercado) })),
+    { nombre: t("portfolio.cash"), valor: Number(portafolio.capital_disponible) },
+    ...holdings.map((h) => ({ nombre: h.ticker, valor: Number(h.valor_mercado) })),
   ].filter((d) => d.valor > 0);
 
-  const ganadoras = [...portafolio.holdings]
+  const ganadoras = [...holdings]
     .filter((h) => Number(h.pnl) > 0)
     .sort((a, b) => Number(b.pnl_porcentaje) - Number(a.pnl_porcentaje));
-  const perdedoras = [...portafolio.holdings]
+  const perdedoras = [...holdings]
     .filter((h) => Number(h.pnl) < 0)
     .sort((a, b) => Number(a.pnl_porcentaje) - Number(b.pnl_porcentaje));
 
@@ -150,14 +225,61 @@ export default function PortafolioPage() {
     <main className="min-h-screen bg-canvas">
       <Navbar />
       <div className="mx-auto max-w-7xl p-4 md:p-6">
-        <h1 className="mb-6 text-2xl font-bold text-fg">Mi portafolio</h1>
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-2xl font-bold text-fg">{t("portfolio.title")}</h1>
+          <button
+            onClick={() => {
+              if (!portafolio) return;
+              const rows = [
+                ["Ticker", "Cantidad", "Precio Promedio", "Precio Actual", "Valor Mercado", "P&L", "P&L %", "Corto", "Apalancamiento"],
+                ...portafolio.holdings.map((h) => [
+                  h.ticker, h.cantidad, h.precio_promedio, h.precio_actual,
+                  h.valor_mercado, h.pnl, h.pnl_porcentaje,
+                  h.es_corto ? "Si" : "No", `${Number(h.apalancamiento).toFixed(1)}x`,
+                ]),
+              ];
+              const csv = rows.map((r) => r.join(",")).join("\n");
+              const a = document.createElement("a");
+              a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+              a.download = `portafolio_${new Date().toISOString().slice(0, 10)}.csv`;
+              a.click();
+            }}
+            className="font-mono text-[11px] uppercase tracking-wider border border-fg/20 px-3 py-1.5 text-fg/50 hover:text-fg hover:border-fg/40 transition-colors"
+          >
+            {t("portfolio.exportCsv")}
+          </button>
+          {clases.length > 1 && (
+            <select
+              value={grupoId ?? portafolio.grupo_id}
+              onChange={(e) => cambiarClase(e.target.value)}
+              className="border border-fg/20 bg-panel px-3 py-2 font-mono text-xs text-fg outline-none focus:border-accent"
+            >
+              {clases.map((c) => (
+                <option key={c.grupo_id} value={c.grupo_id}>
+                  {c.nombre}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+
+        {/* Margin call alert */}
+        {portafolio.prestamo_total && Number(portafolio.prestamo_total) > 0 &&
+          Number(portafolio.valor_total) < Number(portafolio.prestamo_total) * 1.1 && (
+          <div className="mb-4 bg-red-900/30 border border-red-700 text-red-300 px-4 py-3">
+            <p className="font-mono text-[11px] uppercase tracking-wider font-bold">
+              {t("reto.marginCallTitle")}
+            </p>
+            <p className="mt-1 font-mono text-[11px]">{t("reto.marginCallBody")}</p>
+          </div>
+        )}
 
         {/* KPIs */}
         <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <StatTile label="Capital disponible" value={formatoMoneda(portafolio.capital_disponible)} />
-          <StatTile label="Valor total del portafolio" value={formatoMoneda(portafolio.valor_total)} />
+          <StatTile label={t("portfolio.availableCapital")} value={formatoMoneda(portafolio.capital_disponible)} />
+          <StatTile label={t("portfolio.totalValue")} value={formatoMoneda(portafolio.valor_total)} />
           <StatTile
-            label="Rendimiento vs capital inicial"
+            label={t("portfolio.return")}
             value={`${formatoMoneda(portafolio.rendimiento)} (${formatoPorcentaje(portafolio.rendimiento_porcentaje)})`}
             tone={Number(portafolio.rendimiento) >= 0 ? "ganancia" : "perdida"}
           />
@@ -167,12 +289,12 @@ export default function PortafolioPage() {
         {(datosGrafica.length > 1 || cargandoGrafica) && (
           <div className="mb-6">
             <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">
-              Rendimiento histórico
+              {t("portfolio.historicalReturn")}
             </p>
             <Card className="p-4">
               {cargandoGrafica ? (
                 <div className="flex h-40 items-center justify-center">
-                  <p className="text-sm text-fg/40">Calculando rendimiento...</p>
+                  <p className="text-sm text-fg/40">{t("portfolio.calculating")}</p>
                 </div>
               ) : (
                 <>
@@ -182,7 +304,7 @@ export default function PortafolioPage() {
                     </span>
                     <span className={`font-mono text-sm font-semibold ${graficaSubiendo ? "text-ganancia" : "text-perdida"}`}>
                       {graficaSubiendo ? "▲" : "▼"} {formatoMoneda(portafolio.rendimiento)} (
-                      {formatoPorcentaje(portafolio.rendimiento_porcentaje)}) desde inicio
+                      {formatoPorcentaje(portafolio.rendimiento_porcentaje)}) {t("portfolio.sinceStart")}
                     </span>
                   </div>
                   <div className="h-44 w-full">
@@ -233,7 +355,7 @@ export default function PortafolioPage() {
                     </ResponsiveContainer>
                   </div>
                   <p className="mt-1 text-right font-mono text-[10px] text-fg/30">
-                    Línea punteada = capital inicial ${capitalInicial.toLocaleString("en-US")}
+                    {t("portfolio.dottedLine")} ${capitalInicial.toLocaleString("en-US")}
                   </p>
                 </>
               )}
@@ -244,23 +366,23 @@ export default function PortafolioPage() {
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
           {/* Columna izquierda-central: posiciones + órdenes recientes */}
           <div className="lg:col-span-8">
-            <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">Posiciones</p>
+            <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">{t("portfolio.positions")}</p>
             <Card className="overflow-hidden p-0">
               <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-fg/5 text-left text-fg/60">
                   <tr>
-                    <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wider">Ticker</th>
-                    <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wider">Cantidad</th>
-                    <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wider">P. Promedio</th>
-                    <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wider">P. Actual</th>
-                    <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wider">Valor</th>
+                    <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wider">{t("common.ticker")}</th>
+                    <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wider">{t("common.amount")}</th>
+                    <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wider">{t("portfolio.avgPrice")}</th>
+                    <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wider">{t("portfolio.currentPrice")}</th>
+                    <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wider">{t("common.value")}</th>
                     <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wider">P&amp;L</th>
                     <th className="px-4 py-3"></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {portafolio.holdings.map((h) => (
+                  {holdings.map((h) => (
                     <tr key={h.id} className="border-t border-fg/5 hover:bg-fg/5">
                       <td className="px-4 py-3 font-mono font-bold text-fg">{h.ticker}</td>
                       <td className="px-4 py-3 font-mono tabular-nums text-fg/70">{Number(h.cantidad).toFixed(4)}</td>
@@ -280,17 +402,17 @@ export default function PortafolioPage() {
                           href={`/alumno/operar?t=${h.ticker}`}
                           className="rounded-none border border-fg/20 px-2 py-1 font-mono text-[11px] text-fg/60 hover:border-accent hover:text-accent"
                         >
-                          Operar
+                          {t("common.trade")}
                         </a>
                       </td>
                     </tr>
                   ))}
-                  {portafolio.holdings.length === 0 && (
+                  {holdings.length === 0 && (
                     <tr>
                       <td colSpan={7} className="px-4 py-6 text-center text-sm text-fg/40">
-                        Aún no tienes posiciones abiertas.{" "}
+                        {t("portfolio.noPositions")}{" "}
                         <a href="/alumno/operar" className="text-accent underline">
-                          Ir a operar
+                          {t("portfolio.goTrade")}
                         </a>
                       </td>
                     </tr>
@@ -300,23 +422,77 @@ export default function PortafolioPage() {
               </div>
             </Card>
 
+            {/* Posiciones cortas */}
+            {holdingsCortos.length > 0 && (
+              <div className="mt-4">
+                <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">{t("portfolio.shortPositions")}</p>
+                <Card className="overflow-hidden p-0">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-perdida/5 text-left text-fg/60">
+                        <tr>
+                          <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wider">{t("common.ticker")}</th>
+                          <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wider">{t("common.amount")}</th>
+                          <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wider">{t("portfolio.entryPrice")}</th>
+                          <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wider">{t("portfolio.currentPrice")}</th>
+                          <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wider">{t("portfolio.pnlShort")}</th>
+                          <th className="px-4 py-3"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {holdingsCortos.map((h) => {
+                          // For short: profit when price drops below entry
+                          const pnlCorto = (Number(h.precio_promedio) - Number(h.precio_actual)) * Number(h.cantidad);
+                          const pnlPct = Number(h.precio_promedio) > 0 ? (pnlCorto / (Number(h.precio_promedio) * Number(h.cantidad))) * 100 : 0;
+                          const gana = pnlCorto >= 0;
+                          return (
+                            <tr key={h.id} className="border-t border-fg/5 hover:bg-fg/5">
+                              <td className="px-4 py-3 font-mono font-bold text-fg">
+                                {h.ticker}
+                                <span className="ml-1 font-mono text-[9px] uppercase text-perdida">{t("portfolio.shortTag")}</span>
+                              </td>
+                              <td className="px-4 py-3 font-mono tabular-nums text-fg/70">{Number(h.cantidad).toFixed(4)}</td>
+                              <td className="px-4 py-3 font-mono tabular-nums">{formatoMoneda(h.precio_promedio)}</td>
+                              <td className="px-4 py-3 font-mono tabular-nums">{formatoMoneda(h.precio_actual)}</td>
+                              <td className={`px-4 py-3 font-mono font-medium tabular-nums ${gana ? "text-ganancia" : "text-perdida"}`}>
+                                {gana ? "▲" : "▼"} {formatoMoneda(Math.abs(pnlCorto))}{" "}
+                                <span className="text-xs">({pnlPct.toFixed(2)}%)</span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <a
+                                  href={`/alumno/operar?t=${h.ticker}`}
+                                  className="rounded-none border border-fg/20 px-2 py-1 font-mono text-[11px] text-fg/60 hover:border-perdida hover:text-perdida"
+                                >
+                                  {t("common.cover")}
+                                </a>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </Card>
+              </div>
+            )}
+
             {/* Órdenes recientes */}
             {ordenes.length > 0 && (
               <div className="mt-4">
                 <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">
-                  Órdenes recientes
+                  {t("portfolio.recentOrders")}
                 </p>
                 <Card className="overflow-hidden p-0">
                   <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead className="bg-fg/5 text-left text-fg/60">
                       <tr>
-                        <th className="px-4 py-2.5 font-mono text-[11px] uppercase tracking-wider">Tipo</th>
-                        <th className="px-4 py-2.5 font-mono text-[11px] uppercase tracking-wider">Ticker</th>
-                        <th className="px-4 py-2.5 font-mono text-[11px] uppercase tracking-wider">Cantidad</th>
-                        <th className="px-4 py-2.5 font-mono text-[11px] uppercase tracking-wider">Precio</th>
-                        <th className="px-4 py-2.5 font-mono text-[11px] uppercase tracking-wider">Total</th>
-                        <th className="px-4 py-2.5 font-mono text-[11px] uppercase tracking-wider">Fecha</th>
+                        <th className="px-4 py-2.5 font-mono text-[11px] uppercase tracking-wider">{t("common.type")}</th>
+                        <th className="px-4 py-2.5 font-mono text-[11px] uppercase tracking-wider">{t("common.ticker")}</th>
+                        <th className="px-4 py-2.5 font-mono text-[11px] uppercase tracking-wider">{t("common.amount")}</th>
+                        <th className="px-4 py-2.5 font-mono text-[11px] uppercase tracking-wider">{t("common.price")}</th>
+                        <th className="px-4 py-2.5 font-mono text-[11px] uppercase tracking-wider">{t("common.total")}</th>
+                        <th className="px-4 py-2.5 font-mono text-[11px] uppercase tracking-wider">{t("common.date")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -364,10 +540,10 @@ export default function PortafolioPage() {
               <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Card>
                   <p className="mb-3 font-mono text-[11px] uppercase tracking-widest text-fg/40">
-                    Mejores posiciones
+                    {t("portfolio.bestPositions")}
                   </p>
                   {ganadoras.length === 0 ? (
-                    <p className="text-sm text-fg/40">Sin posiciones en ganancia.</p>
+                    <p className="text-sm text-fg/40">{t("portfolio.noGains")}</p>
                   ) : (
                     <ul className="flex flex-col gap-2">
                       {ganadoras.slice(0, 3).map((h) => (
@@ -383,10 +559,10 @@ export default function PortafolioPage() {
                 </Card>
                 <Card>
                   <p className="mb-3 font-mono text-[11px] uppercase tracking-widest text-fg/40">
-                    Peores posiciones
+                    {t("portfolio.worstPositions")}
                   </p>
                   {perdedoras.length === 0 ? (
-                    <p className="text-sm text-fg/40">Sin posiciones en pérdida.</p>
+                    <p className="text-sm text-fg/40">{t("portfolio.noLosses")}</p>
                   ) : (
                     <ul className="flex flex-col gap-2">
                       {perdedoras.slice(0, 3).map((h) => (
@@ -406,10 +582,10 @@ export default function PortafolioPage() {
 
           {/* Columna derecha: distribución */}
           <div className="lg:col-span-4">
-            <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">Distribución</p>
+            <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">{t("portfolio.distribution")}</p>
             <Card>
               {distribucion.length === 0 ? (
-                <p className="text-sm text-fg/40">Sin datos para mostrar.</p>
+                <p className="text-sm text-fg/40">{t("common.noData")}</p>
               ) : (
                 <>
                   <div className="h-56 w-full">
@@ -456,12 +632,49 @@ export default function PortafolioPage() {
           </div>
         </div>
 
+        {/* Métricas de Rendimiento */}
+        {metricas && metricas.n_dias >= 2 && (
+          <div className="mt-8">
+            <p className="mb-3 font-mono text-[11px] uppercase tracking-widest text-fg/40">{t("portfolio.metrics")}</p>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="border border-fg/15 bg-panel p-3">
+                <p className="font-mono text-[10px] uppercase tracking-widest text-fg/40">{t("portfolio.totalReturn")}</p>
+                <p className={`font-mono text-xl font-bold tabular-nums ${metricas.retorno_total >= 0 ? "text-ganancia" : "text-perdida"}`}>
+                  {metricas.retorno_total >= 0 ? "+" : ""}{(metricas.retorno_total * 100).toFixed(2)}%
+                </p>
+              </div>
+              <div className="border border-fg/15 bg-panel p-3">
+                <p className="font-mono text-[10px] uppercase tracking-widest text-fg/40">{t("portfolio.maxDrawdown")}</p>
+                <p className={`font-mono text-xl font-bold tabular-nums ${metricas.max_drawdown <= -0.1 ? "text-perdida" : "text-orange-500"}`}>
+                  {(metricas.max_drawdown * 100).toFixed(2)}%
+                </p>
+              </div>
+              <div className="border border-fg/15 bg-panel p-3">
+                <p className="font-mono text-[10px] uppercase tracking-widest text-fg/40">{t("portfolio.volatility")}</p>
+                <p className="font-mono text-xl font-bold tabular-nums text-fg">
+                  {(metricas.volatilidad * 100).toFixed(2)}%
+                </p>
+              </div>
+              <div className="border border-fg/15 bg-panel p-3">
+                <p className="font-mono text-[10px] uppercase tracking-widest text-fg/40">{t("portfolio.sharpe")}</p>
+                <p className={`font-mono text-xl font-bold tabular-nums ${metricas.sharpe > 1 ? "text-ganancia" : metricas.sharpe >= 0 ? "text-yellow-500" : "text-perdida"}`}>
+                  {metricas.sharpe.toFixed(2)}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Insignias */}
         <div className="mt-8">
-          <p className="mb-3 font-mono text-[11px] uppercase tracking-widest text-fg/40">Mis Logros</p>
+          <p className="mb-3 font-mono text-[11px] uppercase tracking-widest text-fg/40">{t("portfolio.achievements")}</p>
+          <div className="mb-4">
+            <BarraNivel grupoId={grupoId ?? portafolio.grupo_id} />
+          </div>
           <PanelInsignias insignias={insignias} />
         </div>
       </div>
+      <Footer />
     </main>
   );
 }

@@ -9,6 +9,8 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     nombre: str = Field(..., min_length=1, max_length=100)
     password: str = Field(..., min_length=8, max_length=128)
+    codigo_grupo: str | None = Field(None, max_length=6)
+    es_maestro: bool = False
 
 
 class LoginRequest(BaseModel):
@@ -22,3 +24,4 @@ class TokenResponse(BaseModel):
     user_id: uuid.UUID
     nombre: str
     rol: RolEnum
+    email_verificado: bool = False

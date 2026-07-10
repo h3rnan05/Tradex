@@ -2,10 +2,15 @@
 
 import { useEffect, useState } from "react";
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 import ComentariosMaestro from "@/components/ComentariosMaestro";
 import { Badge, Card, formatoMoneda } from "@/components/primitives";
 import { api, ApiError } from "@/lib/api";
 import { obtenerSesion } from "@/lib/auth";
+import { conGrupo } from "@/lib/clase";
+import { useRetoActivo } from "@/lib/retoContext";
+import RetoActivo from "@/components/RetoActivo";
+import { useLanguage } from "@/lib/i18n";
 
 interface Orden {
   id: string;
@@ -18,6 +23,8 @@ interface Orden {
 }
 
 export default function HistorialPage() {
+  const { t } = useLanguage();
+  const { reto: retoActivo } = useRetoActivo();
   const [ordenes, setOrdenes] = useState<Orden[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [expandido, setExpandido] = useState<string | null>(null);
@@ -26,24 +33,26 @@ export default function HistorialPage() {
     const sesion = obtenerSesion();
     if (!sesion) return;
     api
-      .get<Orden[]>(`/alumnos/${sesion.userId}/ordenes`)
+      .get<Orden[]>(conGrupo(`/alumnos/${sesion.userId}/ordenes`))
       .then(setOrdenes)
       .catch((err) => setError(err instanceof ApiError ? err.message : "Error al cargar el historial"));
   }, []);
+
+  if (retoActivo) return <RetoActivo retoId={retoActivo.id} />;
 
   return (
     <main className="min-h-screen bg-canvas">
       <Navbar />
       <div className="mx-auto max-w-4xl p-4 md:p-6">
-        <h1 className="mb-6 text-2xl font-bold text-fg">Historial de órdenes</h1>
+        <h1 className="mb-6 text-2xl font-bold text-fg">{t("history.title")}</h1>
 
         {error && <p className="mb-4 text-sm text-perdida">{error}</p>}
 
         {!ordenes ? (
-          <p className="text-fg/40">Cargando...</p>
+          <p className="text-fg/40">{t("common.loading")}</p>
         ) : ordenes.length === 0 ? (
           <Card>
-            <p className="text-fg/40">Aún no has realizado ninguna operación.</p>
+            <p className="text-fg/40">{t("history.noOrders")}</p>
           </Card>
         ) : (
           <div className="space-y-px border border-fg/10">
@@ -57,7 +66,7 @@ export default function HistorialPage() {
                     {new Date(o.timestamp).toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" })}
                   </span>
                   <Badge tone={o.tipo === "compra" ? "ganancia" : "perdida"}>
-                    {o.tipo === "compra" ? "Compra" : "Venta"}
+                    {o.tipo === "compra" ? t("common.buy") : t("common.sell")}
                   </Badge>
                   <span className="w-16 font-mono text-sm font-bold text-fg">{o.ticker}</span>
                   <span className="font-mono text-xs text-fg/60">{o.cantidad} acc. × {formatoMoneda(o.precio_ejecucion)}</span>
@@ -69,8 +78,8 @@ export default function HistorialPage() {
                 {expandido === o.id && (
                   <div className="border-t border-fg/5 px-4 pb-3">
                     <div className="mt-2 flex gap-4 font-mono text-[11px] text-fg/50 mb-2">
-                      <span>Comisión: {formatoMoneda(o.comision)}</span>
-                      <span>Total neto: {formatoMoneda(Number(o.cantidad) * Number(o.precio_ejecucion))}</span>
+                      <span>{t("history.commission")}: {formatoMoneda(o.comision)}</span>
+                      <span>{t("history.netTotal")}: {formatoMoneda(Number(o.cantidad) * Number(o.precio_ejecucion))}</span>
                     </div>
                     <ComentariosMaestro ordenId={o.id} esMaestro={false} />
                   </div>
@@ -80,6 +89,7 @@ export default function HistorialPage() {
           </div>
         )}
       </div>
+      <Footer />
     </main>
   );
 }

@@ -1,8 +1,13 @@
 import logging
 import re
+import threading
+import time
+import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
+from email.utils import parsedate_to_datetime
+from functools import wraps
 
 import httpx
 from fastapi import HTTPException, status
@@ -11,9 +16,53 @@ from config import settings
 
 _TICKER_RE = re.compile(r'^[A-Z0-9\.\^\=\-\+]{1,15}$')
 
+# Símbolos de criptomonedas conocidas. En Yahoo Finance la cripto se cotiza con
+# el sufijo -USD (BTC-USD). Si el usuario escribe el símbolo "pelado" (BTC),
+# resolvería a OTRO instrumento (un fondo distinto), así que lo normalizamos a
+# su par -USD para que "BTC" signifique Bitcoin de verdad.
+_CRYPTO_SYMBOLS = {
+    "BTC", "ETH", "SOL", "XRP", "DOGE", "ADA", "AVAX", "MATIC", "SHIB",
+    "LTC", "BCH", "DOT", "LINK", "UNI", "ATOM", "XLM", "ETC", "FIL",
+    "ICP", "NEAR", "APT", "ARB", "OP", "INJ", "TRX", "BNB", "ALGO", "XMR",
+}
+
+
+def normalizar_ticker(ticker: str) -> str:
+    """Convierte símbolos de cripto pelados (BTC) a su par -USD (BTC-USD)."""
+    t = ticker.upper().strip()
+    if t in _CRYPTO_SYMBOLS:
+        return f"{t}-USD"
+    return t
+
+# ── Simple in-memory TTL cache ────────────────────────────────────────────
+# Market data changes slowly relative to how often the UI requests it. Caching
+# responses for a few seconds/minutes turns repeated page loads from dozens of
+# slow external API calls into instant memory hits. Thread-safe so it works with
+# uvicorn's threadpool. Only successful results are cached (errors are not).
+_cache_lock = threading.Lock()
+_cache_store: dict = {}
+
+
+def ttl_cache(seconds: int):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            key = (func.__name__, args, tuple(sorted(kwargs.items())))
+            now = time.monotonic()
+            with _cache_lock:
+                hit = _cache_store.get(key)
+                if hit is not None and hit[0] > now:
+                    return hit[1]
+            result = func(*args, **kwargs)
+            with _cache_lock:
+                _cache_store[key] = (now + seconds, result)
+            return result
+        return wrapper
+    return decorator
+
 
 def validar_ticker(ticker: str) -> str:
-    t = ticker.upper().strip()
+    t = normalizar_ticker(ticker)
     if not _TICKER_RE.match(t):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Ticker inválido: '{ticker}'")
     return t
@@ -112,8 +161,9 @@ def obtener_precio_actual(ticker: str) -> Decimal:
     return _obtener_precio_y_cambio(ticker)[0]
 
 
+@ttl_cache(seconds=60)
 def _obtener_precio_y_cambio(ticker: str) -> tuple[Decimal, float]:
-    ticker = ticker.upper().strip()
+    ticker = normalizar_ticker(ticker)
     resultado = _consultar_chart(ticker, dias=7)
 
     cierres = ((resultado.get("indicators") or {}).get("quote") or [{}])[0].get("close") or []
@@ -169,8 +219,9 @@ def _consultar_volumenes_eodhd(ticker: str, inicio: date, fin: date) -> dict[str
     return {d["date"]: d.get("volume") for d in datos if d.get("date") and d.get("volume") is not None}
 
 
+@ttl_cache(seconds=300)
 def obtener_historial_precios(ticker: str, dias: int = 30) -> list[dict]:
-    ticker = ticker.upper().strip()
+    ticker = normalizar_ticker(ticker)
     resultado = _consultar_chart(ticker, dias=dias)
 
     timestamps = resultado.get("timestamp") or []
@@ -212,7 +263,7 @@ def obtener_historial_precios(ticker: str, dias: int = 30) -> list[dict]:
 
 
 def obtener_historial_precios_rango(ticker: str, fecha_inicio: date, fecha_fin: date) -> list[dict]:
-    ticker = ticker.upper().strip()
+    ticker = normalizar_ticker(ticker)
     resultado = _consultar_chart_rango(ticker, fecha_inicio, fecha_fin)
 
     timestamps = resultado.get("timestamp") or []
@@ -248,6 +299,8 @@ def _buscar_noticias_yahoo(query: str, cantidad: int) -> list[dict]:
         return []
 
     noticias = (resp.json() or {}).get("news") or []
+    # Yahoo no garantiza orden: ordenar por fecha de publicación (recientes primero)
+    noticias.sort(key=lambda n: n.get("providerPublishTime") or 0, reverse=True)
     resultado = []
     for n in noticias[:cantidad]:
         publicado = n.get("providerPublishTime")
@@ -268,58 +321,266 @@ def _buscar_noticias_yahoo(query: str, cantidad: int) -> list[dict]:
     return resultado
 
 
-def obtener_noticias(ticker: str, cantidad: int = 6) -> list[dict]:
-    return _buscar_noticias_yahoo(ticker.upper().strip(), cantidad)
+YF_RSS_URL = "https://feeds.finance.yahoo.com/rss/2.0/headline"
+
+# Cesta de tickers grandes para alimentar las noticias generales de mercado.
+_NOTICIAS_GENERALES_TICKERS = "AAPL,MSFT,GOOGL,AMZN,NVDA,TSLA,SPY"
+
+_IMG_RE = re.compile(r'<img[^>]+src="([^"]+)"', re.IGNORECASE)
 
 
-def obtener_noticias_generales(cantidad: int = 8) -> list[dict]:
-    return _buscar_noticias_yahoo("stock market", cantidad)
+def _buscar_noticias_rss(symbols: str, cantidad: int) -> list[dict]:
+    """Lee el feed RSS de titulares de Yahoo Finance (recientes y ordenados por fecha)."""
+    headers = {"User-Agent": USER_AGENT, "Accept": "application/rss+xml, application/xml"}
+    params = {"s": symbols, "region": "US", "lang": "en-US"}
+    try:
+        resp = httpx.get(YF_RSS_URL, params=params, headers=headers, timeout=15.0)
+    except httpx.HTTPError:
+        logger.exception("Error de red consultando RSS de noticias para %s", symbols)
+        return []
+    if resp.status_code != 200:
+        logger.warning("yahoo rss status %s para %s", resp.status_code, symbols)
+        return []
 
+    try:
+        root = ET.fromstring(resp.content)
+    except ET.ParseError:
+        logger.warning("RSS de noticias mal formado para %s", symbols)
+        return []
 
-def obtener_precios_destacados() -> list[dict]:
-    destacados = []
-    for ticker in TICKERS_DESTACADOS:
-        try:
-            precio, cambio_porcentaje = _obtener_precio_y_cambio(ticker)
-        except HTTPException:
-            continue
-        sparkline = []
-        try:
-            historial = obtener_historial_precios(ticker, dias=30)
-            sparkline = [item["precio"] for item in historial]
-        except HTTPException:
-            pass
-        destacados.append({
-            "ticker": ticker,
-            "precio": precio,
-            "cambio_porcentaje": cambio_porcentaje,
-            "sparkline": sparkline,
-        })
-    return destacados
-
-
-def obtener_precios_indices() -> list[dict]:
     resultado = []
-    for indice in INDICES_MERCADO:
-        ticker = indice["ticker"]
-        try:
-            precio, cambio_porcentaje = _obtener_precio_y_cambio(ticker)
-        except HTTPException:
-            continue
-        sparkline = []
-        try:
-            historial = obtener_historial_precios(ticker, dias=30)
-            sparkline = [item["precio"] for item in historial]
-        except HTTPException:
-            pass
+    for item in root.iterfind(".//item"):
+        titulo = item.findtext("title")
+        link = item.findtext("link")
+        fuente = item.findtext("source") or "Yahoo Finance"
+        pub = item.findtext("pubDate")
+        descripcion = item.findtext("description") or ""
+        fecha_iso = None
+        fecha_dt = None
+        if pub:
+            try:
+                fecha_dt = parsedate_to_datetime(pub)
+                fecha_iso = fecha_dt.astimezone(timezone.utc).isoformat()
+            except (TypeError, ValueError):
+                pass
+        img_match = _IMG_RE.search(descripcion)
         resultado.append({
-            "ticker": ticker,
-            "nombre": indice["nombre"],
-            "precio": precio,
-            "cambio_porcentaje": cambio_porcentaje,
-            "sparkline": sparkline,
+            "titulo": titulo,
+            "fuente": fuente,
+            "link": link,
+            "fecha": fecha_iso,
+            "_orden": fecha_dt.timestamp() if fecha_dt else 0,
+            "imagen": img_match.group(1) if img_match else None,
         })
-    return resultado
+
+    # Más recientes primero
+    resultado.sort(key=lambda n: n["_orden"], reverse=True)
+    for n in resultado:
+        n.pop("_orden", None)
+    return resultado[:cantidad]
+
+
+@ttl_cache(seconds=180)
+def obtener_noticias(ticker: str, cantidad: int = 6) -> list[dict]:
+    ticker = normalizar_ticker(ticker)
+    noticias = _buscar_noticias_rss(ticker, cantidad)
+    if not noticias:
+        # Respaldo: endpoint de búsqueda
+        noticias = _buscar_noticias_yahoo(ticker, cantidad)
+    return noticias
+
+
+@ttl_cache(seconds=180)
+def obtener_noticias_generales(cantidad: int = 8) -> list[dict]:
+    noticias = _buscar_noticias_rss(_NOTICIAS_GENERALES_TICKERS, cantidad)
+    if not noticias:
+        noticias = _buscar_noticias_yahoo("stock market", cantidad)
+    return noticias
+
+
+def _destacado_de_ticker(ticker: str, nombre: str | None = None) -> dict | None:
+    try:
+        precio, cambio_porcentaje = _obtener_precio_y_cambio(ticker)
+    except HTTPException:
+        return None
+    sparkline = []
+    try:
+        historial = obtener_historial_precios(ticker, dias=30)
+        sparkline = [item["precio"] for item in historial]
+    except HTTPException:
+        pass
+    item = {
+        "ticker": ticker,
+        "precio": precio,
+        "cambio_porcentaje": cambio_porcentaje,
+        "sparkline": sparkline,
+    }
+    if nombre is not None:
+        item["nombre"] = nombre
+    return item
+
+
+@ttl_cache(seconds=120)
+def obtener_trending() -> list[dict]:
+    """Return up to 16 real-time trending tickers (most active + top gainers/losers)."""
+    import httpx as _httpx
+    headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
+
+    def _fetch_screener(tipo: str, count: int) -> list[str]:
+        try:
+            resp = _httpx.get(
+                "https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved",
+                params={"formatted": "true", "scrIds": tipo, "count": str(count)},
+                headers=headers,
+                timeout=10.0,
+            )
+            if resp.status_code != 200:
+                return []
+            quotes = (((resp.json() or {}).get("finance") or {}).get("result") or [{}])[0].get("quotes") or []
+            return [q["symbol"] for q in quotes if q.get("symbol")]
+        except Exception:
+            return []
+
+    # Parallel fetch of three screeners
+    with ThreadPoolExecutor(max_workers=3) as ex:
+        f_active = ex.submit(_fetch_screener, "most_actives", 8)
+        f_gainers = ex.submit(_fetch_screener, "day_gainers", 5)
+        f_losers = ex.submit(_fetch_screener, "day_losers", 5)
+        actives = f_active.result()
+        gainers = f_gainers.result()
+        losers = f_losers.result()
+
+    # Deduplicate while preserving order: actives first, then gainers, then losers
+    seen: set[str] = set()
+    tickers: list[str] = []
+    for t in actives + gainers + losers:
+        if t not in seen:
+            seen.add(t)
+            tickers.append(t)
+        if len(tickers) >= 16:
+            break
+
+    # Fall back to curated list if screener failed
+    if not tickers:
+        tickers = TICKERS_DESTACADOS
+
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        futuros = {ex.submit(_destacado_de_ticker, t): t for t in tickers}
+        resultados = {futuros[f]: f.result() for f in as_completed(futuros)}
+
+    return [resultados[t] for t in tickers if resultados.get(t)]
+
+
+@ttl_cache(seconds=60)
+def obtener_precios_destacados() -> list[dict]:
+    # Fetch all tickers in parallel instead of one-by-one — this turns ~16
+    # sequential external calls into a handful of concurrent ones.
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        futuros = {executor.submit(_destacado_de_ticker, t): t for t in TICKERS_DESTACADOS}
+        resultados = {futuros[f]: f.result() for f in as_completed(futuros)}
+    # Preserve the original ticker order
+    return [resultados[t] for t in TICKERS_DESTACADOS if resultados.get(t)]
+
+
+@ttl_cache(seconds=60)
+def obtener_precios_indices() -> list[dict]:
+    with ThreadPoolExecutor(max_workers=6) as executor:
+        futuros = {
+            executor.submit(_destacado_de_ticker, ind["ticker"], ind["nombre"]): ind["ticker"]
+            for ind in INDICES_MERCADO
+        }
+        resultados = {futuros[f]: f.result() for f in as_completed(futuros)}
+    return [resultados[ind["ticker"]] for ind in INDICES_MERCADO if resultados.get(ind["ticker"])]
+
+
+# Listas curadas para el explorador de mercados en la pestaña Operar.
+# Cada categoría coincide con los tipos de activo que el maestro puede habilitar
+# (acciones, indices, commodities, crypto).
+EXPLORADOR_CATEGORIAS: dict[str, list[dict]] = {
+    "acciones": [
+        {"ticker": "AAPL", "nombre": "Apple"},
+        {"ticker": "MSFT", "nombre": "Microsoft"},
+        {"ticker": "GOOGL", "nombre": "Alphabet"},
+        {"ticker": "AMZN", "nombre": "Amazon"},
+        {"ticker": "NVDA", "nombre": "NVIDIA"},
+        {"ticker": "TSLA", "nombre": "Tesla"},
+        {"ticker": "META", "nombre": "Meta"},
+        {"ticker": "NFLX", "nombre": "Netflix"},
+        {"ticker": "JPM", "nombre": "JPMorgan"},
+        {"ticker": "DIS", "nombre": "Disney"},
+        {"ticker": "KO", "nombre": "Coca-Cola"},
+        {"ticker": "NKE", "nombre": "Nike"},
+    ],
+    "indices": [
+        {"ticker": "SPY", "nombre": "S&P 500 ETF"},
+        {"ticker": "QQQ", "nombre": "Nasdaq 100 ETF"},
+        {"ticker": "DIA", "nombre": "Dow Jones ETF"},
+        {"ticker": "IWM", "nombre": "Russell 2000 ETF"},
+        {"ticker": "VOO", "nombre": "Vanguard S&P 500"},
+        {"ticker": "VTI", "nombre": "Vanguard Total Market"},
+        {"ticker": "EFA", "nombre": "Mercados Desarrollados"},
+        {"ticker": "EEM", "nombre": "Mercados Emergentes"},
+    ],
+    "commodities": [
+        {"ticker": "GLD", "nombre": "Oro"},
+        {"ticker": "SLV", "nombre": "Plata"},
+        {"ticker": "USO", "nombre": "Petróleo"},
+        {"ticker": "UNG", "nombre": "Gas Natural"},
+        {"ticker": "DBA", "nombre": "Agricultura"},
+        {"ticker": "DBC", "nombre": "Commodities Mix"},
+        {"ticker": "PPLT", "nombre": "Platino"},
+        {"ticker": "PALL", "nombre": "Paladio"},
+    ],
+    "crypto": [
+        {"ticker": "BTC-USD", "nombre": "Bitcoin"},
+        {"ticker": "ETH-USD", "nombre": "Ethereum"},
+        {"ticker": "SOL-USD", "nombre": "Solana"},
+        {"ticker": "XRP-USD", "nombre": "XRP"},
+        {"ticker": "DOGE-USD", "nombre": "Dogecoin"},
+        {"ticker": "ADA-USD", "nombre": "Cardano"},
+        {"ticker": "AVAX-USD", "nombre": "Avalanche"},
+        {"ticker": "LINK-USD", "nombre": "Chainlink"},
+    ],
+    "forex": [
+        {"ticker": "EURUSD=X", "nombre": "Euro / Dólar"},
+        {"ticker": "GBPUSD=X", "nombre": "Libra / Dólar"},
+        {"ticker": "USDJPY=X", "nombre": "Dólar / Yen"},
+        {"ticker": "USDMXN=X", "nombre": "Dólar / Peso MX"},
+        {"ticker": "USDCAD=X", "nombre": "Dólar / Dólar CA"},
+        {"ticker": "AUDUSD=X", "nombre": "Dólar AU / Dólar"},
+        {"ticker": "USDCHF=X", "nombre": "Dólar / Franco CH"},
+        {"ticker": "NZDUSD=X", "nombre": "Dólar NZ / Dólar"},
+    ],
+    "bolsa_mx": [
+        {"ticker": "AMXL.MX", "nombre": "América Móvil"},
+        {"ticker": "FEMSAUBD.MX", "nombre": "FEMSA"},
+        {"ticker": "WALMEX.MX", "nombre": "Walmart México"},
+        {"ticker": "GMEXICOB.MX", "nombre": "Grupo México"},
+        {"ticker": "GFNORTEO.MX", "nombre": "Banorte"},
+        {"ticker": "BIMBOA.MX", "nombre": "Bimbo"},
+        {"ticker": "CEMEXCPO.MX", "nombre": "CEMEX"},
+        {"ticker": "ALSEA.MX", "nombre": "Alsea"},
+        {"ticker": "GRUMAB.MX", "nombre": "Gruma"},
+        {"ticker": "LABB.MX", "nombre": "Genomma Lab"},
+    ],
+}
+
+
+@ttl_cache(seconds=60)
+def obtener_explorador_categoria(categoria: str) -> list[dict]:
+    tickers = EXPLORADOR_CATEGORIAS.get(categoria)
+    if not tickers:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Categoría inválida: '{categoria}'",
+        )
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        futuros = {
+            executor.submit(_destacado_de_ticker, t["ticker"], t["nombre"]): t["ticker"]
+            for t in tickers
+        }
+        resultados = {futuros[f]: f.result() for f in as_completed(futuros)}
+    return [resultados[t["ticker"]] for t in tickers if resultados.get(t["ticker"])]
 
 
 _EARNINGS_WATCHLIST = [
@@ -341,10 +602,10 @@ _EARNINGS_WATCHLIST = [
     "NFLX", "DIS", "CMCSA", "T", "VZ", "CHTR", "PARA", "WBD",
     # Consumer staples
     "KO", "PEP", "PG", "CL", "KHC", "GIS", "CPB", "K",
-    # Others
-    "PYPL", "SQ", "UBER", "LYFT", "AIRB", "ABNB", "BKNG", "EXPE",
+    # Others (TWTR→eliminado, AIRB→typo era ABNB, SQ→XYZ renombrado)
+    "PYPL", "XYZ", "UBER", "LYFT", "ABNB", "BKNG", "EXPE",
     "FDX", "UPS", "DAL", "AAL", "UAL", "LUV",
-    "SNAP", "PINS", "TWTR", "RBLX", "U", "MTCH",
+    "SNAP", "PINS", "RBLX", "MTCH",
     "F", "GM", "RIVN", "LCID",
 ]
 
@@ -397,6 +658,7 @@ def _fetch_earnings_ticker(ticker: str, crumb: str, cookies: dict, hoy, fin) -> 
         return None
 
 
+@ttl_cache(seconds=900)
 def obtener_earnings_calendar() -> list[dict]:
     hoy = datetime.now(timezone.utc).date()
     fin = hoy + timedelta(days=45)
@@ -429,6 +691,7 @@ _SECTORES = [
 ]
 
 
+@ttl_cache(seconds=300)
 def obtener_sectores() -> list[dict]:
     resultado = []
     for s in _SECTORES:
@@ -440,6 +703,7 @@ def obtener_sectores() -> list[dict]:
     return resultado
 
 
+@ttl_cache(seconds=120)
 def obtener_screener(tipo: str) -> list[dict]:
     tipos_validos = {"most_actives", "day_gainers", "day_losers"}
     if tipo not in tipos_validos:
@@ -528,8 +792,9 @@ def _obtener_crumb_yf() -> tuple[str, dict]:
     return "", {}
 
 
+@ttl_cache(seconds=600)
 def obtener_ficha_empresa(ticker: str) -> dict:
-    ticker = ticker.upper().strip()
+    ticker = normalizar_ticker(ticker)
     crumb, cookies = _obtener_crumb_yf()
     params = {
         "modules": "summaryDetail,financialData,defaultKeyStatistics,recommendationTrend",

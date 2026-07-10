@@ -5,15 +5,20 @@ export interface Sesion {
   userId: string;
   nombre: string;
   rol: Rol;
+  emailVerificado?: boolean;
 }
 
 const STORAGE_KEY = "tradex_token";
 const SESSION_KEY = "tradex_session";
 
 export function guardarSesion(sesion: Sesion) {
+  if (typeof window === "undefined") return;
   localStorage.setItem(STORAGE_KEY, sesion.token);
-  localStorage.setItem(SESSION_KEY, JSON.stringify(sesion));
+  const serialized = JSON.stringify(sesion);
+  localStorage.setItem(SESSION_KEY, serialized);
+  document.cookie = `tradex_session=${encodeURIComponent(serialized)}; path=/; SameSite=Strict`;
 }
+
 
 export function obtenerSesion(): Sesion | null {
   if (typeof window === "undefined") return null;
@@ -31,4 +36,7 @@ export function obtenerSesion(): Sesion | null {
 export function cerrarSesion() {
   localStorage.removeItem(STORAGE_KEY);
   localStorage.removeItem(SESSION_KEY);
+  if (typeof document !== "undefined") {
+    document.cookie = "tradex_session=; path=/; max-age=0; SameSite=Strict";
+  }
 }

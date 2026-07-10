@@ -34,6 +34,7 @@ class AlertaCreate(BaseModel):
     ticker: str
     precio_objetivo: Decimal
     condicion: str  # "gte" | "lte"
+    grupo_id: uuid.UUID | None = None  # clase activa, para otorgar la insignia por grupo
 
 
 def _procesar_ordenes_pendientes(db: Session, alumno: User) -> list[OrdenPendiente]:
@@ -58,7 +59,15 @@ def _procesar_ordenes_pendientes(db: Session, alumno: User) -> list[OrdenPendien
             continue
 
         debe_ejecutar = False
-        if op_pendiente.tipo == "compra" and precio_actual <= op_pendiente.precio_limite:
+        sl_tp = getattr(op_pendiente, "sl_tp_tipo", None)
+        trigger = getattr(op_pendiente, "precio_trigger", None) or op_pendiente.precio_limite
+        if sl_tp == "stop_loss":
+            # Stop-loss: vende cuando el precio CAE al nivel de disparo o por debajo.
+            debe_ejecutar = precio_actual <= trigger
+        elif sl_tp == "take_profit":
+            # Take-profit: vende cuando el precio SUBE al nivel de disparo o más.
+            debe_ejecutar = precio_actual >= trigger
+        elif op_pendiente.tipo == "compra" and precio_actual <= op_pendiente.precio_limite:
             debe_ejecutar = True
         elif op_pendiente.tipo == "venta" and precio_actual >= op_pendiente.precio_limite:
             debe_ejecutar = True
@@ -123,6 +132,13 @@ def _procesar_ordenes_pendientes(db: Session, alumno: User) -> list[OrdenPendien
 
     if ejecutadas:
         db.commit()
+        try:
+            from insignias_engine import evaluar_y_otorgar_insignias, _otorgar
+            for op in ejecutadas:
+                _otorgar(db, alumno.id, op.grupo_id, "orden_limite_ejecutada")
+            db.commit()
+        except Exception:
+            pass
     return ejecutadas
 
 
@@ -192,6 +208,49 @@ def crear_orden_limite(payload: OrdenLimiteCreate, db: Session = Depends(get_db)
     }
 
 
+class StopOrderCreate(BaseModel):
+    grupo_id: uuid.UUID
+    ticker: str
+    cantidad: Decimal
+    tipo_condicional: str  # "stop_loss" | "take_profit"
+    precio_trigger: Decimal
+
+
+@router.post("/condicional", status_code=status.HTTP_201_CREATED)
+def crear_orden_condicional(payload: StopOrderCreate, db: Session = Depends(get_db), alumno: User = Depends(require_alumno)):
+    """Crea una orden condicional de cierre (stop-loss o take-profit). Vende la
+    posición existente cuando el precio cruza el nivel de disparo."""
+    if payload.tipo_condicional not in ("stop_loss", "take_profit"):
+        raise HTTPException(status_code=400, detail="tipo_condicional debe ser 'stop_loss' o 'take_profit'")
+    if payload.cantidad <= 0 or payload.precio_trigger <= 0:
+        raise HTTPException(status_code=400, detail="Cantidad y precio de disparo deben ser mayores a cero")
+
+    _get_membership(db, alumno, payload.grupo_id)  # valida pertenencia
+
+    op = OrdenPendiente(
+        alumno_id=alumno.id,
+        grupo_id=payload.grupo_id,
+        ticker=payload.ticker.upper().strip(),
+        tipo="venta",
+        cantidad=payload.cantidad,
+        precio_limite=payload.precio_trigger,
+        sl_tp_tipo=payload.tipo_condicional,
+        precio_trigger=payload.precio_trigger,
+    )
+    db.add(op)
+    db.commit()
+    db.refresh(op)
+    return {
+        "id": str(op.id),
+        "ticker": op.ticker,
+        "tipo_condicional": op.sl_tp_tipo,
+        "cantidad": str(op.cantidad),
+        "precio_trigger": str(op.precio_trigger),
+        "estado": op.estado,
+        "creada_en": op.creada_en.isoformat(),
+    }
+
+
 @router.get("")
 def listar_ordenes_limite(db: Session = Depends(get_db), alumno: User = Depends(require_alumno)):
     # Process pending orders first, then return updated list
@@ -210,6 +269,8 @@ def listar_ordenes_limite(db: Session = Depends(get_db), alumno: User = Depends(
             "tipo": o.tipo,
             "cantidad": str(o.cantidad),
             "precio_limite": str(o.precio_limite),
+            "sl_tp_tipo": getattr(o, "sl_tp_tipo", None),
+            "precio_trigger": str(o.precio_trigger) if getattr(o, "precio_trigger", None) else None,
             "estado": o.estado,
             "creada_en": o.creada_en.isoformat() if o.creada_en else None,
             "ejecutada_en": o.ejecutada_en.isoformat() if o.ejecutada_en else None,
@@ -246,6 +307,12 @@ def crear_alerta(payload: AlertaCreate, db: Session = Depends(get_db), alumno: U
     db.add(alerta)
     db.commit()
     db.refresh(alerta)
+    try:
+        from insignias_engine import _otorgar
+        if _otorgar(db, alumno.id, payload.grupo_id, "alerta_puesta"):
+            db.commit()
+    except Exception:
+        pass
     return {
         "id": str(alerta.id),
         "ticker": alerta.ticker,
@@ -287,3 +354,67 @@ def eliminar_alerta(alerta_id: uuid.UUID, db: Session = Depends(get_db), alumno:
         raise HTTPException(status_code=404, detail="Alerta no encontrada")
     alerta.activa = False
     db.commit()
+
+
+@router.get("/notificaciones")
+def obtener_notificaciones(db: Session = Depends(get_db), alumno: User = Depends(require_alumno)):
+    """Return recently executed limit orders and triggered alerts for in-app notifications."""
+    _procesar_ordenes_pendientes(db, alumno)
+    _procesar_alertas(db, alumno)
+
+    desde = datetime.now(timezone.utc).replace(microsecond=0)
+    from datetime import timedelta
+    desde = desde - timedelta(minutes=60)
+
+    ordenes_ejecutadas = (
+        db.query(OrdenPendiente)
+        .filter(
+            OrdenPendiente.alumno_id == alumno.id,
+            OrdenPendiente.estado == EstadoOrdenEnum.ejecutada,
+            OrdenPendiente.ejecutada_en >= desde,
+        )
+        .order_by(OrdenPendiente.ejecutada_en.desc())
+        .limit(10)
+        .all()
+    )
+
+    alertas_disparadas = (
+        db.query(Alerta)
+        .filter(
+            Alerta.alumno_id == alumno.id,
+            Alerta.disparada == True,
+            Alerta.disparada_en >= desde,
+        )
+        .order_by(Alerta.disparada_en.desc())
+        .limit(10)
+        .all()
+    )
+
+    notifs = []
+    for o in ordenes_ejecutadas:
+        sl_tp = getattr(o, "sl_tp_tipo", None)
+        if sl_tp == "stop_loss":
+            etiqueta = f"Stop-loss disparado: vendiste {o.cantidad} {o.ticker} a ${o.precio_limite}"
+        elif sl_tp == "take_profit":
+            etiqueta = f"Take-profit disparado: vendiste {o.cantidad} {o.ticker} a ${o.precio_limite}"
+        else:
+            etiqueta = f"Orden {o.tipo} de {o.cantidad} {o.ticker} ejecutada a ${o.precio_limite}"
+        notifs.append({
+            "id": f"orden-{o.id}",
+            "tipo": "orden_ejecutada",
+            "mensaje": etiqueta,
+            "ticker": o.ticker,
+            "ts": o.ejecutada_en.isoformat() if o.ejecutada_en else None,
+        })
+    for a in alertas_disparadas:
+        cond = "subió a" if a.condicion == "gte" else "bajó a"
+        notifs.append({
+            "id": f"alerta-{a.id}",
+            "tipo": "alerta_precio",
+            "mensaje": f"Alerta: {a.ticker} {cond} ${a.precio_objetivo}",
+            "ticker": a.ticker,
+            "ts": a.disparada_en.isoformat() if a.disparada_en else None,
+        })
+
+    notifs.sort(key=lambda n: n["ts"] or "", reverse=True)
+    return notifs

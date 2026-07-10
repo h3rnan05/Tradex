@@ -11,6 +11,8 @@ class OrdenCreate(BaseModel):
     grupo_id: uuid.UUID
     ticker: str
     cantidad: Decimal
+    # Multiplicador de apalancamiento (1x–5x). 1 = sin apalancamiento.
+    apalancamiento: Decimal = Decimal("1")
 
 
 class OrdenOut(BaseModel):

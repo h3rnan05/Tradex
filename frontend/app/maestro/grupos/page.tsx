@@ -3,7 +3,12 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 import { api, ApiError } from "@/lib/api";
+import { useLanguage } from "@/lib/i18n";
+import type { TranslationKey } from "@/translations/es";
+import ErrorState from "@/components/ErrorState";
+import ActivosCategoria from "@/components/ActivosCategoria";
 
 interface Grupo {
   id: string;
@@ -15,35 +20,49 @@ interface Grupo {
   activos_permitidos: string[];
   limite_orden_valor: string | null;
   comision_porcentaje: string;
+  codigo: string | null;
   created_at: string;
 }
 
-const ACTIVOS_DISPONIBLES = [
-  { value: "acciones", label: "Acciones" },
-  { value: "indices", label: "Índices" },
-  { value: "commodities", label: "Commodities" },
+const ACTIVOS_DISPONIBLES: { value: string; labelKey: TranslationKey }[] = [
+  { value: "acciones", labelKey: "maestro.groups.assetAcciones" },
+  { value: "indices", labelKey: "maestro.groups.assetIndices" },
+  { value: "commodities", labelKey: "maestro.groups.assetCommodities" },
+  { value: "crypto", labelKey: "maestro.groups.assetCrypto" },
+  { value: "forex", labelKey: "maestro.groups.assetForex" },
+  { value: "bolsa_mx", labelKey: "maestro.groups.assetBolsaMx" },
 ];
 
-const ACTIVOS_LABEL: Record<string, string> = Object.fromEntries(
-  ACTIVOS_DISPONIBLES.map((a) => [a.value, a.label])
+const ACTIVOS_LABEL_KEY: Record<string, TranslationKey> = Object.fromEntries(
+  ACTIVOS_DISPONIBLES.map((a) => [a.value, a.labelKey])
 );
-
-const ESTADO_ESTILOS: Record<string, string> = {
-  proximo: "bg-fg/10 text-fg/60",
-  activo: "bg-ganancia/15 text-ganancia",
-  finalizado: "bg-fg/5 text-fg/40",
-};
 
 function estadoGrupo(fechaInicio: string, fechaFin: string) {
   const ahora = Date.now();
   const inicio = new Date(fechaInicio).getTime();
   const fin = new Date(fechaFin).getTime();
-  if (ahora < inicio) return { key: "proximo", label: "Próximo" };
-  if (ahora > fin) return { key: "finalizado", label: "Finalizado" };
-  return { key: "activo", label: "Activo" };
+  if (ahora < inicio) return "proximo";
+  if (ahora > fin) return "finalizado";
+  return "activo";
+}
+
+const ESTADO_CLASE: Record<string, string> = {
+  proximo: "border-accent/40 bg-accent/10 text-accent",
+  activo: "border-ganancia/40 bg-ganancia/10 text-ganancia",
+  finalizado: "border-fg/20 bg-fg/5 text-fg/40",
+};
+
+function diasRestantes(fechaFin: string, t: (k: TranslationKey) => string) {
+  const diff = new Date(fechaFin).getTime() - Date.now();
+  const dias = Math.ceil(diff / (1000 * 60 * 60 * 24));
+  if (dias < 0) return null;
+  if (dias === 0) return t("maestro.groups.endsToday");
+  if (dias === 1) return t("maestro.groups.oneDayLeft");
+  return `${dias} ${t("maestro.groups.daysLeft")}`;
 }
 
 export default function GruposPage() {
+  const { t } = useLanguage();
   const [grupos, setGrupos] = useState<Grupo[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -57,6 +76,9 @@ export default function GruposPage() {
   const [activosPermitidos, setActivosPermitidos] = useState<string[]>(["acciones"]);
   const [limiteOrden, setLimiteOrden] = useState("");
   const [comisionPorcentaje, setComisionPorcentaje] = useState("");
+  const [comisionBase, setComisionBase] = useState<1 | 5 | 10 | null>(null);
+  const [derivadosNivel, setDerivadosNivel] = useState<0 | 1 | 2>(0);
+  const [maxApalancamiento, setMaxApalancamiento] = useState(5);
   const [fechasActivacion, setFechasActivacion] = useState<Record<string, string>>({});
   const [guardando, setGuardando] = useState(false);
 
@@ -72,18 +94,20 @@ export default function GruposPage() {
       const data = await api.get<Grupo[]>("/grupos");
       setGrupos(data);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Error al cargar los grupos");
+      setError(err instanceof ApiError ? err.message : t("maestro.groups.loadError"));
     } finally {
       setCargando(false);
     }
   }
 
-  useEffect(() => {
-    cargarGrupos();
-  }, []);
+  useEffect(() => { cargarGrupos(); }, []);
 
   async function crearGrupo(e: React.FormEvent) {
     e.preventDefault();
+    if (comisionBase === null) {
+      setError("Debes seleccionar un esquema de comisiones antes de crear el grupo.");
+      return;
+    }
     setGuardando(true);
     setError(null);
     try {
@@ -96,6 +120,9 @@ export default function GruposPage() {
         activos_permitidos: activosPermitidos,
         limite_orden_valor: limiteOrden || null,
         comision_porcentaje: comisionPorcentaje ? Number(comisionPorcentaje) / 100 : 0,
+        comision_base: comisionBase ?? 1,
+        derivados_nivel: derivadosNivel,
+        max_apalancamiento: maxApalancamiento,
         fases_activo: activosPermitidos
           .filter((tipo) => fechasActivacion[tipo])
           .map((tipo) => ({
@@ -103,249 +130,359 @@ export default function GruposPage() {
             fecha_activacion: new Date(fechasActivacion[tipo]).toISOString(),
           })),
       });
-      setNombre("");
-      setFechaInicio("");
-      setFechaFin("");
-      setCapitalInicial("10000");
-      setMaxAlumnos("");
-      setActivosPermitidos(["acciones"]);
-      setLimiteOrden("");
-      setComisionPorcentaje("");
-      setFechasActivacion({});
+      setNombre(""); setFechaInicio(""); setFechaFin("");
+      setCapitalInicial("10000"); setMaxAlumnos("");
+      setActivosPermitidos(["acciones"]); setLimiteOrden("");
+      setComisionPorcentaje(""); setComisionBase(null); setDerivadosNivel(0);
+      setMaxApalancamiento(5); setFechasActivacion({});
       setMostrarForm(false);
       await cargarGrupos();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "No se pudo crear el grupo");
+      setError(err instanceof ApiError ? err.message : t("maestro.groups.createError"));
     } finally {
       setGuardando(false);
     }
   }
 
+  const activos = grupos.filter((g) => estadoGrupo(g.fecha_inicio, g.fecha_fin) === "activo");
+  const proximos = grupos.filter((g) => estadoGrupo(g.fecha_inicio, g.fecha_fin) === "proximo");
+  const finalizados = grupos.filter((g) => estadoGrupo(g.fecha_inicio, g.fecha_fin) === "finalizado");
+
   return (
     <main className="min-h-screen bg-canvas">
       <Navbar />
-      <div className="mx-auto max-w-4xl p-6">
-        <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-fg">Mis grupos</h1>
+
+      <div className="mx-auto max-w-5xl p-4 md:p-8">
+        {/* Header */}
+        <div className="mb-8 flex items-end justify-between">
+          <div>
+            <p className="font-mono text-[11px] uppercase tracking-widest text-fg/40">{t("nav.teacher")}</p>
+            <h1 className="mt-1 text-3xl font-bold text-fg">{t("maestro.groups.title")}</h1>
+          </div>
           <button
             onClick={() => setMostrarForm(!mostrarForm)}
-            className="rounded-none bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-ink/80"
+            className={`flex items-center gap-2 rounded-none px-5 py-2.5 font-mono text-sm font-bold uppercase tracking-wide transition-colors ${
+              mostrarForm
+                ? "border border-fg/20 bg-transparent text-fg/60 hover:bg-fg/5"
+                : "bg-accent text-black hover:opacity-90"
+            }`}
           >
-            {mostrarForm ? "Cancelar" : "Crear grupo"}
+            {mostrarForm ? "✕ " + t("common.cancel") : "+ " + t("maestro.groups.create")}
           </button>
         </div>
 
+        {/* Form */}
         {mostrarForm && (
-          <form
-            onSubmit={crearGrupo}
-            className="mb-6 flex flex-col gap-4 rounded-none border border-fg/10 bg-panel p-6"
-          >
-            <div>
-              <label className="mb-1 block text-sm font-medium text-fg/70">Nombre del grupo</label>
-              <input
-                required
-                value={nombre}
-                onChange={(e) => setNombre(e.target.value)}
-                className="w-full rounded-none border border-fg/20 px-3 py-2 text-sm"
-              />
+          <div className="mb-8 border border-accent/30 bg-panel">
+            <div className="border-b border-fg/10 px-6 py-4">
+              <h2 className="font-mono text-sm font-bold uppercase tracking-widest text-fg">{t("maestro.groups.create")}</h2>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-fg/70">Fecha inicio</label>
-                <input
-                  type="date"
-                  required
-                  value={fechaInicio}
-                  onChange={(e) => setFechaInicio(e.target.value)}
-                  className="w-full rounded-none border border-fg/20 px-3 py-2 text-sm"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-fg/70">Fecha fin</label>
-                <input
-                  type="date"
-                  required
-                  value={fechaFin}
-                  onChange={(e) => setFechaFin(e.target.value)}
-                  className="w-full rounded-none border border-fg/20 px-3 py-2 text-sm"
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-fg/70">Capital inicial</label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  required
-                  value={capitalInicial}
-                  onChange={(e) => setCapitalInicial(e.target.value)}
-                  className="w-full rounded-none border border-fg/20 px-3 py-2 text-sm"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-fg/70">
-                  Máximo de alumnos (opcional)
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  step="1"
-                  value={maxAlumnos}
-                  onChange={(e) => setMaxAlumnos(e.target.value)}
-                  placeholder="Sin límite"
-                  className="w-full rounded-none border border-fg/20 px-3 py-2 text-sm"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-fg/70">
-                Límite por orden, en monto (opcional)
-              </label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={limiteOrden}
-                onChange={(e) => setLimiteOrden(e.target.value)}
-                placeholder="Sin límite"
-                className="w-full rounded-none border border-fg/20 px-3 py-2 text-sm"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-fg/70">
-                Comisión por operación, en % (opcional)
-              </label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={comisionPorcentaje}
-                onChange={(e) => setComisionPorcentaje(e.target.value)}
-                placeholder="0"
-                className="w-full rounded-none border border-fg/20 px-3 py-2 text-sm"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-fg/70">Tipos de activos permitidos</label>
-              <div className="flex flex-col gap-3">
-                {ACTIVOS_DISPONIBLES.map((activo) => (
-                  <div key={activo.value} className="flex flex-wrap items-center gap-3">
-                    <label className="flex items-center gap-2 text-sm text-fg/70">
-                      <input
-                        type="checkbox"
-                        checked={activosPermitidos.includes(activo.value)}
-                        onChange={() => alternarActivo(activo.value)}
-                      />
-                      {activo.label}
-                    </label>
-                    {activosPermitidos.includes(activo.value) && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-fg/40">Se desbloquea el:</span>
-                        <input
-                          type="date"
-                          value={fechasActivacion[activo.value] ?? ""}
-                          onChange={(e) =>
-                            setFechasActivacion((prev) => ({ ...prev, [activo.value]: e.target.value }))
-                          }
-                          placeholder="Desde el inicio"
-                          className="rounded-none border border-fg/20 px-2 py-1 text-xs"
-                        />
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-            <button
-              type="submit"
-              disabled={guardando}
-              className="self-start rounded-none bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-ink/80 disabled:opacity-50"
-            >
-              {guardando ? "Creando..." : "Guardar grupo"}
-            </button>
-          </form>
-        )}
-
-        {error && <p className="mb-4 text-sm text-perdida">{error}</p>}
-
-        {cargando ? (
-          <p className="text-fg/40">Cargando grupos...</p>
-        ) : grupos.length === 0 ? (
-          <div className="rounded-none border border-dashed border-fg/20 bg-panel/50 px-6 py-12 text-center">
-            <p className="text-fg/50">Todavía no has creado ningún grupo.</p>
-            <button
-              onClick={() => setMostrarForm(true)}
-              className="mt-4 rounded-none bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-ink/80"
-            >
-              Crear tu primer grupo
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {grupos.map((g) => {
-              const estado = estadoGrupo(g.fecha_inicio, g.fecha_fin);
-              return (
-                <div
-                  key={g.id}
-                  className="flex flex-col gap-4 rounded-none border border-fg/10 bg-panel p-5 transition hover:border-fg/30 hover:shadow-sm"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <h2 className="text-lg font-bold leading-tight text-fg">{g.nombre}</h2>
-                    <span
-                      className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${ESTADO_ESTILOS[estado.key]}`}
-                    >
-                      {estado.label}
+            <form onSubmit={crearGrupo} className="p-6">
+              <div className="grid gap-5 md:grid-cols-2">
+                <div className="md:col-span-2">
+                  <label className="mb-1.5 block font-mono text-[11px] uppercase tracking-widest text-fg/50">{t("maestro.groups.groupName")}</label>
+                  <input
+                    required
+                    value={nombre}
+                    onChange={(e) => setNombre(e.target.value)}
+                    placeholder={t("maestro.groups.namePlaceholder")}
+                    className="w-full rounded-none border border-fg/20 bg-canvas px-3 py-2.5 text-sm focus:border-accent focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block font-mono text-[11px] uppercase tracking-widest text-fg/50">{t("maestro.groups.startDate")}</label>
+                  <input type="date" required value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)}
+                    className="w-full rounded-none border border-fg/20 bg-canvas px-3 py-2.5 text-sm focus:border-accent focus:outline-none" />
+                </div>
+                <div>
+                  <label className="mb-1.5 block font-mono text-[11px] uppercase tracking-widest text-fg/50">{t("maestro.groups.endDate")}</label>
+                  <input type="date" required value={fechaFin} onChange={(e) => setFechaFin(e.target.value)}
+                    className="w-full rounded-none border border-fg/20 bg-canvas px-3 py-2.5 text-sm focus:border-accent focus:outline-none" />
+                </div>
+                <div>
+                  <label className="mb-1.5 block font-mono text-[11px] uppercase tracking-widest text-fg/50">{t("maestro.groups.initialCapital")} (USD)</label>
+                  <input type="number" min="0" step="0.01" required value={capitalInicial} onChange={(e) => setCapitalInicial(e.target.value)}
+                    className="w-full rounded-none border border-fg/20 bg-canvas px-3 py-2.5 font-mono text-sm focus:border-accent focus:outline-none" />
+                </div>
+                <div>
+                  <label className="mb-1.5 block font-mono text-[11px] uppercase tracking-widest text-fg/50">{t("maestro.groups.maxStudents")} {t("maestro.groups.students")} <span className="normal-case text-fg/30">{t("maestro.groups.optional")}</span></label>
+                  <input type="number" min="1" value={maxAlumnos} onChange={(e) => setMaxAlumnos(e.target.value)}
+                    placeholder={t("maestro.groups.noLimit")}
+                    className="w-full rounded-none border border-fg/20 bg-canvas px-3 py-2.5 text-sm focus:border-accent focus:outline-none" />
+                </div>
+                <div>
+                  <label className="mb-1.5 block font-mono text-[11px] uppercase tracking-widest text-fg/50">{t("maestro.groups.orderLimit")} <span className="normal-case text-fg/30">{t("maestro.groups.optional")}</span></label>
+                  <input type="number" min="0" value={limiteOrden} onChange={(e) => setLimiteOrden(e.target.value)}
+                    placeholder={t("maestro.groups.noLimit")}
+                    className="w-full rounded-none border border-fg/20 bg-canvas px-3 py-2.5 text-sm focus:border-accent focus:outline-none" />
+                </div>
+                {/* Commission — REQUIRED */}
+                <div className="md:col-span-2">
+                  <label className="mb-1.5 flex items-center gap-2 font-mono text-[11px] uppercase tracking-widest text-fg/50">
+                    Esquema de comisiones
+                    <span className="rounded bg-perdida/20 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-widest text-perdida">
+                      OBLIGATORIO
                     </span>
+                  </label>
+                  <div className="flex gap-2">
+                    {([1, 5, 10] as const).map((pct) => (
+                      <button
+                        key={pct}
+                        type="button"
+                        onClick={() => setComisionBase(pct)}
+                        className={`flex-1 rounded-none border py-3 font-mono text-sm font-bold transition-all ${
+                          comisionBase === pct
+                            ? "border-accent bg-accent/15 text-fg shadow-[0_0_0_1px] shadow-accent"
+                            : "border-fg/20 text-fg/50 hover:border-fg/40 hover:text-fg/80"
+                        }`}
+                      >
+                        {pct}%
+                      </button>
+                    ))}
                   </div>
-
-                  <div className="grid grid-cols-2 gap-y-2 text-sm">
-                    <div>
-                      <p className="text-xs uppercase tracking-wide text-fg/40">Inicio</p>
-                      <p className="text-fg/80">{new Date(g.fecha_inicio).toLocaleDateString("es-MX")}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs uppercase tracking-wide text-fg/40">Fin</p>
-                      <p className="text-fg/80">{new Date(g.fecha_fin).toLocaleDateString("es-MX")}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs uppercase tracking-wide text-fg/40">Capital inicial</p>
-                      <p className="font-medium text-ganancia">
-                        ${Number(g.capital_inicial).toLocaleString("es-MX")}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs uppercase tracking-wide text-fg/40">Alumnos</p>
-                      <p className="text-fg/80">{g.max_alumnos ? `Máx. ${g.max_alumnos}` : "Sin límite"}</p>
-                    </div>
-                  </div>
-
-                  {g.activos_permitidos.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5">
-                      {g.activos_permitidos.map((tipo) => (
-                        <span
-                          key={tipo}
-                          className="rounded-full bg-fg/5 px-2 py-0.5 text-xs text-fg/60"
-                        >
-                          {ACTIVOS_LABEL[tipo] ?? tipo}
-                        </span>
+                  {comisionBase === null && (
+                    <p className="mt-1 font-mono text-[10px] text-perdida/80">Selecciona un esquema de comisión para continuar.</p>
+                  )}
+                  {comisionBase !== null && (
+                    <div className="mt-2 grid grid-cols-3 gap-1">
+                      {[
+                        { rango: "Bronce", pct: comisionBase },
+                        { rango: "Plata", pct: comisionBase * 0.5 },
+                        { rango: "Oro / Diamante", pct: +(comisionBase * 0.1).toFixed(1) },
+                      ].map(({ rango, pct }) => (
+                        <div key={rango} className="border border-fg/10 px-2 py-1.5 text-center">
+                          <p className="font-mono text-[9px] text-fg/40">{rango}</p>
+                          <p className="font-mono text-sm font-black text-fg">{pct}%</p>
+                        </div>
                       ))}
                     </div>
                   )}
-
-                  <Link
-                    href={`/maestro/grupos/${g.id}`}
-                    className="mt-auto self-start text-sm font-medium text-fg underline hover:text-fg/70"
-                  >
-                    Ver detalle →
-                  </Link>
                 </div>
-              );
-            })}
+
+                {/* Derivatives level */}
+                <div className="md:col-span-2">
+                  <label className="mb-1.5 block font-mono text-[11px] uppercase tracking-widest text-fg/50">
+                    Nivel de derivados permitidos
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { nivel: 0, label: "Sin derivados", desc: "Solo spot (compra/venta)" },
+                      { nivel: 1, label: "Básicos", desc: "Shorts + Puts" },
+                      { nivel: 2, label: "Avanzados", desc: "Calls & Puts (long/short)" },
+                    ].map(({ nivel, label, desc }) => (
+                      <button
+                        key={nivel}
+                        type="button"
+                        onClick={() => setDerivadosNivel(nivel as 0 | 1 | 2)}
+                        className={`flex flex-col items-start rounded-none border px-3 py-2.5 text-left transition-colors ${
+                          derivadosNivel === nivel
+                            ? "border-accent bg-accent/10"
+                            : "border-fg/15 hover:border-fg/30"
+                        }`}
+                      >
+                        <span className={`font-mono text-[11px] font-bold ${derivadosNivel === nivel ? "text-fg" : "text-fg/50"}`}>{label}</span>
+                        <span className="mt-0.5 font-mono text-[9px] text-fg/30">{desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-2 block font-mono text-[11px] uppercase tracking-widest text-fg/50">{t("maestro.groups.maxLeverage")}</label>
+                  <div className="flex gap-2">
+                    {[1, 2, 3, 5].map((lev) => (
+                      <button
+                        key={lev}
+                        type="button"
+                        onClick={() => setMaxApalancamiento(lev)}
+                        className={`flex-1 rounded-none border py-2 font-mono text-sm font-bold transition-colors ${
+                          maxApalancamiento === lev
+                            ? "border-accent bg-accent/10 text-fg"
+                            : "border-fg/15 text-fg/40 hover:border-fg/30 hover:text-fg/70"
+                        }`}
+                      >
+                        {lev}x
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="mb-3 block font-mono text-[11px] uppercase tracking-widest text-fg/50">{t("maestro.groups.markets")}</label>
+                  <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
+                    {ACTIVOS_DISPONIBLES.map((activo) => (
+                      <div key={activo.value}>
+                        <button
+                          type="button"
+                          onClick={() => alternarActivo(activo.value)}
+                          className={`w-full rounded-none border px-3 py-2.5 text-left text-sm transition-colors ${
+                            activosPermitidos.includes(activo.value)
+                              ? "border-accent bg-accent/10 text-fg"
+                              : "border-fg/15 bg-canvas text-fg/50 hover:border-fg/30"
+                          }`}
+                        >
+                          {t(activo.labelKey)}
+                        </button>
+                        <ActivosCategoria categoria={activo.value} />
+                        {activosPermitidos.includes(activo.value) && (
+                          <div className="mt-1 flex items-center gap-1.5 border border-t-0 border-accent/20 bg-accent/5 px-3 py-1.5">
+                            <span className="font-mono text-[10px] text-fg/40">{t("maestro.groups.unlocks")}</span>
+                            <input
+                              type="date"
+                              value={fechasActivacion[activo.value] ?? ""}
+                              onChange={(e) => setFechasActivacion((prev) => ({ ...prev, [activo.value]: e.target.value }))}
+                              className="flex-1 rounded-none border border-fg/20 bg-canvas px-1.5 py-0.5 font-mono text-[11px]"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {error && <p className="mt-4 text-sm text-perdida">{error}</p>}
+
+              <div className="mt-6 flex justify-end">
+                <button
+                  type="submit"
+                  disabled={guardando}
+                  className="rounded-none bg-accent px-6 py-2.5 font-mono text-sm font-bold uppercase tracking-wide text-black hover:opacity-90 disabled:opacity-50"
+                >
+                  {guardando ? t("maestro.groups.creating") : t("maestro.groups.create")}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {error && !mostrarForm && <ErrorState message={error} onRetry={cargarGrupos} />}
+
+        {cargando ? (
+          <div className="flex items-center gap-3 py-12 text-fg/40">
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-fg/20 border-t-fg/60" />
+            <span className="font-mono text-sm">{t("common.loading")}</span>
+          </div>
+        ) : grupos.length === 0 ? (
+          <div className="flex flex-col items-center justify-center rounded-none border border-dashed border-fg/20 py-20 text-center">
+            <p className="font-mono text-4xl font-bold text-fg/10">TRADEX</p>
+            <p className="mt-3 font-medium text-fg/50">{t("maestro.groups.noGroups")}</p>
+            <p className="mt-1 text-sm text-fg/30">{t("maestro.groups.emptyHint")}</p>
+            <button
+              onClick={() => setMostrarForm(true)}
+              className="mt-6 rounded-none bg-accent px-5 py-2.5 font-mono text-sm font-bold uppercase tracking-wide text-black hover:opacity-90"
+            >
+              + {t("maestro.groups.create")}
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-8">
+            {activos.length > 0 && <GrupoSeccion titulo={t("maestro.groups.active")} grupos={activos} />}
+            {proximos.length > 0 && <GrupoSeccion titulo={t("maestro.groups.upcoming")} grupos={proximos} />}
+            {finalizados.length > 0 && <GrupoSeccion titulo={t("maestro.groups.finished")} grupos={finalizados} />}
           </div>
         )}
       </div>
+      <Footer />
     </main>
+  );
+}
+
+function GrupoSeccion({ titulo, grupos }: { titulo: string; grupos: Grupo[] }) {
+  return (
+    <div>
+      <p className="mb-3 font-mono text-[11px] uppercase tracking-widest text-fg/40">{titulo}</p>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {grupos.map((g) => <GrupoCard key={g.id} grupo={g} />)}
+      </div>
+    </div>
+  );
+}
+
+function GrupoCard({ grupo: g }: { grupo: Grupo }) {
+  const { t } = useLanguage();
+  const estado = estadoGrupo(g.fecha_inicio, g.fecha_fin);
+  const restantes = diasRestantes(g.fecha_fin, t);
+
+  const estadoLabel =
+    estado === "activo"
+      ? t("maestro.groups.active")
+      : estado === "proximo"
+      ? t("maestro.groups.upcoming")
+      : t("maestro.groups.finished");
+
+  return (
+    <div className="group flex flex-col rounded-none border border-fg/10 bg-panel transition-all hover:border-fg/25 hover:shadow-md">
+      {/* Card header */}
+      <div className="border-b border-fg/8 px-5 py-4">
+        <div className="flex items-start justify-between gap-2">
+          <h2 className="font-bold leading-snug text-fg">{g.nombre}</h2>
+          <span className={`shrink-0 rounded-full border px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider ${ESTADO_CLASE[estado]}`}>
+            {estadoLabel}
+          </span>
+        </div>
+        {g.codigo && (
+          <p className="mt-2 font-mono text-xs text-fg/40">
+            {t("maestro.groups.code")}: <span className="font-bold tracking-widest text-accent">{g.codigo}</span>
+          </p>
+        )}
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 gap-px bg-fg/5 border-b border-fg/8">
+        <div className="bg-panel px-4 py-3">
+          <p className="font-mono text-[9px] uppercase tracking-widest text-fg/40">{t("maestro.groups.initialCapital")}</p>
+          <p className="mt-0.5 font-mono text-sm font-bold text-ganancia">
+            ${Number(g.capital_inicial).toLocaleString("es-MX")}
+          </p>
+        </div>
+        <div className="bg-panel px-4 py-3">
+          <p className="font-mono text-[9px] uppercase tracking-widest text-fg/40">{t("maestro.groups.students")}</p>
+          <p className="mt-0.5 font-mono text-sm font-bold text-fg">
+            {g.max_alumnos ? `${t("maestro.groups.maxStudents")} ${g.max_alumnos}` : t("maestro.groups.unlimited")}
+          </p>
+        </div>
+        <div className="bg-panel px-4 py-3">
+          <p className="font-mono text-[9px] uppercase tracking-widest text-fg/40">{t("maestro.groups.startDate")}</p>
+          <p className="mt-0.5 font-mono text-xs text-fg/70">
+            {new Date(g.fecha_inicio).toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" })}
+          </p>
+        </div>
+        <div className="bg-panel px-4 py-3">
+          <p className="font-mono text-[9px] uppercase tracking-widest text-fg/40">{t("maestro.groups.endDate")}</p>
+          <p className="mt-0.5 font-mono text-xs text-fg/70">
+            {new Date(g.fecha_fin).toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" })}
+          </p>
+        </div>
+      </div>
+
+      {/* Markets */}
+      <div className="px-5 py-3">
+        {g.activos_permitidos.length > 0 ? (
+          <div className="flex flex-wrap gap-1">
+            {g.activos_permitidos.map((tipo) => (
+              <span key={tipo} className="rounded-full border border-fg/10 bg-fg/5 px-2 py-0.5 font-mono text-[10px] text-fg/60">
+                {ACTIVOS_LABEL_KEY[tipo] ? t(ACTIVOS_LABEL_KEY[tipo]) : tipo}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <p className="font-mono text-[11px] text-fg/30">{t("maestro.groups.noMarkets")}</p>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="mt-auto border-t border-fg/8 px-5 py-3 flex items-center justify-between">
+        {restantes && estado === "activo" ? (
+          <span className="font-mono text-[10px] text-fg/40">{restantes}</span>
+        ) : <span />}
+        <Link
+          href={`/maestro/grupos/${g.id}`}
+          className="rounded-none bg-ink px-4 py-1.5 font-mono text-[11px] font-bold uppercase tracking-wide text-white opacity-80 transition-opacity hover:opacity-100 group-hover:opacity-100"
+        >
+          {t("maestro.groups.viewDetail")}
+        </Link>
+      </div>
+    </div>
   );
 }

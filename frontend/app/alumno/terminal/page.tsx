@@ -1,0 +1,603 @@
+"use client";
+
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import Navbar from "@/components/Navbar";
+import ProChart from "@/components/ProChart";
+import { api, ApiError } from "@/lib/api";
+import { obtenerSesion } from "@/lib/auth";
+import { conGrupo, getGrupoActivo, setGrupoActivo } from "@/lib/clase";
+import { useLanguage } from "@/lib/i18n";
+
+/**
+ * Terminal de operación estilo Bloomberg: una pantalla densa, oscura y
+ * monoespaciada, con watchlist, gráfica grande, ticket de orden con selector
+ * de apalancamiento (1x–5x) y panel de posiciones. Opera sobre la cartera
+ * normal del alumno (no el reto), reutilizando los endpoints /ordenes/*.
+ */
+
+interface Holding {
+  ticker: string;
+  cantidad: string;
+  precio_promedio: string;
+  precio_actual: string;
+  valor_mercado: string;
+  pnl: string;
+  pnl_porcentaje: string;
+  es_corto: boolean;
+  prestamo: string;
+  apalancamiento: string;
+}
+
+interface Portafolio {
+  grupo_id: string;
+  capital_disponible: string;
+  capital_inicial: string;
+  holdings: Holding[];
+  valor_total: string;
+  rendimiento: string;
+  rendimiento_porcentaje: string;
+  prestamo_total: string;
+}
+
+interface PrecioResponse {
+  ticker: string;
+  precio: string;
+}
+
+interface Destacado {
+  ticker: string;
+  nombre?: string;
+  precio: string;
+  cambio_porcentaje: number;
+  sparkline?: number[];
+}
+
+interface OrdenResponse {
+  id: string;
+  ticker: string;
+  tipo: "compra" | "venta";
+  cantidad: string;
+  precio_ejecucion: string;
+}
+
+interface PuntoValor {
+  fecha: string;
+  valor: number;
+}
+
+const NIVELES_APALANCAMIENTO = [1, 2, 3, 5];
+
+function limpiar(t: string) {
+  return t.replace("-USD", "").replace("=X", "").replace(".MX", "");
+}
+
+function money(v: string | number | null | undefined, dec = 2) {
+  const n = Number(v ?? 0);
+  return n.toLocaleString("es-MX", { minimumFractionDigits: dec, maximumFractionDigits: dec });
+}
+
+function Sparkline({ puntos }: { puntos: PuntoValor[] }) {
+  if (puntos.length < 2) return null;
+  const valores = puntos.map((p) => p.valor);
+  const min = Math.min(...valores);
+  const max = Math.max(...valores);
+  const rango = max - min || 1;
+  const W = 240;
+  const H = 40;
+  const subiendo = valores[valores.length - 1] >= valores[0];
+  const color = subiendo ? "#22c55e" : "#ef4444";
+  const pts = valores.map((v, i) => {
+    const x = (i / (valores.length - 1)) * W;
+    const y = H - ((v - min) / rango) * H;
+    return `${x.toFixed(2)},${y.toFixed(2)}`;
+  });
+  const linea = `M ${pts.join(" L ")}`;
+  const area = `${linea} L ${W},${H} L 0,${H} Z`;
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="h-10 w-full">
+      <path d={area} fill={color} fillOpacity={0.12} />
+      <path d={linea} fill="none" stroke={color} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
+}
+
+export default function TerminalPage() {
+  return (
+    <Suspense fallback={null}>
+      <TerminalInterna />
+    </Suspense>
+  );
+}
+
+function TerminalInterna() {
+  const { t } = useLanguage();
+  const params = useSearchParams();
+
+  const [grupoId, setGrupoId] = useState<string | null>(null);
+  const [capitalDisponible, setCapitalDisponible] = useState<string>("0");
+  const [valorTotal, setValorTotal] = useState<string>("0");
+  const [prestamoTotal, setPrestamoTotal] = useState<string>("0");
+  const [rendPct, setRendPct] = useState<string>("0");
+  const [holdings, setHoldings] = useState<Holding[]>([]);
+
+  const [ticker, setTicker] = useState<string>(params.get("t")?.toUpperCase() || "AAPL");
+  const [busqueda, setBusqueda] = useState<string>("");
+  const [precio, setPrecio] = useState<string | null>(null);
+  const [destacados, setDestacados] = useState<Destacado[]>([]);
+
+  const [cantidad, setCantidad] = useState<string>("");
+  const [apalancamiento, setApalancamiento] = useState<number>(1);
+  const [operando, setOperando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [mensaje, setMensaje] = useState<string | null>(null);
+
+  const [condAbierto, setCondAbierto] = useState(false);
+  const [precioTrigger, setPrecioTrigger] = useState<string>("");
+  const [historialValor, setHistorialValor] = useState<PuntoValor[]>([]);
+
+  const refrescarTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const recargarPortafolio = useCallback(async (gid?: string | null) => {
+    const sesion = obtenerSesion();
+    if (!sesion) return;
+    const p = await api
+      .get<Portafolio>(conGrupo(`/alumnos/${sesion.userId}/portafolio`, gid ?? grupoId))
+      .catch(() => null);
+    if (p) {
+      setGrupoId(p.grupo_id);
+      if (p.grupo_id) setGrupoActivo(p.grupo_id);
+      setCapitalDisponible(p.capital_disponible);
+      setValorTotal(p.valor_total);
+      setPrestamoTotal(p.prestamo_total);
+      setRendPct(p.rendimiento_porcentaje);
+      setHoldings(p.holdings || []);
+      if (p.grupo_id) {
+        const hv = await api
+          .get<PuntoValor[]>(`/alumnos/${sesion.userId}/historial-valor?grupo_id=${p.grupo_id}`)
+          .catch(() => null);
+        if (hv) setHistorialValor(hv);
+      }
+    }
+  }, [grupoId]);
+
+  // Carga inicial: portafolio + watchlist.
+  useEffect(() => {
+    recargarPortafolio(getGrupoActivo());
+    api.get<Destacado[]>("/precios/destacados").then(setDestacados).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Precio del ticker seleccionado, con refresco cada 15s.
+  const cargarPrecio = useCallback(async (tk: string) => {
+    try {
+      const r = await api.get<PrecioResponse>(`/precios/${encodeURIComponent(tk)}`);
+      setPrecio(r.precio);
+    } catch {
+      setPrecio(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!ticker) return;
+    cargarPrecio(ticker);
+    if (refrescarTimer.current) clearInterval(refrescarTimer.current);
+    refrescarTimer.current = setInterval(() => cargarPrecio(ticker), 15000);
+    return () => {
+      if (refrescarTimer.current) clearInterval(refrescarTimer.current);
+    };
+  }, [ticker, cargarPrecio]);
+
+  function seleccionar(tk: string) {
+    setTicker(tk.toUpperCase());
+    setError(null);
+    setMensaje(null);
+  }
+
+  function buscarSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const tk = busqueda.trim().toUpperCase();
+    if (tk) {
+      setTicker(tk);
+      setBusqueda("");
+    }
+  }
+
+  const poderCompra = Number(capitalDisponible || 0) * apalancamiento;
+  const precioNum = precio ? Number(precio) : null;
+  const maxAccionesMargen = precioNum ? Math.floor(poderCompra / precioNum) : 0;
+
+  async function ejecutar(endpoint: "compra" | "venta" | "short" | "cubrir") {
+    setError(null);
+    setMensaje(null);
+    const sesion = obtenerSesion();
+    if (!sesion) { setError(t("trade.errorSessionExpired")); return; }
+    if (!grupoId) { setError(t("trade.errorNoGroup")); return; }
+    const cantidadNum = Number(cantidad);
+    if (!cantidadNum || cantidadNum <= 0) { setError(t("trade.errorQuantity")); return; }
+
+    setOperando(true);
+    try {
+      const usaLev = endpoint === "compra" || endpoint === "short";
+      const orden = await api.post<OrdenResponse>(`/ordenes/${endpoint}`, {
+        grupo_id: grupoId,
+        ticker: ticker.trim().toUpperCase(),
+        cantidad: cantidadNum,
+        ...(usaLev ? { apalancamiento: String(apalancamiento) } : {}),
+      });
+      const etiqueta =
+        endpoint === "compra" ? t("terminal.exBuy")
+        : endpoint === "venta" ? t("terminal.exSell")
+        : endpoint === "short" ? t("terminal.exShort")
+        : t("terminal.exCover");
+      const lev = usaLev && apalancamiento > 1 ? ` · ${apalancamiento}x` : "";
+      setMensaje(`${etiqueta}: ${orden.cantidad} ${limpiar(orden.ticker)} @ $${money(orden.precio_ejecucion)}${lev}`);
+      setCantidad("");
+      await recargarPortafolio();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("trade.errorExecuteOrder"));
+    } finally {
+      setOperando(false);
+    }
+  }
+
+  async function cerrarPosicion(h: Holding) {
+    setError(null);
+    setMensaje(null);
+    const sesion = obtenerSesion();
+    if (!sesion || !grupoId) return;
+    const esCorto = h.es_corto;
+    const endpoint = esCorto ? "cubrir" : "venta";
+    setOperando(true);
+    try {
+      await api.post<OrdenResponse>(`/ordenes/${endpoint}`, {
+        grupo_id: grupoId,
+        ticker: h.ticker,
+        cantidad: h.cantidad,
+      });
+      setMensaje(`${t("terminal.closed")}: ${limpiar(h.ticker)}`);
+      await recargarPortafolio();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("trade.errorExecuteOrder"));
+    } finally {
+      setOperando(false);
+    }
+  }
+
+  async function crearCondicional(tipo: "stop_loss" | "take_profit") {
+    setError(null);
+    setMensaje(null);
+    const sesion = obtenerSesion();
+    if (!sesion) { setError(t("trade.errorSessionExpired")); return; }
+    if (!grupoId) { setError(t("trade.errorNoGroup")); return; }
+    const cantidadNum = Number(cantidad);
+    if (!cantidadNum || cantidadNum <= 0) { setError(t("trade.errorQuantity")); return; }
+    const triggerNum = Number(precioTrigger);
+    if (!triggerNum || triggerNum <= 0) { setError(t("trade.errorQuantity")); return; }
+
+    setOperando(true);
+    try {
+      await api.post("/ordenes-limite/condicional", {
+        grupo_id: grupoId,
+        ticker: ticker.trim().toUpperCase(),
+        cantidad: cantidadNum,
+        tipo_condicional: tipo,
+        precio_trigger: triggerNum,
+      });
+      const etiqueta = tipo === "stop_loss" ? t("terminal.stopLoss") : t("terminal.takeProfit");
+      setMensaje(`${t("terminal.condCreated")}: ${etiqueta} ${limpiar(ticker)} @ $${money(triggerNum)}`);
+      setPrecioTrigger("");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("trade.errorExecuteOrder"));
+    } finally {
+      setOperando(false);
+    }
+  }
+
+  const rendNum = Number(rendPct || 0);
+
+  const watchlist = useMemo(() => destacados.slice(0, 14), [destacados]);
+
+  return (
+    <div className="min-h-screen bg-[#0a0a0a] text-[#e8e8e8]">
+      <Navbar />
+
+      <div className="mx-auto max-w-[1400px] p-3">
+        {/* Encabezado de cuenta */}
+        <div className="mb-3 grid grid-cols-2 gap-px overflow-hidden border border-[#3a3a3a] bg-[#3a3a3a] sm:grid-cols-4">
+          {[
+            { l: t("terminal.equity"), v: `$${money(valorTotal)}`, c: "text-[#e8e8e8]" },
+            { l: t("terminal.cash"), v: `$${money(capitalDisponible)}`, c: "text-[#e8e8e8]" },
+            { l: t("terminal.marginUsed"), v: `$${money(prestamoTotal)}`, c: Number(prestamoTotal) > 0 ? "text-[#ff9e1b]" : "text-[#a0a0a0]" },
+            { l: t("terminal.return"), v: `${rendNum >= 0 ? "+" : ""}${rendNum.toFixed(2)}%`, c: rendNum >= 0 ? "text-[#26d07c]" : "text-[#ff4d4d]" },
+          ].map((s) => (
+            <div key={s.l} className="bg-[#111] px-3 py-2">
+              <p className="font-mono text-[9px] uppercase tracking-widest text-[#a0a0a0]">{s.l}</p>
+              <p className={`font-mono text-lg font-bold tabular-nums ${s.c}`}>{s.v}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Curva de patrimonio */}
+        {historialValor.length >= 2 && (
+          <div className="mb-3 border border-[#3a3a3a] bg-[#111] px-3 py-2">
+            <p className="font-mono text-[9px] uppercase tracking-widest text-[#a0a0a0]">{t("terminal.equityCurve")}</p>
+            <Sparkline puntos={historialValor} />
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-[200px_1fr_280px]">
+          {/* Watchlist */}
+          <div className="border border-[#3a3a3a] bg-[#111]">
+            <p className="border-b border-[#3a3a3a] px-3 py-2 font-mono text-[10px] uppercase tracking-widest text-[#ff9e1b]">
+              {t("terminal.watchlist")}
+            </p>
+            <ul className="max-h-[520px] overflow-y-auto">
+              {watchlist.map((d) => {
+                const activo = d.ticker.toUpperCase() === ticker.toUpperCase();
+                return (
+                  <li key={d.ticker}>
+                    <button
+                      onClick={() => seleccionar(d.ticker)}
+                      className={`flex w-full items-center justify-between px-3 py-2 text-left font-mono text-[11px] transition-colors ${
+                        activo ? "bg-[#1c1c1c]" : "hover:bg-[#161616]"
+                      }`}
+                    >
+                      <span className="font-bold text-[#dcdcdc]">{limpiar(d.ticker)}</span>
+                      <span className="flex flex-col items-end">
+                        <span className="tabular-nums text-[#d4d4d4]">{money(d.precio)}</span>
+                        <span className={`tabular-nums ${d.cambio_porcentaje >= 0 ? "text-[#26d07c]" : "text-[#ff4d4d]"}`}>
+                          {d.cambio_porcentaje >= 0 ? "+" : ""}{d.cambio_porcentaje.toFixed(2)}%
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+              {watchlist.length === 0 && (
+                <li className="px-3 py-4 font-mono text-[10px] text-[#8c8c8c]">{t("terminal.loading")}</li>
+              )}
+            </ul>
+          </div>
+
+          {/* Centro: búsqueda + gráfica */}
+          <div className="space-y-3">
+            <form onSubmit={buscarSubmit} className="flex items-center border border-[#3a3a3a] bg-[#111]">
+              <span className="px-3 font-mono text-sm font-bold text-[#ff9e1b]">{limpiar(ticker)}</span>
+              <span className="ml-auto px-3 font-mono text-lg font-bold tabular-nums text-[#e8e8e8]">
+                {precio ? `$${money(precio)}` : "—"}
+              </span>
+              <input
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                placeholder={t("terminal.symbol")}
+                className="w-28 border-l border-[#3a3a3a] bg-transparent px-3 py-2 font-mono text-[12px] uppercase tracking-wide text-[#e8e8e8] outline-none placeholder:text-[#8c8c8c]"
+              />
+              <button type="submit" className="bg-[#ff9e1b] px-3 py-2 font-mono text-[10px] font-bold uppercase text-black">
+                {t("nav.go")}
+              </button>
+            </form>
+
+            <div className="border border-[#3a3a3a] bg-[#111] p-2">
+              {/* ProChart se encarga de cargar el historial y dibujar la gráfica */}
+              <ProChart
+                ticker={ticker}
+                precio={precio}
+                destacados={destacados}
+                onSeleccionarTicker={seleccionar}
+                dark
+              />
+            </div>
+          </div>
+
+          {/* Ticket de orden */}
+          <div className="space-y-3">
+            <div className="border border-[#3a3a3a] bg-[#111]">
+              <p className="border-b border-[#3a3a3a] px-3 py-2 font-mono text-[10px] uppercase tracking-widest text-[#ff9e1b]">
+                {t("terminal.orderTicket")}
+              </p>
+              <div className="space-y-3 p-3">
+                {/* Cantidad */}
+                <div>
+                  <label className="font-mono text-[9px] uppercase tracking-widest text-[#a0a0a0]">{t("terminal.quantity")}</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    value={cantidad}
+                    onChange={(e) => setCantidad(e.target.value)}
+                    placeholder="0"
+                    className="mt-1 w-full border border-[#4a4a4a] bg-[#0a0a0a] px-3 py-2 font-mono text-sm tabular-nums text-[#e8e8e8] outline-none focus:border-[#ff9e1b]"
+                  />
+                  <div className="mt-1 flex gap-1">
+                    {[0.25, 0.5, 1].map((f) => (
+                      <button
+                        key={f}
+                        type="button"
+                        onClick={() => maxAccionesMargen > 0 && setCantidad(String(Math.floor(maxAccionesMargen * f)))}
+                        className="flex-1 border border-[#4a4a4a] py-1 font-mono text-[10px] text-[#b0b0b0] hover:border-[#ff9e1b] hover:text-[#ff9e1b]"
+                      >
+                        {f === 1 ? t("terminal.max") : `${f * 100}%`}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Apalancamiento */}
+                <div>
+                  <label className="font-mono text-[9px] uppercase tracking-widest text-[#a0a0a0]">
+                    {t("terminal.leverage")}
+                  </label>
+                  <div className="mt-1 flex gap-1">
+                    {NIVELES_APALANCAMIENTO.map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => setApalancamiento(n)}
+                        className={`flex-1 border py-2 font-mono text-[12px] font-bold transition-colors ${
+                          apalancamiento === n
+                            ? "border-[#ff9e1b] bg-[#ff9e1b] text-black"
+                            : "border-[#4a4a4a] text-[#b0b0b0] hover:border-[#ff9e1b]"
+                        }`}
+                      >
+                        {n}x
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-1 font-mono text-[9px] text-[#a0a0a0]">
+                    {t("terminal.buyingPower")}: <span className="text-[#26d07c]">${money(poderCompra)}</span>
+                    {precioNum ? ` · ${t("terminal.maxShares")} ${maxAccionesMargen}` : ""}
+                  </p>
+                  {apalancamiento > 1 && (
+                    <p className="mt-1 font-mono text-[9px] text-[#ff9e1b]">{t("terminal.leverageWarn")}</p>
+                  )}
+                </div>
+
+                {/* Botones de ejecución */}
+                <div className="grid grid-cols-2 gap-1">
+                  <button
+                    disabled={operando}
+                    onClick={() => ejecutar("compra")}
+                    className="bg-[#1f7a4d] py-2.5 font-mono text-[11px] font-bold uppercase tracking-wide text-white hover:bg-[#26d07c] hover:text-black disabled:opacity-40"
+                  >
+                    {t("terminal.buy")}
+                  </button>
+                  <button
+                    disabled={operando}
+                    onClick={() => ejecutar("venta")}
+                    className="bg-[#8a2a2a] py-2.5 font-mono text-[11px] font-bold uppercase tracking-wide text-white hover:bg-[#ff4d4d] hover:text-black disabled:opacity-40"
+                  >
+                    {t("terminal.sell")}
+                  </button>
+                  <button
+                    disabled={operando}
+                    onClick={() => ejecutar("short")}
+                    className="border border-[#8a2a2a] py-2.5 font-mono text-[11px] font-bold uppercase tracking-wide text-[#ff7a7a] hover:bg-[#8a2a2a] hover:text-white disabled:opacity-40"
+                  >
+                    {t("terminal.short")}
+                  </button>
+                  <button
+                    disabled={operando}
+                    onClick={() => ejecutar("cubrir")}
+                    className="border border-[#1f7a4d] py-2.5 font-mono text-[11px] font-bold uppercase tracking-wide text-[#7ee0ad] hover:bg-[#1f7a4d] hover:text-white disabled:opacity-40"
+                  >
+                    {t("terminal.cover")}
+                  </button>
+                </div>
+
+                {/* Órdenes condicionales */}
+                <div className="border-t border-[#2e2e2e] pt-3">
+                  <button
+                    type="button"
+                    onClick={() => setCondAbierto((v) => !v)}
+                    className="flex w-full items-center justify-between font-mono text-[9px] uppercase tracking-widest text-[#a0a0a0] hover:text-[#ff9e1b]"
+                  >
+                    <span>{t("terminal.conditional")}</span>
+                    <span className="text-[#ff9e1b]">{condAbierto ? "−" : "+"}</span>
+                  </button>
+                  {condAbierto && (
+                    <div className="mt-2 space-y-2">
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={precioTrigger}
+                        onChange={(e) => setPrecioTrigger(e.target.value)}
+                        placeholder={t("terminal.triggerPrice")}
+                        className="w-full border border-[#4a4a4a] bg-[#0a0a0a] px-3 py-2 font-mono text-sm tabular-nums text-[#e8e8e8] outline-none focus:border-[#ff9e1b] placeholder:text-[#8c8c8c]"
+                      />
+                      <div className="grid grid-cols-2 gap-1">
+                        <button
+                          type="button"
+                          disabled={operando}
+                          onClick={() => crearCondicional("stop_loss")}
+                          className="border border-[#8a2a2a] py-2 font-mono text-[11px] font-bold uppercase tracking-wide text-[#ff7a7a] hover:bg-[#8a2a2a] hover:text-white disabled:opacity-40"
+                        >
+                          {t("terminal.stopLoss")}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={operando}
+                          onClick={() => crearCondicional("take_profit")}
+                          className="border border-[#1f7a4d] py-2 font-mono text-[11px] font-bold uppercase tracking-wide text-[#7ee0ad] hover:bg-[#1f7a4d] hover:text-white disabled:opacity-40"
+                        >
+                          {t("terminal.takeProfit")}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {error && <p className="font-mono text-[10px] text-[#ff4d4d]">{error}</p>}
+                {mensaje && <p className="font-mono text-[10px] text-[#26d07c]">{mensaje}</p>}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Posiciones */}
+        <div className="mt-3 border border-[#3a3a3a] bg-[#111]">
+          <p className="border-b border-[#3a3a3a] px-3 py-2 font-mono text-[10px] uppercase tracking-widest text-[#ff9e1b]">
+            {t("terminal.positions")}
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[540px] font-mono text-[11px]">
+              <thead className="text-[#a0a0a0]">
+                <tr className="border-b border-[#3a3a3a]">
+                  <th className="px-3 py-2 text-left">{t("terminal.symbol")}</th>
+                  <th className="px-3 py-2 text-right">{t("terminal.quantity")}</th>
+                  <th className="px-3 py-2 text-right">{t("terminal.avg")}</th>
+                  <th className="px-3 py-2 text-right">{t("terminal.last")}</th>
+                  <th className="px-3 py-2 text-right">{t("terminal.lev")}</th>
+                  <th className="px-3 py-2 text-right">{t("terminal.value")}</th>
+                  <th className="px-3 py-2 text-right">P&amp;L</th>
+                  <th className="px-3 py-2 text-right"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {holdings.map((h) => {
+                  const pnl = Number(h.pnl);
+                  const lev = Number(h.apalancamiento || 1);
+                  return (
+                    <tr key={`${h.ticker}-${h.es_corto}`} className="border-b border-[#2e2e2e] hover:bg-[#161616]">
+                      <td className="whitespace-nowrap px-3 py-2 font-bold text-[#dcdcdc]">
+                        {limpiar(h.ticker)}
+                        {h.es_corto && <span className="ml-2 bg-[#8a2a2a] px-1 text-[9px] text-white">{t("terminal.short")}</span>}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums text-[#d4d4d4]">{money(h.cantidad, 0)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-[#d4d4d4]">{money(h.precio_promedio)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-[#d4d4d4]">{money(h.precio_actual)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">
+                        <span className={lev > 1 ? "text-[#ff9e1b]" : "text-[#8c8c8c]"}>{lev.toFixed(lev % 1 ? 1 : 0)}x</span>
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums text-[#d4d4d4]">${money(h.valor_mercado)}</td>
+                      <td className={`px-3 py-2 text-right tabular-nums ${pnl >= 0 ? "text-[#26d07c]" : "text-[#ff4d4d]"}`}>
+                        {pnl >= 0 ? "+" : ""}{money(h.pnl)} ({Number(h.pnl_porcentaje).toFixed(1)}%)
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        <button
+                          disabled={operando}
+                          onClick={() => cerrarPosicion(h)}
+                          className="whitespace-nowrap border border-[#4a4a4a] px-2 py-1 text-[10px] text-[#b0b0b0] hover:border-[#ff9e1b] hover:text-[#ff9e1b] disabled:opacity-40"
+                        >
+                          {t("terminal.close")}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {holdings.length === 0 && (
+                  <tr>
+                    <td colSpan={8} className="px-3 py-6 text-center text-[10px] text-[#8c8c8c]">
+                      {t("terminal.noPositions")}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

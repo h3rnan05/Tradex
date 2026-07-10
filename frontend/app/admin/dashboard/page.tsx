@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 import { api } from "@/lib/api";
+import { useLanguage } from "@/lib/i18n";
 
 interface Stats {
   total_usuarios: number;
@@ -25,6 +27,7 @@ interface Grupo {
 }
 
 export default function AdminDashboard() {
+  const { t } = useLanguage();
   const [stats, setStats] = useState<Stats | null>(null);
   const [grupos, setGrupos] = useState<Grupo[]>([]);
   const [sponsors, setSponsors] = useState<{id: string, nombre: string}[]>([]);
@@ -44,18 +47,18 @@ export default function AdminDashboard() {
     <main className="min-h-screen bg-canvas">
       <Navbar />
       <div className="mx-auto max-w-7xl p-4 md:p-6">
-        <h1 className="mb-6 text-2xl font-bold text-fg">Panel de Administración</h1>
+        <h1 className="mb-6 text-2xl font-bold text-fg">{t("admin.dashboard.title")}</h1>
 
         {/* Stats */}
         {stats && (
           <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
             {[
-              { label: "Usuarios", value: stats.total_usuarios },
-              { label: "Maestros", value: stats.total_maestros },
-              { label: "Alumnos", value: stats.total_alumnos },
-              { label: "Grupos", value: stats.total_grupos },
-              { label: "Operaciones", value: stats.total_operaciones },
-              { label: "Participaciones", value: stats.total_participaciones },
+              { label: t("admin.dashboard.users"), value: stats.total_usuarios },
+              { label: t("admin.dashboard.teachers"), value: stats.total_maestros },
+              { label: t("admin.dashboard.students"), value: stats.total_alumnos },
+              { label: t("admin.dashboard.groups"), value: stats.total_grupos },
+              { label: t("admin.dashboard.trades"), value: stats.total_operaciones },
+              { label: t("admin.dashboard.enrollments"), value: stats.total_participaciones },
             ].map((s) => (
               <div key={s.label} className="border border-fg/10 bg-panel p-4 text-center">
                 <div className="font-mono text-2xl font-bold text-accent">{s.value.toLocaleString()}</div>
@@ -66,12 +69,12 @@ export default function AdminDashboard() {
         )}
 
         {/* Groups table */}
-        <h2 className="mb-3 font-mono text-[11px] uppercase tracking-widest text-fg/40">Todos los grupos</h2>
+        <h2 className="mb-3 font-mono text-[11px] uppercase tracking-widest text-fg/40">{t("admin.dashboard.allGroups")}</h2>
         <div className="overflow-x-auto">
           <table className="w-full border border-fg/10 bg-panel text-sm">
             <thead className="bg-fg/5">
               <tr>
-                {["Grupo", "Maestro", "Capital", "Alumnos", "Inicio", "Cierre", "Patrocinador"].map((h) => (
+                {[t("admin.dashboard.group"), t("admin.teachers.title"), t("admin.dashboard.capital"), t("admin.dashboard.students"), t("class.startDate"), t("class.endDate"), t("admin.dashboard.sponsor")].map((h) => (
                   <th key={h} className="px-4 py-3 text-left font-mono text-[10px] uppercase tracking-wider text-fg/40">{h}</th>
                 ))}
               </tr>
@@ -91,7 +94,7 @@ export default function AdminDashboard() {
                       onChange={(e) => asignarSponsor(g.id, e.target.value)}
                       className="bg-panel font-mono text-xs text-fg/70 border border-fg/20 px-2 py-1"
                     >
-                      <option value="">— Sin patrocinador —</option>
+                      <option value="">{t("admin.dashboard.noSponsor")}</option>
                       {sponsors.map((s) => (
                         <option key={s.id} value={s.id}>{s.nombre}</option>
                       ))}
@@ -100,12 +103,13 @@ export default function AdminDashboard() {
                 </tr>
               ))}
               {grupos.length === 0 && (
-                <tr><td colSpan={7} className="px-4 py-6 text-center font-mono text-sm text-fg/30">Sin grupos registrados</td></tr>
+                <tr><td colSpan={7} className="px-4 py-6 text-center font-mono text-sm text-fg/30">{t("admin.dashboard.noGroups")}</td></tr>
               )}
             </tbody>
           </table>
         </div>
       </div>
+      <Footer />
     </main>
   );
 }

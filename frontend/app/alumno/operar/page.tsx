@@ -3,12 +3,17 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 import ProChart from "@/components/ProChart";
 import BarraIndices from "@/components/BarraIndices";
 import Tooltip from "@/components/Tooltip";
 import { Badge, Card } from "@/components/primitives";
 import { api, ApiError } from "@/lib/api";
 import { obtenerSesion } from "@/lib/auth";
+import { getGrupoActivo, setGrupoActivo, conGrupo } from "@/lib/clase";
+import { useRetoActivo } from "@/lib/retoContext";
+import RetoActivo from "@/components/RetoActivo";
+import { useLanguage } from "@/lib/i18n";
 
 interface PrecioResponse {
   ticker: string;
@@ -31,10 +36,97 @@ interface HistorialResponse {
 
 interface Destacado {
   ticker: string;
+  nombre?: string;
   precio: string;
   cambio_porcentaje: number;
   sparkline?: number[];
 }
+
+const CATEGORIAS_EXPLORADOR: { key: string; label: string }[] = [
+  { key: "acciones", label: "Acciones" },
+  { key: "indices", label: "ETFs/Índices" },
+  { key: "commodities", label: "Commodities" },
+  { key: "crypto", label: "Cripto" },
+  { key: "forex", label: "Divisas" },
+  { key: "bolsa_mx", label: "Bolsa MX" },
+];
+
+const CAT_LABEL: Record<string, string> = {
+  acciones: "Acción",
+  indices: "ETF/Índice",
+  commodities: "Commodity",
+  crypto: "Cripto",
+  forex: "Divisa",
+  bolsa_mx: "Bolsa MX",
+};
+
+// Sugerencias para el autocompletado del buscador (ticker + nombre + categoría)
+const SUGERENCIAS: { ticker: string; nombre: string; cat: string }[] = [
+  // Acciones
+  { ticker: "AAPL", nombre: "Apple", cat: "acciones" },
+  { ticker: "MSFT", nombre: "Microsoft", cat: "acciones" },
+  { ticker: "GOOGL", nombre: "Alphabet (Google)", cat: "acciones" },
+  { ticker: "AMZN", nombre: "Amazon", cat: "acciones" },
+  { ticker: "NVDA", nombre: "NVIDIA", cat: "acciones" },
+  { ticker: "TSLA", nombre: "Tesla", cat: "acciones" },
+  { ticker: "META", nombre: "Meta (Facebook)", cat: "acciones" },
+  { ticker: "NFLX", nombre: "Netflix", cat: "acciones" },
+  { ticker: "JPM", nombre: "JPMorgan", cat: "acciones" },
+  { ticker: "DIS", nombre: "Disney", cat: "acciones" },
+  { ticker: "KO", nombre: "Coca-Cola", cat: "acciones" },
+  { ticker: "NKE", nombre: "Nike", cat: "acciones" },
+  { ticker: "AMD", nombre: "AMD", cat: "acciones" },
+  { ticker: "INTC", nombre: "Intel", cat: "acciones" },
+  { ticker: "BA", nombre: "Boeing", cat: "acciones" },
+  { ticker: "PYPL", nombre: "PayPal", cat: "acciones" },
+  // ETFs / Índices
+  { ticker: "SPY", nombre: "S&P 500 ETF", cat: "indices" },
+  { ticker: "QQQ", nombre: "Nasdaq 100 ETF", cat: "indices" },
+  { ticker: "DIA", nombre: "Dow Jones ETF", cat: "indices" },
+  { ticker: "IWM", nombre: "Russell 2000 ETF", cat: "indices" },
+  { ticker: "VOO", nombre: "Vanguard S&P 500", cat: "indices" },
+  { ticker: "VTI", nombre: "Vanguard Total Market", cat: "indices" },
+  { ticker: "EFA", nombre: "Mercados Desarrollados", cat: "indices" },
+  { ticker: "EEM", nombre: "Mercados Emergentes", cat: "indices" },
+  // Commodities
+  { ticker: "GLD", nombre: "Oro", cat: "commodities" },
+  { ticker: "SLV", nombre: "Plata", cat: "commodities" },
+  { ticker: "USO", nombre: "Petróleo", cat: "commodities" },
+  { ticker: "UNG", nombre: "Gas Natural", cat: "commodities" },
+  { ticker: "DBA", nombre: "Agricultura", cat: "commodities" },
+  { ticker: "DBC", nombre: "Commodities Mix", cat: "commodities" },
+  { ticker: "PPLT", nombre: "Platino", cat: "commodities" },
+  { ticker: "PALL", nombre: "Paladio", cat: "commodities" },
+  // Cripto
+  { ticker: "BTC-USD", nombre: "Bitcoin", cat: "crypto" },
+  { ticker: "ETH-USD", nombre: "Ethereum", cat: "crypto" },
+  { ticker: "SOL-USD", nombre: "Solana", cat: "crypto" },
+  { ticker: "XRP-USD", nombre: "XRP", cat: "crypto" },
+  { ticker: "DOGE-USD", nombre: "Dogecoin", cat: "crypto" },
+  { ticker: "ADA-USD", nombre: "Cardano", cat: "crypto" },
+  { ticker: "AVAX-USD", nombre: "Avalanche", cat: "crypto" },
+  { ticker: "LINK-USD", nombre: "Chainlink", cat: "crypto" },
+  // Forex
+  { ticker: "EURUSD=X", nombre: "Euro / Dólar", cat: "forex" },
+  { ticker: "GBPUSD=X", nombre: "Libra / Dólar", cat: "forex" },
+  { ticker: "USDJPY=X", nombre: "Dólar / Yen", cat: "forex" },
+  { ticker: "USDMXN=X", nombre: "Dólar / Peso MX", cat: "forex" },
+  { ticker: "USDCAD=X", nombre: "Dólar / Dólar CA", cat: "forex" },
+  { ticker: "AUDUSD=X", nombre: "Dólar AU / Dólar", cat: "forex" },
+  { ticker: "USDCHF=X", nombre: "Dólar / Franco CH", cat: "forex" },
+  { ticker: "NZDUSD=X", nombre: "Dólar NZ / Dólar", cat: "forex" },
+  // Bolsa Mexicana de Valores
+  { ticker: "AMXL.MX", nombre: "América Móvil", cat: "bolsa_mx" },
+  { ticker: "FEMSAUBD.MX", nombre: "FEMSA", cat: "bolsa_mx" },
+  { ticker: "WALMEX.MX", nombre: "Walmart México", cat: "bolsa_mx" },
+  { ticker: "GMEXICOB.MX", nombre: "Grupo México", cat: "bolsa_mx" },
+  { ticker: "GFNORTEO.MX", nombre: "Banorte", cat: "bolsa_mx" },
+  { ticker: "BIMBOA.MX", nombre: "Bimbo", cat: "bolsa_mx" },
+  { ticker: "CEMEXCPO.MX", nombre: "CEMEX", cat: "bolsa_mx" },
+  { ticker: "ALSEA.MX", nombre: "Alsea", cat: "bolsa_mx" },
+  { ticker: "GRUMAB.MX", nombre: "Gruma", cat: "bolsa_mx" },
+  { ticker: "LABB.MX", nombre: "Genomma Lab", cat: "bolsa_mx" },
+];
 
 interface Noticia {
   titulo: string;
@@ -52,6 +144,26 @@ interface NoticiasResponse {
 interface NoticiasGeneralesResponse {
   noticias: Noticia[];
 }
+
+interface NoticiasTicker {
+  ticker: string;
+  noticias: Noticia[];
+}
+
+interface Sector {
+  sector: string;
+  cambio_porcentaje: number | null;
+}
+
+interface Earning {
+  fecha: string;
+  ticker: string;
+  empresa: string;
+  momento: string | null;
+  eps_estimado: number | null;
+}
+
+const MAX_TICKERS_DIARIO = 5;
 
 interface ActivoProximo {
   tipo_activo: string;
@@ -160,12 +272,15 @@ export default function OperarPage() {
 }
 
 function OperarPageInterna() {
+  const { t, lang } = useLanguage();
+  const { reto: retoActivo } = useRetoActivo();
   const searchParams = useSearchParams();
   const [ticker, setTicker] = useState("");
   const [precio, setPrecio] = useState<string | null>(null);
   const [historial, setHistorial] = useState<PuntoHistorial[]>([]);
   const [noticias, setNoticias] = useState<Noticia[]>([]);
   const [noticiasGenerales, setNoticiasGenerales] = useState<Noticia[]>([]);
+  const [noticiasPorTicker, setNoticiasPorTicker] = useState<NoticiasTicker[]>([]);
   const [destacados, setDestacados] = useState<Destacado[]>([]);
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [ficha, setFicha] = useState<FichaEmpresa | null>(null);
@@ -182,33 +297,118 @@ function OperarPageInterna() {
   const [error, setError] = useState<string | null>(null);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [activosProximos, setActivosProximos] = useState<ActivoProximo[]>([]);
+  const [activosDisponibles, setActivosDisponibles] = useState<string[]>([]);
+  const [catActiva, setCatActiva] = useState<string>("");
+  const [explorador, setExplorador] = useState<Record<string, Destacado[]>>({});
+  const [cargandoCat, setCargandoCat] = useState(false);
+  const [sugerenciasAbiertas, setSugerenciasAbiertas] = useState(false);
+  const [grupoId, setGrupoId] = useState<string | null>(null);
+  const [sectores, setSectores] = useState<Sector[]>([]);
+  const [earnings, setEarnings] = useState<Earning[]>([]);
 
   useEffect(() => {
-    api
-      .get<Destacado[]>("/precios/destacados")
-      .then(setDestacados)
-      .catch(() => {});
-
-    api
-      .get<NoticiasGeneralesResponse>("/precios/noticias-generales")
-      .then((r) => setNoticiasGenerales(r.noticias))
-      .catch(() => {});
-
-    api.get<OrdenPendiente[]>("/ordenes-limite").then(setOrdenesPendientes).catch(() => {});
-    api.get<Alerta[]>("/ordenes-limite/alertas").then(setAlertas).catch(() => {});
-
     const sesion = obtenerSesion();
-    if (sesion) {
-      api
-        .get<Portafolio>(`/alumnos/${sesion.userId}/portafolio`)
-        .then((p) => {
-          setActivosProximos(p.activos_proximos || []);
-          setHoldings(p.holdings || []);
-          setCapitalDisponible(p.capital_disponible);
-        })
-        .catch(() => {});
-    }
+
+    // Lanzar todas las cargas iniciales en paralelo
+    Promise.all([
+      api.get<Destacado[]>("/precios/destacados").catch(() => [] as Destacado[]),
+      api.get<NoticiasGeneralesResponse>("/precios/noticias-generales").catch(() => ({ noticias: [] })),
+      api.get<Sector[]>("/precios/sectores").catch(() => [] as Sector[]),
+      api.get<Earning[]>("/precios/earnings-calendar").catch(() => [] as Earning[]),
+      api.get<OrdenPendiente[]>("/ordenes-limite").catch(() => [] as OrdenPendiente[]),
+      api.get<Alerta[]>("/ordenes-limite/alertas").catch(() => [] as Alerta[]),
+      sesion
+        ? api.get<Portafolio>(conGrupo(`/alumnos/${sesion.userId}/portafolio`, getGrupoActivo())).catch(() => null)
+        : Promise.resolve(null),
+    ]).then(([dest, notiGen, sect, earn, ordenes, alertasData, portafolio]) => {
+      setDestacados(dest);
+      setNoticiasGenerales(notiGen.noticias);
+      setSectores(sect);
+      setEarnings(earn);
+      setOrdenesPendientes(ordenes);
+      setAlertas(alertasData);
+      if (portafolio) {
+        setActivosProximos(portafolio.activos_proximos || []);
+        setActivosDisponibles(portafolio.activos_disponibles || []);
+        setHoldings(portafolio.holdings || []);
+        setCapitalDisponible(portafolio.capital_disponible);
+        setGrupoId(portafolio.grupo_id);
+        if (portafolio.grupo_id) setGrupoActivo(portafolio.grupo_id);
+
+        // Noticias de las posiciones del alumno (para el Tradex Times)
+        const tickersCartera = Array.from(
+          new Set((portafolio.holdings || []).map((h) => h.ticker))
+        ).slice(0, MAX_TICKERS_DIARIO);
+        if (tickersCartera.length > 0) {
+          Promise.all(
+            tickersCartera.map((tk) =>
+              api
+                .get<NoticiasResponse>(`/precios/${tk}/noticias`)
+                .catch(() => ({ ticker: tk, noticias: [] as Noticia[] }))
+            )
+          ).then((res) =>
+            setNoticiasPorTicker(res.filter((n) => n.noticias.length > 0))
+          );
+        }
+      }
+    });
   }, []);
+
+  // Categorías que el alumno puede operar, en el orden del explorador
+  const CAT_LABELS_I18N: Record<string, string> = {
+    acciones: t("trade.catAcciones"),
+    indices: t("trade.catIndices"),
+    commodities: t("trade.catCommodities"),
+    crypto: t("trade.catCrypto"),
+    forex: t("trade.catForex"),
+    bolsa_mx: t("trade.catBolsaMx"),
+  };
+  const CAT_TAG_I18N: Record<string, string> = {
+    acciones: t("trade.tagAcciones"),
+    indices: t("trade.tagIndices"),
+    commodities: t("trade.tagCommodities"),
+    crypto: t("trade.tagCrypto"),
+    forex: t("trade.tagForex"),
+    bolsa_mx: t("trade.tagBolsaMx"),
+  };
+
+  const categoriasVisibles = CATEGORIAS_EXPLORADOR.filter((c) =>
+    activosDisponibles.includes(c.key)
+  );
+
+  // Sugerencias del buscador: solo categorías permitidas, filtradas por lo escrito
+  const q = ticker.trim().toLowerCase();
+  const sugerenciasFiltradas = SUGERENCIAS.filter((s) => {
+    if (activosDisponibles.length > 0 && !activosDisponibles.includes(s.cat)) return false;
+    if (!q) return true;
+    return (
+      s.ticker.toLowerCase().includes(q) ||
+      s.nombre.toLowerCase().includes(q)
+    );
+  }).slice(0, 8);
+
+  async function cargarCategoria(cat: string) {
+    if (explorador[cat]) return; // ya cargada
+    setCargandoCat(true);
+    try {
+      const data = await api.get<Destacado[]>(`/precios/explorador/${cat}`);
+      setExplorador((prev) => ({ ...prev, [cat]: data }));
+    } catch {
+      setExplorador((prev) => ({ ...prev, [cat]: [] }));
+    } finally {
+      setCargandoCat(false);
+    }
+  }
+
+  // Al conocer las categorías permitidas, selecciona la primera y cárgala
+  useEffect(() => {
+    if (categoriasVisibles.length > 0 && !catActiva) {
+      const primera = categoriasVisibles[0].key;
+      setCatActiva(primera);
+      cargarCategoria(primera);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activosDisponibles]);
 
   useEffect(() => {
     const tickerUrl = searchParams.get("t");
@@ -238,7 +438,7 @@ function OperarPageInterna() {
       // Load company stats in background (non-blocking)
       api.get<FichaEmpresa>(`/precios/${tickerNormalizado}/ficha`).then(setFicha).catch(() => {});
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "No se pudo obtener el precio");
+      setError(err instanceof ApiError ? err.message : t("trade.errorPrice"));
     } finally {
       setBuscando(false);
     }
@@ -253,25 +453,25 @@ function OperarPageInterna() {
     setError(null);
     setMensaje(null);
     const sesion = obtenerSesion();
-    if (!sesion) { setError("Tu sesión expiró"); return; }
-    if (!Number(cantidad) || Number(cantidad) <= 0) { setError("Ingresa una cantidad válida"); return; }
-    if (!Number(precioLimite) || Number(precioLimite) <= 0) { setError("Ingresa un precio límite válido"); return; }
+    if (!sesion) { setError(t("trade.errorSession")); return; }
+    if (!grupoId) { setError(t("trade.errorNoGroup")); return; }
+    if (!Number(cantidad) || Number(cantidad) <= 0) { setError(t("trade.errorQuantity")); return; }
+    if (!Number(precioLimite) || Number(precioLimite) <= 0) { setError(t("trade.errorLimitPrice")); return; }
     setOperando(true);
     try {
-      const portafolio = await api.get<Portafolio>(`/alumnos/${sesion.userId}/portafolio`);
       await api.post("/ordenes-limite", {
-        grupo_id: portafolio.grupo_id,
+        grupo_id: grupoId,
         ticker: ticker.trim().toUpperCase(),
         tipo,
         cantidad,
         precio_limite: precioLimite,
       });
-      setMensaje(`Orden límite de ${tipo} creada: ${cantidad} ${ticker} @ $${Number(precioLimite).toFixed(2)}`);
+      setMensaje(`${t(tipo === "compra" ? "trade.limitBuyCreated" : "trade.limitSellCreated")}: ${cantidad} ${ticker} @ $${Number(precioLimite).toFixed(2)}`);
       setPrecioLimite("");
       const updated = await api.get<OrdenPendiente[]>("/ordenes-limite").catch(() => []);
       setOrdenesPendientes(updated);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "No se pudo crear la orden límite");
+      setError(err instanceof ApiError ? err.message : t("trade.errorCreateLimit"));
     } finally {
       setOperando(false);
     }
@@ -286,18 +486,19 @@ function OperarPageInterna() {
 
   async function crearAlerta() {
     setError(null);
-    if (!Number(precioAlerta) || Number(precioAlerta) <= 0) { setError("Ingresa un precio de alerta válido"); return; }
+    if (!Number(precioAlerta) || Number(precioAlerta) <= 0) { setError(t("trade.errorAlertPrice")); return; }
     try {
       const nueva = await api.post<Alerta>("/ordenes-limite/alertas", {
         ticker: ticker.trim().toUpperCase(),
         precio_objetivo: precioAlerta,
         condicion: condicionAlerta,
+        grupo_id: grupoId,
       });
       setAlertas((prev) => [nueva, ...prev]);
       setPrecioAlerta("");
-      setMensaje(`Alerta creada: ${ticker} ${condicionAlerta === "lte" ? "≤" : "≥"} $${Number(precioAlerta).toFixed(2)}`);
+      setMensaje(`${t("trade.alertCreated")}: ${ticker} ${condicionAlerta === "lte" ? "≤" : "≥"} $${Number(precioAlerta).toFixed(2)}`);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "No se pudo crear la alerta");
+      setError(err instanceof ApiError ? err.message : t("trade.errorCreateAlert"));
     }
   }
 
@@ -313,37 +514,60 @@ function OperarPageInterna() {
     setMensaje(null);
 
     const sesion = obtenerSesion();
-    if (!sesion) {
-      setError("Tu sesión expiró, vuelve a iniciar sesión");
-      return;
-    }
+    if (!sesion) { setError(t("trade.errorSessionExpired")); return; }
+    if (!grupoId) { setError(t("trade.errorNoGroup")); return; }
     const cantidadNum = Number(cantidad);
-    if (!cantidadNum || cantidadNum <= 0) {
-      setError("Ingresa una cantidad válida");
-      return;
-    }
+    if (!cantidadNum || cantidadNum <= 0) { setError(t("trade.errorQuantity")); return; }
 
     setOperando(true);
     try {
-      const portafolio = await api.get<Portafolio>(`/alumnos/${sesion.userId}/portafolio`);
       const orden = await api.post<OrdenResponse>(`/ordenes/${tipo}`, {
-        grupo_id: portafolio.grupo_id,
+        grupo_id: grupoId,
         ticker: ticker.trim().toUpperCase(),
         cantidad,
       });
       setMensaje(
-        `${tipo === "compra" ? "Compra" : "Venta"} ejecutada: ${orden.cantidad} ${orden.ticker} a $${Number(
-          orden.precio_ejecucion
-        ).toFixed(2)}`
+        `${t(tipo === "compra" ? "trade.buyDone" : "trade.sellDone")}: ${orden.cantidad} ${orden.ticker} ${t("templates.at")} $${Number(orden.precio_ejecucion).toFixed(2)}`
       );
-      // Refresh holdings after order
-      const p2 = await api.get<Portafolio>(`/alumnos/${sesion.userId}/portafolio`).catch(() => null);
+      const p2 = await api.get<Portafolio>(conGrupo(`/alumnos/${sesion.userId}/portafolio`, grupoId)).catch(() => null);
       if (p2) {
         setHoldings(p2.holdings || []);
         setCapitalDisponible(p2.capital_disponible);
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "No se pudo ejecutar la orden");
+      setError(err instanceof ApiError ? err.message : t("trade.errorExecuteOrder"));
+    } finally {
+      setOperando(false);
+    }
+  }
+
+  async function ejecutarShort(endpoint: "short" | "cubrir") {
+    setError(null);
+    setMensaje(null);
+
+    const sesion = obtenerSesion();
+    if (!sesion) { setError(t("trade.errorSessionExpired")); return; }
+    if (!grupoId) { setError(t("trade.errorNoGroup")); return; }
+    const cantidadNum = Number(cantidad);
+    if (!cantidadNum || cantidadNum <= 0) { setError(t("trade.errorQuantity")); return; }
+
+    setOperando(true);
+    try {
+      const orden = await api.post<OrdenResponse>(`/ordenes/${endpoint}`, {
+        grupo_id: grupoId,
+        ticker: ticker.trim().toUpperCase(),
+        cantidad,
+      });
+      setMensaje(
+        `${t(endpoint === "short" ? "trade.shortOpened" : "trade.shortCovered")}: ${orden.cantidad} ${orden.ticker} ${t("templates.at")} $${Number(orden.precio_ejecucion).toFixed(2)}`
+      );
+      const p2 = await api.get<Portafolio>(conGrupo(`/alumnos/${sesion.userId}/portafolio`, grupoId)).catch(() => null);
+      if (p2) {
+        setHoldings(p2.holdings || []);
+        setCapitalDisponible(p2.capital_disponible);
+      }
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("trade.errorExecuteOrder"));
     } finally {
       setOperando(false);
     }
@@ -359,20 +583,44 @@ function OperarPageInterna() {
     historial.length > 0 ? Math.min(...historial.map((h) => Number(h.minimo ?? h.precio))) : null;
   const subiendo = (cambioPorcentaje ?? 0) >= 0;
 
+  // ── Datos para el Tradex Times (landing del centro) ──
+  const hoy = new Date().toLocaleDateString(lang === "en" ? "en-US" : "es-MX", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+  function fechaCortaDiario(fecha: string | null) {
+    if (!fecha) return t("news.today");
+    const d = new Date(fecha);
+    if (isNaN(d.getTime())) return t("news.today");
+    return d.toLocaleDateString(lang === "en" ? "en-US" : "es-MX", { month: "short", day: "numeric" });
+  }
+  const gainers = [...destacados]
+    .filter((d) => d.cambio_porcentaje >= 0)
+    .sort((a, b) => b.cambio_porcentaje - a.cambio_porcentaje)
+    .slice(0, 5);
+  const losers = [...destacados]
+    .filter((d) => d.cambio_porcentaje < 0)
+    .sort((a, b) => a.cambio_porcentaje - b.cambio_porcentaje)
+    .slice(0, 5);
+
+  if (retoActivo) return <RetoActivo retoId={retoActivo.id} />;
+
   return (
     <main className="min-h-screen bg-canvas">
       <Navbar />
-      <div className="mx-auto max-w-7xl p-4 md:p-6">
-        <h1 className="mb-4 text-2xl font-bold text-fg">Operar</h1>
+      <div className="mx-auto max-w-[1600px] p-4 md:p-6">
+        <h1 className="mb-4 text-2xl font-bold text-fg">{t("trade.title")}</h1>
 
         {activosProximos.length > 0 && (
           <Card className="mb-4 border-accent/30 bg-accent/5">
             <p className="text-sm text-fg/70">
-              Algunos tipos de activos de tu grupo aún no están disponibles:{" "}
+              {t("trade.upcomingAssets")}{" "}
               {activosProximos
                 .map(
                   (a) =>
-                    `${a.tipo_activo} (desde el ${new Date(a.fecha_activacion).toLocaleDateString("es-MX")})`
+                    `${a.tipo_activo} (${t("trade.fromDate")} ${new Date(a.fecha_activacion).toLocaleDateString(lang === "en" ? "en-US" : "es-MX")})`
                 )
                 .join(" · ")}
             </p>
@@ -383,45 +631,88 @@ function OperarPageInterna() {
           onSubmit={buscarPrecio}
           className="mb-4 flex items-end gap-3 rounded-none border border-fg/10 bg-panel p-4 shadow-sm"
         >
-          <div className="flex-1">
-            <label className="mb-1 block text-sm font-medium text-fg/70">Ticker</label>
+          <div className="relative flex-1">
+            <label className="mb-1 block text-sm font-medium text-fg/70">{t("common.ticker")}</label>
             <input
               required
               value={ticker}
-              onChange={(e) => setTicker(e.target.value)}
-              placeholder="AAPL"
+              onChange={(e) => {
+                setTicker(e.target.value);
+                setSugerenciasAbiertas(true);
+              }}
+              onFocus={() => setSugerenciasAbiertas(true)}
+              onBlur={() => setTimeout(() => setSugerenciasAbiertas(false), 150)}
+              placeholder={t("trade.searchSymbolPlaceholder")}
               className="w-full rounded-none border border-fg/20 bg-canvas px-3 py-2 font-mono text-sm uppercase"
             />
+
+            {sugerenciasAbiertas && sugerenciasFiltradas.length > 0 && (
+              <ul className="absolute z-20 mt-1 max-h-80 w-full overflow-auto rounded-none border border-fg/20 bg-panel shadow-lg">
+                {sugerenciasFiltradas.map((s) => (
+                  <li key={s.ticker}>
+                    <button
+                      type="button"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        setSugerenciasAbiertas(false);
+                        buscar(s.ticker);
+                      }}
+                      className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left hover:bg-fg/5"
+                    >
+                      <span className="flex min-w-0 flex-col">
+                        <span className="font-mono text-sm font-bold text-fg">
+                          {s.ticker.replace("-USD", "").replace("=X", "").replace(".MX", "")}
+                        </span>
+                        <span className="truncate font-mono text-[11px] text-fg/50">{s.nombre}</span>
+                      </span>
+                      <span className="shrink-0 font-mono text-[9px] uppercase tracking-wider text-fg/40">
+                        {CAT_TAG_I18N[s.cat] ?? CAT_LABEL[s.cat]}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
           <button
             type="submit"
             disabled={buscando}
             className="rounded-none bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-ink/80 disabled:opacity-50"
           >
-            {buscando ? "Buscando..." : "Buscar"}
+            {buscando ? t("trade.searching") : t("trade.searchButton")}
           </button>
         </form>
 
+        {precio ? (
+        <>
         <BarraIndices onSeleccionar={buscar} />
-
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
 
           {/* ── Columna izquierda: Mi cartera ── */}
           <div className="lg:col-span-3">
-            <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">Mi cartera</p>
+            {/* Botón volver al periódico */}
+            <button
+              onClick={() => { setPrecio(null); setTicker(""); setHistorial([]); setNoticias([]); setFicha(null); }}
+              className="mb-3 flex w-full items-center gap-2 border border-fg/15 bg-panel px-3 py-2 font-mono text-[11px] uppercase tracking-wider text-fg/50 hover:border-accent hover:text-accent transition-colors"
+            >
+              <span className="text-base leading-none">⌂</span>
+              {lang === "en" ? "Tradex Times" : "Tradex Times"}
+            </button>
+
+            <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">{t("trade.myPortfolio")}</p>
 
             {capitalDisponible !== null && (
               <div className="mb-2 rounded-none border border-fg/10 bg-panel px-3 py-2">
-                <p className="font-mono text-[10px] uppercase tracking-widest text-fg/40">Capital disponible</p>
+                <p className="font-mono text-[10px] uppercase tracking-widest text-fg/40">{t("trade.availableCapital")}</p>
                 <p className="font-mono text-base font-bold tabular-nums text-fg">
-                  ${Number(capitalDisponible).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  ${Number(capitalDisponible).toLocaleString(lang === "en" ? "en-US" : "es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
               </div>
             )}
 
             {holdings.length === 0 ? (
               <div className="rounded-none border border-fg/10 bg-panel p-4">
-                <p className="text-sm text-fg/40">No tienes posiciones abiertas.</p>
+                <p className="text-sm text-fg/40">{t("portfolio.noPositions")}</p>
               </div>
             ) : (
               <div className="flex flex-col gap-2">
@@ -445,7 +736,7 @@ function OperarPageInterna() {
                       </div>
                       <div className="mt-1 flex items-center justify-between">
                         <span className="font-mono text-xs tabular-nums text-fg/50">
-                          {Number(h.cantidad).toFixed(4)} acc
+                          {Number(h.cantidad).toFixed(4)} {t("trade.sharesShort")}
                         </span>
                         <span className="font-mono text-xs tabular-nums text-fg/70">
                           ${Number(h.valor_mercado).toFixed(2)}
@@ -465,87 +756,6 @@ function OperarPageInterna() {
 
           {/* ── Columna central: Noticias / Gráfica ── */}
           <div className="lg:col-span-6">
-            {!precio ? (
-              /* Landing: noticias generales */
-              <div>
-                <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">
-                  Noticias · Mercados
-                </p>
-                {noticiasGenerales.length === 0 ? (
-                  <Card><p className="text-sm text-fg/40">Cargando noticias...</p></Card>
-                ) : (
-                  <div className="flex flex-col gap-3">
-                    {/* Featured story */}
-                    {noticiasGenerales[0] && (
-                      <a
-                        href={noticiasGenerales[0].link}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="group block overflow-hidden rounded-none border border-fg/10 bg-panel"
-                      >
-                        {noticiasGenerales[0].imagen && (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={noticiasGenerales[0].imagen}
-                            alt=""
-                            className="h-44 w-full object-cover"
-                          />
-                        )}
-                        <div className="p-4">
-                          <p className="text-base font-semibold leading-snug text-fg group-hover:text-accent">
-                            {noticiasGenerales[0].titulo}
-                          </p>
-                          <div className="mt-2 flex items-center gap-2">
-                            {noticiasGenerales[0].fuente && <Badge>{noticiasGenerales[0].fuente}</Badge>}
-                            {noticiasGenerales[0].fecha && (
-                              <span className="text-xs text-fg/40">
-                                {new Date(noticiasGenerales[0].fecha).toLocaleDateString("es-MX")}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </a>
-                    )}
-                    {/* Secondary list */}
-                    <div className="overflow-hidden rounded-none border border-fg/10 bg-panel">
-                      <ul className="flex flex-col">
-                        {noticiasGenerales.slice(1).map((n, i) => (
-                          <li key={i} className="border-b border-fg/5 last:border-0">
-                            <a
-                              href={n.link}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="flex items-start gap-3 p-3 hover:bg-fg/5"
-                            >
-                              {n.imagen && (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
-                                  src={n.imagen}
-                                  alt=""
-                                  className="mt-0.5 h-14 w-20 shrink-0 rounded-sm object-cover"
-                                />
-                              )}
-                              <div>
-                                <p className="text-sm font-medium leading-snug text-fg">{n.titulo}</p>
-                                <div className="mt-1 flex items-center gap-2">
-                                  {n.fuente && <span className="text-[10px] text-fg/40">{n.fuente}</span>}
-                                  {n.fecha && (
-                                    <span className="text-[10px] text-fg/30">
-                                      {new Date(n.fecha).toLocaleDateString("es-MX")}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            </a>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              /* Ticker seleccionado: gráfica + orden */
               <Card>
                 <div className="mb-4 flex items-start justify-between">
                   <div>
@@ -575,16 +785,16 @@ function OperarPageInterna() {
                     v != null ? `$${(v / 1e9).toFixed(1)}B` : null;
 
                   const statsAccion = [
-                    { label: "P/E", value: fmt(ficha.pe_ratio), hint: "Precio/Ganancia: cuántas veces el precio de la acción supera sus ganancias anuales. Un P/E alto puede indicar que el mercado espera mucho crecimiento futuro." },
-                    { label: "EPS", value: fmt(ficha.eps, "$"), hint: "Earnings Per Share (Ganancia por acción): cuánto dinero generó la empresa por cada acción emitida en el último año." },
-                    { label: "Beta", value: fmt(ficha.beta), hint: "Mide la volatilidad de la acción vs el mercado. Beta > 1 = más volátil que el mercado; Beta < 1 = más estable." },
-                    { label: "Cap. Mkt", value: fmtB(ficha.market_cap), hint: "Capitalización de mercado: valor total de la empresa según el precio actual de sus acciones (precio × acciones en circulación)." },
-                    { label: "P/E Fwd", value: fmt(ficha.forward_pe), hint: "P/E Forward: igual que el P/E pero usando las ganancias proyectadas para los próximos 12 meses en vez de las pasadas." },
-                    { label: "Objetivo", value: fmt(ficha.precio_objetivo, "$"), hint: "Precio objetivo promedio de los analistas de Wall Street para los próximos 12 meses." },
+                    { label: "P/E", value: fmt(ficha.pe_ratio), hint: t("trade.hintPe") },
+                    { label: "EPS", value: fmt(ficha.eps, "$"), hint: t("trade.hintEps") },
+                    { label: "Beta", value: fmt(ficha.beta), hint: t("trade.hintBeta") },
+                    { label: "Cap. Mkt", value: fmtB(ficha.market_cap), hint: t("trade.hintMarketCap") },
+                    { label: "P/E Fwd", value: fmt(ficha.forward_pe), hint: t("trade.hintForwardPe") },
+                    { label: t("trade.statTarget"), value: fmt(ficha.precio_objetivo, "$"), hint: t("trade.hintTarget") },
                   ];
                   const statsComun = [
-                    { label: "Máx 52s", value: fmt(ficha.max_52s, "$"), hint: "Precio máximo al que cotizó la acción en los últimos 52 semanas (1 año)." },
-                    { label: "Mín 52s", value: fmt(ficha.min_52s, "$"), hint: "Precio mínimo al que cotizó la acción en los últimos 52 semanas (1 año)." },
+                    { label: t("trade.stat52wHi"), value: fmt(ficha.max_52s, "$"), hint: t("trade.hint52wHi") },
+                    { label: t("trade.stat52wLo"), value: fmt(ficha.min_52s, "$"), hint: t("trade.hint52wLo") },
                   ];
                   const stats = esIndice
                     ? statsComun
@@ -615,16 +825,16 @@ function OperarPageInterna() {
                       if (total === 0) return null;
                       const pct = (n: number) => `${((n / total) * 100).toFixed(0)}%`;
                       const recMap: Record<string, string> = {
-                        "strong_buy": "Compra fuerte", "buy": "Comprar",
-                        "hold": "Mantener", "sell": "Vender", "strong_sell": "Venta fuerte",
+                        "strong_buy": t("trade.recStrongBuy"), "buy": t("trade.recBuy"),
+                        "hold": t("trade.recHold"), "sell": t("trade.recSell"), "strong_sell": t("trade.recStrongSell"),
                       };
                       const rec = ficha.recomendacion ? (recMap[ficha.recomendacion] ?? ficha.recomendacion) : null;
                       return (
                         <div className="mt-2 rounded-none border border-fg/10 bg-canvas px-3 py-2.5">
                           <div className="mb-1.5 flex items-center justify-between">
                             <p className="flex items-center font-mono text-[10px] uppercase tracking-widest text-fg/40">
-                              Consenso analistas · {total} analistas
-                              <Tooltip texto="Opinión de analistas profesionales de Wall Street sobre si conviene comprar, mantener o vender esta acción. No garantiza el desempeño futuro." />
+                              {`${t("trade.analystConsensus")} · ${total} ${t("trade.analystsLabel")}`}
+                              <Tooltip texto={t("trade.hintConsensus")} />
                             </p>
                             {rec && (
                               <span className={`font-mono text-[11px] font-bold uppercase ${
@@ -641,9 +851,9 @@ function OperarPageInterna() {
                             {a.strong_sell > 0 && <div style={{ width: pct(a.strong_sell) }} className="bg-perdida" />}
                           </div>
                           <div className="mt-1.5 flex justify-between font-mono text-[10px] text-fg/50">
-                            <span className="text-ganancia">▲ {a.strong_buy + a.buy} comprar</span>
-                            <span>{a.hold} mantener</span>
-                            <span className="text-perdida">▼ {a.sell + a.strong_sell} vender</span>
+                            <span className="text-ganancia">▲ {a.strong_buy + a.buy} {t("trade.consensusBuy")}</span>
+                            <span>{a.hold} {t("trade.consensusHold")}</span>
+                            <span className="text-perdida">▼ {a.sell + a.strong_sell} {t("trade.consensusSell")}</span>
                           </div>
                         </div>
                       );
@@ -655,7 +865,7 @@ function OperarPageInterna() {
                 <div className="mb-4 grid grid-cols-3 gap-3">
                   <div className="rounded-none border border-fg/10 bg-canvas px-3 py-2">
                     <p className="flex items-center font-mono text-[10px] uppercase tracking-widest text-fg/40">
-                      Máx. 30d <Tooltip texto="Precio más alto registrado en los últimos 30 días." />
+                      {t("trade.stat30dHi")} <Tooltip texto={t("trade.hint30dHi")} />
                     </p>
                     <p className="font-mono text-sm font-semibold tabular-nums text-fg">
                       {maximo !== null ? `$${maximo.toFixed(2)}` : "—"}
@@ -663,7 +873,7 @@ function OperarPageInterna() {
                   </div>
                   <div className="rounded-none border border-fg/10 bg-canvas px-3 py-2">
                     <p className="flex items-center font-mono text-[10px] uppercase tracking-widest text-fg/40">
-                      Mín. 30d <Tooltip texto="Precio más bajo registrado en los últimos 30 días." />
+                      {t("trade.stat30dLo")} <Tooltip texto={t("trade.hint30dLo")} />
                     </p>
                     <p className="font-mono text-sm font-semibold tabular-nums text-fg">
                       {minimo !== null ? `$${minimo.toFixed(2)}` : "—"}
@@ -671,7 +881,7 @@ function OperarPageInterna() {
                   </div>
                   <div className="rounded-none border border-fg/10 bg-canvas px-3 py-2">
                     <p className="flex items-center font-mono text-[10px] uppercase tracking-widest text-fg/40">
-                      Apertura 30d <Tooltip texto="Precio al que cerró la acción hace 30 días, usado como referencia para calcular el cambio porcentual del período." />
+                      {t("trade.stat30dOpen")} <Tooltip texto={t("trade.hint30dOpen")} />
                     </p>
                     <p className="font-mono text-sm font-semibold tabular-nums text-fg">
                       {precioInicial !== null ? `$${precioInicial.toFixed(2)}` : "—"}
@@ -696,7 +906,7 @@ function OperarPageInterna() {
                 {noticias.length > 0 && (
                   <div className="mb-4">
                     <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">
-                      Noticias · {ticker}
+                      {t("trade.news")} · {ticker}
                     </p>
                     <ul className="flex flex-col gap-3">
                       {noticias.map((n, i) => (
@@ -718,7 +928,7 @@ function OperarPageInterna() {
                               {n.fuente && <Badge>{n.fuente}</Badge>}
                               {n.fecha && (
                                 <span className="text-xs text-fg/40">
-                                  {new Date(n.fecha).toLocaleDateString("es-MX")}
+                                  {new Date(n.fecha).toLocaleDateString(lang === "en" ? "en-US" : "es-MX")}
                                 </span>
                               )}
                             </div>
@@ -733,18 +943,18 @@ function OperarPageInterna() {
                   {/* Order type toggle */}
                   <div className="mb-3 flex items-center justify-between">
                     <p className="font-mono text-[11px] uppercase tracking-widest text-fg/40">
-                      Enviar orden
+                      {t("trade.placeOrder")}
                     </p>
                     <div className="flex overflow-hidden rounded-none border border-fg/20">
-                      {(["mercado", "limite"] as const).map((t) => (
+                      {(["mercado", "limite"] as const).map((tipo) => (
                         <button
-                          key={t}
-                          onClick={() => setTipoOrden(t)}
+                          key={tipo}
+                          onClick={() => setTipoOrden(tipo)}
                           className={`px-3 py-1 font-mono text-[11px] uppercase ${
-                            tipoOrden === t ? "bg-ink text-white" : "text-fg/50 hover:bg-fg/5"
+                            tipoOrden === tipo ? "bg-ink text-white" : "text-fg/50 hover:bg-fg/5"
                           }`}
                         >
-                          {t === "mercado" ? "Mercado" : "Límite"}
+                          {tipo === "mercado" ? t("trade.market") : t("trade.limit")}
                         </button>
                       ))}
                     </div>
@@ -753,13 +963,13 @@ function OperarPageInterna() {
                   {tipoOrden === "limite" && (
                     <div className="mb-3 rounded-none border border-accent/20 bg-accent/5 px-3 py-2">
                       <p className="font-mono text-[10px] text-fg/50">
-                        <Tooltip texto="Una orden límite se ejecuta automáticamente cuando el precio alcanza el nivel que defines. Compra límite: se ejecuta si el precio baja a tu precio. Venta límite: se ejecuta si el precio sube a tu precio." />
-                        {" "}Orden límite: se ejecuta cuando el precio toque tu nivel
+                        <Tooltip texto={t("trade.hintLimitOrder")} />
+                        {" "}{t("trade.limitOrderInfo")}
                       </p>
                     </div>
                   )}
 
-                  <label className="mb-1 block text-sm font-medium text-fg/70">Cantidad</label>
+                  <label className="mb-1 block text-sm font-medium text-fg/70">{t("trade.quantity")}</label>
                   <input
                     type="number"
                     min="0.0001"
@@ -771,14 +981,14 @@ function OperarPageInterna() {
 
                   {tipoOrden === "limite" && (
                     <>
-                      <label className="mb-1 block text-sm font-medium text-fg/70">Precio límite</label>
+                      <label className="mb-1 block text-sm font-medium text-fg/70">{t("trade.limitPrice")}</label>
                       <input
                         type="number"
                         min="0.01"
                         step="0.01"
                         value={precioLimite}
                         onChange={(e) => setPrecioLimite(e.target.value)}
-                        placeholder={precio ? `Actual: $${Number(precio).toFixed(2)}` : ""}
+                        placeholder={precio ? `${t("trade.currentLabel")}: $${Number(precio).toFixed(2)}` : ""}
                         className="mb-3 w-full rounded-none border border-fg/20 bg-panel px-3 py-2 font-mono text-sm"
                       />
                     </>
@@ -786,7 +996,7 @@ function OperarPageInterna() {
 
                   {tipoOrden === "mercado" && (
                     <p className="mb-3 text-sm text-fg/40">
-                      Total estimado:{" "}
+                      {t("trade.estimatedTotal")}{" "}
                       <span className="font-mono font-semibold text-fg">
                         ${(Number(precio) * Number(cantidad || 0)).toFixed(2)}
                       </span>
@@ -799,16 +1009,43 @@ function OperarPageInterna() {
                       disabled={operando}
                       className="flex-1 rounded-none bg-ganancia px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
                     >
-                      {tipoOrden === "limite" ? "Límite compra" : "Comprar"}
+                      {tipoOrden === "limite" ? t("trade.limitBuyButton") : t("trade.buyButton")}
                     </button>
                     <button
                       onClick={() => tipoOrden === "mercado" ? ejecutarOrden("venta") : ejecutarOrdenLimite("venta")}
                       disabled={operando}
                       className="flex-1 rounded-none bg-perdida px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
                     >
-                      {tipoOrden === "limite" ? "Límite venta" : "Vender"}
+                      {tipoOrden === "limite" ? t("trade.limitSellButton") : t("trade.sellButton")}
                     </button>
                   </div>
+
+                  {tipoOrden === "mercado" && (
+                    <>
+                      <div className="mt-3 border-t border-fg/10 pt-3">
+                        <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-fg/40">{t("trade.shortSelling")}</p>
+                        <p className="mb-2 text-xs text-fg/50">
+                          {t("trade.shortSellingDesc")}
+                        </p>
+                        <div className="flex gap-3">
+                          <button
+                            onClick={() => ejecutarShort("short")}
+                            disabled={operando}
+                            className="flex-1 rounded-none border border-perdida bg-perdida/10 px-4 py-2 text-sm font-medium text-perdida hover:bg-perdida/20 disabled:opacity-50"
+                          >
+                            {t("trade.shortAction")}
+                          </button>
+                          <button
+                            onClick={() => ejecutarShort("cubrir")}
+                            disabled={operando}
+                            className="flex-1 rounded-none border border-ganancia bg-ganancia/10 px-4 py-2 text-sm font-medium text-ganancia hover:bg-ganancia/20 disabled:opacity-50"
+                          >
+                            {t("trade.coverAction")}
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
                   {error && <p className="mt-3 text-sm text-perdida">{error}</p>}
                   {mensaje && <p className="mt-3 text-sm text-ganancia">{mensaje}</p>}
                 </div>
@@ -816,8 +1053,8 @@ function OperarPageInterna() {
                 {/* Price alert panel */}
                 <div className="mt-3 rounded-none border border-fg/10 bg-canvas p-4">
                   <p className="mb-3 flex items-center font-mono text-[11px] uppercase tracking-widest text-fg/40">
-                    Alerta de precio
-                    <Tooltip texto="Te notifica (en esta página) cuando el precio de la acción suba o baje al nivel que defines. Útil para monitorear sin estar pendiente del precio todo el tiempo." />
+                    {t("trade.priceAlert")}
+                    <Tooltip texto={t("trade.hintPriceAlert")} />
                   </p>
                   <div className="flex gap-2">
                     <select
@@ -825,8 +1062,8 @@ function OperarPageInterna() {
                       onChange={(e) => setCondicionAlerta(e.target.value as "gte" | "lte")}
                       className="rounded-none border border-fg/20 bg-panel px-2 py-2 font-mono text-xs text-fg"
                     >
-                      <option value="lte">Baja a</option>
-                      <option value="gte">Sube a</option>
+                      <option value="lte">{t("trade.fallsTo")}</option>
+                      <option value="gte">{t("trade.risesTo")}</option>
                     </select>
                     <input
                       type="number"
@@ -834,14 +1071,14 @@ function OperarPageInterna() {
                       step="0.01"
                       value={precioAlerta}
                       onChange={(e) => setPrecioAlerta(e.target.value)}
-                      placeholder="Precio"
+                      placeholder={t("trade.price")}
                       className="flex-1 rounded-none border border-fg/20 bg-panel px-3 py-2 font-mono text-sm"
                     />
                     <button
                       onClick={crearAlerta}
                       className="rounded-none border border-fg/20 px-3 py-2 font-mono text-xs hover:bg-fg/5"
                     >
-                      + Alertar
+                      {t("trade.addAlert")}
                     </button>
                   </div>
 
@@ -851,7 +1088,7 @@ function OperarPageInterna() {
                         <li key={a.id} className={`flex items-center justify-between rounded-none border px-2 py-1 text-xs ${a.disparada ? "border-ganancia/30 bg-ganancia/5" : "border-fg/10"}`}>
                           <span className="font-mono text-fg/70">
                             {a.condicion === "lte" ? "≤" : "≥"} ${Number(a.precio_objetivo).toFixed(2)}
-                            {a.disparada && <span className="ml-2 text-ganancia">✓ Activada</span>}
+                            {a.disparada && <span className="ml-2 text-ganancia">✓ {t("trade.alertTriggered")}</span>}
                           </span>
                           <button onClick={() => eliminarAlerta(a.id)} className="text-fg/30 hover:text-perdida">✕</button>
                         </li>
@@ -863,14 +1100,14 @@ function OperarPageInterna() {
                 {/* Pending limit orders */}
                 {ordenesPendientes.filter((o) => o.estado === "pendiente").length > 0 && (
                   <div className="mt-3 rounded-none border border-fg/10 bg-canvas p-4">
-                    <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">Órdenes límite pendientes</p>
+                    <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">{t("trade.pendingOrders")}</p>
                     <ul className="flex flex-col gap-1">
                       {ordenesPendientes.filter((o) => o.estado === "pendiente").map((o) => (
                         <li key={o.id} className="flex items-center justify-between rounded-none border border-fg/10 px-2 py-1.5 text-xs">
                           <span className={`font-mono font-semibold ${o.tipo === "compra" ? "text-ganancia" : "text-perdida"}`}>
-                            {o.tipo.toUpperCase()}
+                            {t(o.tipo === "compra" ? "common.buy" : "common.sell").toUpperCase()}
                           </span>
-                          <span className="font-mono text-fg">{o.ticker} · {Number(o.cantidad).toFixed(4)} acc</span>
+                          <span className="font-mono text-fg">{o.ticker} · {Number(o.cantidad).toFixed(4)} {t("trade.sharesShort")}</span>
                           <span className="font-mono text-fg/60">@ ${Number(o.precio_limite).toFixed(2)}</span>
                           <button onClick={() => cancelarOrdenLimite(o.id)} className="text-fg/30 hover:text-perdida">✕</button>
                         </li>
@@ -879,53 +1116,435 @@ function OperarPageInterna() {
                   </div>
                 )}
               </Card>
-            )}
           </div>
 
-          {/* ── Columna derecha: Tendencias ── */}
+          {/* ── Columna derecha: Explorar mercados ── */}
           <div className="lg:col-span-3">
-            <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">Tendencias</p>
+            <p className="mb-2 font-mono text-[11px] uppercase tracking-widest text-fg/40">{t("trade.explorer")}</p>
+
+            {categoriasVisibles.length > 1 && (
+              <div className="mb-3 flex flex-wrap gap-1">
+                {categoriasVisibles.map((c) => (
+                  <button
+                    key={c.key}
+                    onClick={() => {
+                      setCatActiva(c.key);
+                      cargarCategoria(c.key);
+                    }}
+                    className={`border px-2 py-1 font-mono text-[11px] uppercase tracking-wider transition-colors ${
+                      catActiva === c.key
+                        ? "border-accent bg-accent/10 text-accent"
+                        : "border-fg/15 bg-panel text-fg/50 hover:text-fg"
+                    }`}
+                  >
+                    {CAT_LABELS_I18N[c.key] ?? c.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
             <div className="flex flex-col gap-2">
-              {destacados.length === 0 && (
-                <p className="rounded-none border border-fg/10 bg-panel p-3 text-sm text-fg/40">Cargando...</p>
+              {(cargandoCat && !explorador[catActiva]) && (
+                <p className="rounded-none border border-fg/10 bg-panel p-3 text-sm text-fg/40">{t("common.loading")}</p>
               )}
-              {[...destacados]
-                .sort((a, b) => Math.abs(b.cambio_porcentaje) - Math.abs(a.cambio_porcentaje))
-                .map((d) => {
-                  const sube = d.cambio_porcentaje >= 0;
-                  const activo = ticker === d.ticker;
-                  const sparkData = (d.sparkline || []).map(Number);
-                  return (
-                    <button
-                      key={d.ticker}
-                      onClick={() => buscar(d.ticker)}
-                      className={`flex w-full items-center gap-2 rounded-none border px-3 py-3 text-left transition-colors ${
-                        activo ? "border-accent/40 bg-accent/5" : "border-fg/10 bg-panel hover:bg-fg/5"
+              {categoriasVisibles.length === 0 && (
+                <p className="rounded-none border border-fg/10 bg-panel p-3 text-sm text-fg/40">
+                  {t("trade.noMarketsEnabled")}
+                </p>
+              )}
+              {(explorador[catActiva] || []).map((d) => {
+                const sube = d.cambio_porcentaje >= 0;
+                const activo = ticker === d.ticker;
+                const sparkData = (d.sparkline || []).map(Number);
+                return (
+                  <button
+                    key={d.ticker}
+                    onClick={() => buscar(d.ticker)}
+                    className={`flex w-full items-center gap-2 rounded-none border px-3 py-3 text-left transition-colors ${
+                      activo ? "border-accent/40 bg-accent/5" : "border-fg/10 bg-panel hover:bg-fg/5"
+                    }`}
+                  >
+                    <div className="flex min-w-0 flex-1 flex-col">
+                      <span className="truncate font-mono text-sm font-bold text-fg">
+                        {d.ticker.replace("-USD", "").replace("=X", "").replace(".MX", "")}
+                      </span>
+                      {d.nombre && (
+                        <span className="truncate font-mono text-[10px] text-fg/40">{d.nombre}</span>
+                      )}
+                      <span className="font-mono text-xs tabular-nums text-fg/60">
+                        ${Number(d.precio).toFixed(2)}
+                      </span>
+                    </div>
+                    {sparkData.length > 1 && <Sparkline data={sparkData} subiendo={sube} />}
+                    <span
+                      className={`shrink-0 font-mono text-xs font-semibold tabular-nums ${
+                        sube ? "text-ganancia" : "text-perdida"
                       }`}
                     >
-                      <div className="flex min-w-0 flex-1 flex-col">
-                        <span className="font-mono text-sm font-bold text-fg">{d.ticker}</span>
-                        <span className="font-mono text-xs tabular-nums text-fg/60">
-                          ${Number(d.precio).toFixed(2)}
-                        </span>
-                      </div>
-                      {sparkData.length > 1 && <Sparkline data={sparkData} subiendo={sube} />}
-                      <span
-                        className={`shrink-0 font-mono text-xs font-semibold tabular-nums ${
-                          sube ? "text-ganancia" : "text-perdida"
-                        }`}
-                      >
-                        {sube ? "▲ +" : "▼ "}
-                        {d.cambio_porcentaje.toFixed(2)}%
-                      </span>
-                    </button>
-                  );
-                })}
+                      {sube ? "▲ +" : "▼ "}
+                      {d.cambio_porcentaje.toFixed(2)}%
+                    </span>
+                  </button>
+                );
+              })}
             </div>
-
           </div>
         </div>
+        </>
+        ) : (
+          /* ── Landing: portada completa Tradex Times ── */
+          <div className="border border-fg/15 bg-[#f4f1ea] p-4 text-[#1a1a1a] shadow-sm sm:p-7">
+            {/* Masthead a todo lo ancho */}
+            <header className="text-center">
+              {/* Filete superior doble */}
+              <div className="mb-1 border-t-4 border-double border-[#1a1a1a]" />
+              <div className="flex items-center justify-between border-b border-[#1a1a1a]/30 pb-1 font-serif text-[10px] uppercase tracking-[0.15em] text-[#1a1a1a]/70">
+                <span className="hidden sm:inline">{t("news.edition")}</span>
+                <span className="capitalize">{hoy}</span>
+                <span className="font-bold">$0.00 · MXN</span>
+              </div>
+              <h1 className="mt-3 font-serif text-5xl font-black uppercase leading-[0.85] tracking-[0.02em] sm:text-8xl">
+                {t("news.masthead")}
+              </h1>
+              <p className="mt-2 font-serif text-[11px] italic tracking-wide text-[#1a1a1a]/60 sm:text-sm">
+                {t("news.tagline")}
+              </p>
+              {/* Filete inferior doble + barra de índices */}
+              <div className="mt-3 border-t-4 border-double border-[#1a1a1a]" />
+              <div className="border-t border-[#1a1a1a]/20">
+                <BarraIndices onSeleccionar={buscar} variante="periodico" />
+              </div>
+            </header>
+
+            {noticiasGenerales.length === 0 && destacados.length === 0 ? (
+              <p className="py-16 text-center font-serif text-lg italic text-[#1a1a1a]/50">{t("common.loading")}</p>
+            ) : (
+              <div className="mt-5 grid grid-cols-1 gap-6 lg:grid-cols-12">
+
+                {/* Riel izquierdo: tu cartera */}
+                <aside className="lg:col-span-3 lg:border-r lg:border-[#1a1a1a]/25 lg:pr-5">
+                  <h2 className="bg-[#1a1a1a] px-2 py-1 text-center font-serif text-xs font-black uppercase tracking-[0.2em] text-[#f4f1ea]">
+                    {t("trade.myPortfolio")}
+                  </h2>
+                  {capitalDisponible !== null && (
+                    <div className="mt-3 border-b border-[#1a1a1a]/20 pb-3">
+                      <p className="font-serif text-[10px] uppercase tracking-widest text-[#1a1a1a]/60">{t("trade.availableCapital")}</p>
+                      <p className="font-serif text-2xl font-black tabular-nums">
+                        ${Number(capitalDisponible).toLocaleString(lang === "en" ? "en-US" : "es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </p>
+                    </div>
+                  )}
+                  {holdings.length === 0 ? (
+                    <p className="mt-3 font-serif text-sm italic text-[#1a1a1a]/50">{t("portfolio.noPositions")}</p>
+                  ) : (
+                    <ul className="mt-1 divide-y divide-[#1a1a1a]/15">
+                      {holdings.map((h) => {
+                        const pnlPct = Number(h.pnl_porcentaje);
+                        const gana = Number(h.pnl) >= 0;
+                        return (
+                          <li key={h.ticker}>
+                            <button onClick={() => buscar(h.ticker)} className="flex w-full items-center justify-between py-2 text-left hover:bg-[#1a1a1a]/5">
+                              <span className="flex flex-col">
+                                <span className="font-serif text-sm font-bold">{h.ticker}</span>
+                                <span className="font-mono text-[10px] text-[#1a1a1a]/55">${Number(h.valor_mercado).toFixed(2)}</span>
+                              </span>
+                              <span className={`font-mono text-xs font-bold ${gana ? "text-[#007a2e]" : "text-[#c0271a]"}`}>
+                                {gana ? "▲ +" : "▼ "}{pnlPct.toFixed(2)}%
+                              </span>
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+
+                  {/* Calendario de resultados */}
+                  {earnings.length > 0 && (
+                    <section className="mt-6">
+                      <h2 className="bg-[#1a1a1a] px-2 py-1 text-center font-serif text-xs font-black uppercase tracking-[0.2em] text-[#f4f1ea]">
+                        {t("news.earningsTitle")}
+                      </h2>
+                      <ul className="mt-1 divide-y divide-[#1a1a1a]/15">
+                        {earnings.slice(0, 8).map((e) => (
+                          <li key={`${e.ticker}-${e.fecha}`}>
+                            <button onClick={() => buscar(e.ticker)} className="flex w-full items-center justify-between gap-2 py-2 text-left hover:bg-[#1a1a1a]/5">
+                              <span className="flex min-w-0 flex-col">
+                                <span className="font-serif text-sm font-bold">{e.ticker}</span>
+                                <span className="truncate font-mono text-[10px] text-[#1a1a1a]/55">{e.empresa}</span>
+                              </span>
+                              <span className="flex shrink-0 flex-col items-end">
+                                <span className="font-serif text-xs font-bold uppercase">{fechaCortaDiario(e.fecha)}</span>
+                                {e.momento && <span className="font-mono text-[9px] uppercase text-[#1a1a1a]/50">{e.momento}</span>}
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  )}
+                </aside>
+
+                {/* Centro: editorial */}
+                <div className="lg:col-span-6 lg:border-r lg:border-[#1a1a1a]/25 lg:px-5">
+                  {/* Nota principal */}
+                  {noticiasGenerales[0] && (
+                    <a
+                      href={noticiasGenerales[0].link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group block border-b-2 border-[#1a1a1a] pb-5"
+                    >
+                      <p className="mb-2 text-center font-serif text-[10px] uppercase tracking-[0.25em] text-[#ff6600]">
+                        ★ {t("news.leadStory")} ★
+                      </p>
+                      <h2 className="dropcap font-serif text-4xl font-black leading-[1.02] tracking-tight group-hover:text-[#ff6600] sm:text-5xl">
+                        {noticiasGenerales[0].titulo}
+                      </h2>
+                      <p className="mt-3 font-serif text-[11px] uppercase tracking-[0.12em] text-[#1a1a1a]/55">
+                        {noticiasGenerales[0].fuente} · {fechaCortaDiario(noticiasGenerales[0].fecha)}
+                      </p>
+                      {noticiasGenerales[0].imagen && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={noticiasGenerales[0].imagen}
+                          alt=""
+                          className="mt-3 aspect-[21/9] w-full border border-[#1a1a1a]/20 object-cover grayscale transition duration-500 group-hover:grayscale-0"
+                        />
+                      )}
+                    </a>
+                  )}
+
+                  {/* Movers */}
+                  <section className="mt-5 border-b-2 border-[#1a1a1a] pb-5">
+                    <h2 className="mb-3 bg-[#1a1a1a] px-2 py-1 text-center font-serif text-sm font-black uppercase tracking-[0.2em] text-[#f4f1ea]">{t("news.moversTitle")}</h2>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <DiarioMovers titulo={t("news.gainers")} items={gainers} onSel={buscar} />
+                      <DiarioMovers titulo={t("news.losers")} items={losers} onSel={buscar} />
+                    </div>
+                  </section>
+
+                  {/* Tus posiciones en las noticias */}
+                  {noticiasPorTicker.length > 0 && (
+                    <section className="mt-6">
+                      <div className="text-center">
+                        <h2 className="bg-[#1a1a1a] px-2 py-1 font-serif text-sm font-black uppercase tracking-[0.2em] text-[#f4f1ea]">{t("news.yourPositions")}</h2>
+                        <p className="mt-1 font-serif text-[10px] italic text-[#1a1a1a]/60">{t("news.yourPositionsDesc")}</p>
+                      </div>
+                      <div className="mt-4 space-y-5">
+                        {noticiasPorTicker.map((bloque) => (
+                          <div key={bloque.ticker} className="border-b border-[#1a1a1a]/20 pb-4">
+                            <div className="mb-2 flex items-center justify-between">
+                              <h3 className="font-serif text-xl font-black tracking-tight">{bloque.ticker}</h3>
+                              <button
+                                onClick={() => buscar(bloque.ticker)}
+                                className="bg-[#1a1a1a] px-3 py-1 font-serif text-[10px] font-bold uppercase tracking-widest text-[#f4f1ea] hover:bg-[#ff6600]"
+                              >
+                                {t("news.tradeNow")} {bloque.ticker} →
+                              </button>
+                            </div>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              {bloque.noticias.slice(0, 2).map((n, i) => (
+                                <DiarioArticulo key={`${bloque.ticker}-${i}`} noticia={n} fechaCorta={fechaCortaDiario} leerT={t("news.readMore")} />
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
+                  {/* Más titulares */}
+                  {noticiasGenerales.length > 1 && (
+                    <section className="mt-6">
+                      <div className="text-center">
+                        <h2 className="bg-[#1a1a1a] px-2 py-1 font-serif text-sm font-black uppercase tracking-[0.2em] text-[#f4f1ea]">{t("news.generalNews")}</h2>
+                      </div>
+                      <div className="mt-4 columns-1 gap-5 sm:columns-2 [column-fill:_balance]">
+                        {noticiasGenerales.slice(1).map((n, i) => (
+                          <div key={i} className="mb-5 break-inside-avoid">
+                            <DiarioArticulo noticia={n} fechaCorta={fechaCortaDiario} leerT={t("news.readMore")} grande />
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                </div>
+
+                {/* Riel derecho: explorador de mercados */}
+                <aside className="lg:col-span-3">
+                  <h2 className="bg-[#1a1a1a] px-2 py-1 text-center font-serif text-xs font-black uppercase tracking-[0.2em] text-[#f4f1ea]">
+                    {t("trade.explorer")}
+                  </h2>
+                  {categoriasVisibles.length > 1 && (
+                    <div className="mt-3 flex flex-wrap gap-1">
+                      {categoriasVisibles.map((c) => (
+                        <button
+                          key={c.key}
+                          onClick={() => { setCatActiva(c.key); cargarCategoria(c.key); }}
+                          className={`border px-2 py-1 font-serif text-[10px] font-bold uppercase tracking-wider transition-colors ${
+                            catActiva === c.key
+                              ? "border-[#1a1a1a] bg-[#1a1a1a] text-[#f4f1ea]"
+                              : "border-[#1a1a1a]/30 text-[#1a1a1a]/60 hover:text-[#1a1a1a]"
+                          }`}
+                        >
+                          {CAT_LABELS_I18N[c.key] ?? c.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <ul className="mt-3 divide-y divide-[#1a1a1a]/15">
+                    {(cargandoCat && !explorador[catActiva]) && (
+                      <li className="py-2 font-serif text-sm italic text-[#1a1a1a]/50">{t("common.loading")}</li>
+                    )}
+                    {categoriasVisibles.length === 0 && (
+                      <li className="py-2 font-serif text-sm italic text-[#1a1a1a]/50">{t("trade.noMarketsEnabled")}</li>
+                    )}
+                    {(explorador[catActiva] || []).map((d) => {
+                      const sube = d.cambio_porcentaje >= 0;
+                      const sparkData = (d.sparkline || []).map(Number);
+                      return (
+                        <li key={d.ticker}>
+                          <button onClick={() => buscar(d.ticker)} className="flex w-full items-center gap-2 py-2 text-left hover:bg-[#1a1a1a]/5">
+                            <span className="flex min-w-0 flex-1 flex-col">
+                              <span className="truncate font-serif text-sm font-bold">
+                                {d.ticker.replace("-USD", "").replace("=X", "").replace(".MX", "")}
+                              </span>
+                              <span className="font-mono text-[10px] text-[#1a1a1a]/55">${Number(d.precio).toFixed(2)}</span>
+                            </span>
+                            {sparkData.length > 1 && <Sparkline data={sparkData} subiendo={sube} />}
+                            <span className={`shrink-0 font-mono text-xs font-bold ${sube ? "text-[#007a2e]" : "text-[#c0271a]"}`}>
+                              {sube ? "▲" : "▼"} {Math.abs(d.cambio_porcentaje).toFixed(2)}%
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+
+                  {/* Sectores del mercado */}
+                  {sectores.length > 0 && (
+                    <section className="mt-6">
+                      <h2 className="bg-[#1a1a1a] px-2 py-1 text-center font-serif text-xs font-black uppercase tracking-[0.2em] text-[#f4f1ea]">
+                        {t("news.sectorsTitle")}
+                      </h2>
+                      <ul>
+                        {sectores.map((s, i) => {
+                          const v = s.cambio_porcentaje;
+                          const sube = (v ?? 0) >= 0;
+                          return (
+                            <li
+                              key={s.sector}
+                              className={`flex items-center justify-between px-1 py-1.5 ${i % 2 === 1 ? "bg-[#1a1a1a]/[0.035]" : ""}`}
+                            >
+                              <span className="truncate pr-2 font-serif text-sm">{s.sector}</span>
+                              {v === null ? (
+                                <span className="font-mono text-xs text-[#1a1a1a]/40">—</span>
+                              ) : (
+                                <span className={`shrink-0 font-mono text-xs font-bold tabular-nums ${sube ? "text-[#007a2e]" : "text-[#c0271a]"}`}>
+                                  {sube ? "▲" : "▼"}{Math.abs(v).toFixed(2)}%
+                                </span>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </section>
+                  )}
+                </aside>
+              </div>
+            )}
+          </div>
+        )}
       </div>
+      <Footer />
     </main>
+  );
+}
+
+function DiarioMovers({
+  titulo,
+  items,
+  onSel,
+}: {
+  titulo: string;
+  items: Destacado[];
+  onSel: (t: string) => void;
+}) {
+  return (
+    <div className="border border-[#1a1a1a]/40">
+      <h3 className="border-b border-[#1a1a1a]/40 bg-[#1a1a1a]/[0.06] px-2 py-1 font-serif text-xs font-black uppercase tracking-[0.18em]">
+        {titulo}
+      </h3>
+      {/* Encabezado de columnas tipo tabla bursátil */}
+      <div className="flex items-center justify-between border-b border-[#1a1a1a]/20 px-2 py-1 font-mono text-[9px] uppercase tracking-wider text-[#1a1a1a]/45">
+        <span>Sím.</span>
+        <span className="flex gap-4">
+          <span className="w-16 text-right">Últ.</span>
+          <span className="w-16 text-right">Var.</span>
+        </span>
+      </div>
+      <ul>
+        {items.length === 0 && <li className="px-2 py-2 font-serif text-sm italic text-[#1a1a1a]/40">—</li>}
+        {items.map((m, i) => {
+          const sube = m.cambio_porcentaje >= 0;
+          return (
+            <li key={m.ticker} className={i % 2 === 1 ? "bg-[#1a1a1a]/[0.035]" : ""}>
+              <button
+                onClick={() => onSel(m.ticker)}
+                className="flex w-full items-center justify-between px-2 py-1.5 text-left transition-colors hover:bg-[#ff6600]/10"
+              >
+                <span className="font-serif text-sm font-bold">
+                  {m.ticker.replace("-USD", "").replace("=X", "").replace(".MX", "")}
+                </span>
+                <span className="flex gap-4">
+                  <span className="w-16 text-right font-mono text-xs tabular-nums text-[#1a1a1a]/70">${Number(m.precio).toFixed(2)}</span>
+                  <span className={`w-16 text-right font-mono text-xs font-bold tabular-nums ${sube ? "text-[#007a2e]" : "text-[#c0271a]"}`}>
+                    {sube ? "▲" : "▼"}{Math.abs(m.cambio_porcentaje).toFixed(2)}%
+                  </span>
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+function DiarioArticulo({
+  noticia,
+  fechaCorta,
+  leerT,
+  grande,
+}: {
+  noticia: Noticia;
+  fechaCorta: (f: string | null) => string;
+  leerT: string;
+  grande?: boolean;
+}) {
+  return (
+    <a href={noticia.link} target="_blank" rel="noopener noreferrer" className="group block">
+      {noticia.imagen && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={noticia.imagen}
+          alt=""
+          className="mb-2 aspect-[16/9] w-full border border-[#1a1a1a]/20 object-cover grayscale transition group-hover:grayscale-0"
+        />
+      )}
+      <h4
+        className={`font-serif font-bold leading-snug text-[#1a1a1a] group-hover:text-[#ff6600] ${
+          grande ? "text-base" : "text-sm"
+        }`}
+      >
+        {noticia.titulo}
+      </h4>
+      <p className="mt-1 font-serif text-[10px] uppercase tracking-wide text-[#1a1a1a]/55">
+        {noticia.fuente} · {fechaCorta(noticia.fecha)}
+      </p>
+      <span className="mt-1 inline-block font-serif text-[10px] italic text-[#ff6600] underline opacity-0 transition group-hover:opacity-100">
+        {leerT} →
+      </span>
+    </a>
   );
 }

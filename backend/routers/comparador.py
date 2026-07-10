@@ -1,5 +1,6 @@
 import logging
 import uuid
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
@@ -33,16 +34,25 @@ def _get_sp500_serie(dias: int) -> list[dict]:
 
 def _modelo_serie(nombre: str, dias: int, monto_base: float) -> list[dict]:
     composicion = _MODELOS.get(nombre, _MODELOS["moderado"])
-    series: list[list[dict]] = []
-    pesos: list[float] = []
-    for ticker, peso in composicion:
+
+    def _fetch(item):
+        ticker, peso = item
         try:
             hist = obtener_historial_precios(ticker, dias=dias)
-            if hist:
-                series.append(hist)
-                pesos.append(peso)
+            return (ticker, peso, hist) if hist else None
         except Exception:
             logger.warning("No se pudo obtener historial de %s para modelo %s", ticker, nombre)
+            return None
+
+    series: list[list[dict]] = []
+    pesos: list[float] = []
+    with ThreadPoolExecutor(max_workers=len(composicion)) as ex:
+        for result in as_completed([ex.submit(_fetch, item) for item in composicion]):
+            r = result.result()
+            if r:
+                _, peso, hist = r
+                series.append(hist)
+                pesos.append(peso)
     if not series:
         return []
 
