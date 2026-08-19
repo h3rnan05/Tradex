@@ -33,6 +33,16 @@ class TestValidarRangoFechas:
         validar_rango_fechas(inicio_naive, fin_aware)
 
 
+class TestRutasGrupos:
+    def test_existe_ruta_delete_grupo(self):
+        from routers.grupos import router
+
+        rutas_delete = [
+            r.path for r in router.routes if "DELETE" in getattr(r, "methods", set())
+        ]
+        assert "/grupos/{grupo_id}" in rutas_delete
+
+
 class TestGrupoUpdate:
     def test_acepta_los_campos_del_form_de_configuracion(self):
         # El form de Configuración del maestro manda estos campos; antes

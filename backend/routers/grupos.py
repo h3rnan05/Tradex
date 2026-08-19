@@ -151,6 +151,42 @@ def actualizar_grupo(
     return grupo
 
 
+@router.delete("/{grupo_id}", status_code=status.HTTP_204_NO_CONTENT)
+def eliminar_grupo(
+    grupo_id: str,
+    db: Session = Depends(get_db),
+    maestro: User = Depends(require_maestro),
+):
+    grupo = db.query(Grupo).filter(Grupo.id == grupo_id, Grupo.maestro_id == maestro.id).first()
+    if not grupo:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Grupo no encontrado")
+
+    from models.comentario import ComentarioOrden
+    from models.insignia import InsigniaAlumno
+    from models.orden import Orden
+    from models.orden_pendiente import OrdenPendiente
+    from models.reto import Reto, RetoHolding, RetoOrden, RetoParticipante
+
+    # Hijos primero, respetando las foreign keys
+    db.query(ComentarioOrden).filter(ComentarioOrden.grupo_id == grupo.id).delete(synchronize_session=False)
+
+    reto_ids = [rid for (rid,) in db.query(Reto.id).filter(Reto.grupo_id == grupo.id).all()]
+    if reto_ids:
+        db.query(RetoOrden).filter(RetoOrden.reto_id.in_(reto_ids)).delete(synchronize_session=False)
+        db.query(RetoHolding).filter(RetoHolding.reto_id.in_(reto_ids)).delete(synchronize_session=False)
+        db.query(RetoParticipante).filter(RetoParticipante.reto_id.in_(reto_ids)).delete(synchronize_session=False)
+        db.query(Reto).filter(Reto.id.in_(reto_ids)).delete(synchronize_session=False)
+
+    db.query(OrdenPendiente).filter(OrdenPendiente.grupo_id == grupo.id).delete(synchronize_session=False)
+    db.query(InsigniaAlumno).filter(InsigniaAlumno.grupo_id == grupo.id).delete(synchronize_session=False)
+    db.query(Orden).filter(Orden.grupo_id == grupo.id).delete(synchronize_session=False)
+    db.query(Holding).filter(Holding.grupo_id == grupo.id).delete(synchronize_session=False)
+    db.query(Membership).filter(Membership.grupo_id == grupo.id).delete(synchronize_session=False)
+    db.query(FaseActivo).filter(FaseActivo.grupo_id == grupo.id).delete(synchronize_session=False)
+    db.query(Grupo).filter(Grupo.id == grupo.id).delete(synchronize_session=False)
+    db.commit()
+
+
 @router.post("/{grupo_id}/memberships/{membership_id}/pausar", response_model=MembershipOut)
 def pausar_participante(
     grupo_id: str,

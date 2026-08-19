@@ -60,6 +60,7 @@ export default function GruposPage() {
   const [comisionPorcentaje, setComisionPorcentaje] = useState("");
   const [fechasActivacion, setFechasActivacion] = useState<Record<string, string>>({});
   const [guardando, setGuardando] = useState(false);
+  const [eliminando, setEliminando] = useState<string | null>(null);
 
   function alternarActivo(valor: string) {
     setActivosPermitidos((prev) =>
@@ -119,6 +120,23 @@ export default function GruposPage() {
       setError(err instanceof ApiError ? err.message : "No se pudo crear el grupo");
     } finally {
       setGuardando(false);
+    }
+  }
+
+  async function eliminarGrupo(g: Grupo) {
+    const confirmado = window.confirm(
+      `¿Eliminar el grupo "${g.nombre}"?\n\nSe borrarán de forma permanente sus alumnos inscritos, órdenes, portafolios y retos. Esta acción no se puede deshacer.`
+    );
+    if (!confirmado) return;
+    setEliminando(g.id);
+    setError(null);
+    try {
+      await api.delete(`/grupos/${g.id}`);
+      await cargarGrupos();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "No se pudo eliminar el grupo");
+    } finally {
+      setEliminando(null);
     }
   }
 
@@ -335,12 +353,21 @@ export default function GruposPage() {
                     </div>
                   )}
 
-                  <Link
-                    href={`/maestro/grupos/${g.id}`}
-                    className="mt-auto self-start text-sm font-medium text-fg underline hover:text-fg/70"
-                  >
-                    Ver detalle →
-                  </Link>
+                  <div className="mt-auto flex items-center justify-between">
+                    <Link
+                      href={`/maestro/grupos/${g.id}`}
+                      className="text-sm font-medium text-fg underline hover:text-fg/70"
+                    >
+                      Ver detalle →
+                    </Link>
+                    <button
+                      onClick={() => eliminarGrupo(g)}
+                      disabled={eliminando === g.id}
+                      className="text-xs text-perdida/70 underline hover:text-perdida disabled:opacity-50"
+                    >
+                      {eliminando === g.id ? "Eliminando..." : "Eliminar"}
+                    </button>
+                  </div>
                 </div>
               );
             })}
