@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import { api, ApiError } from "@/lib/api";
+import { finDeDiaISO, inicioDeDiaISO } from "@/lib/fechas";
 
 interface Grupo {
   id: string;
@@ -89,8 +90,8 @@ export default function GruposPage() {
     try {
       await api.post("/grupos", {
         nombre,
-        fecha_inicio: new Date(fechaInicio).toISOString(),
-        fecha_fin: new Date(fechaFin).toISOString(),
+        fecha_inicio: inicioDeDiaISO(fechaInicio),
+        fecha_fin: finDeDiaISO(fechaFin),
         capital_inicial: capitalInicial,
         max_alumnos: maxAlumnos ? Number(maxAlumnos) : null,
         activos_permitidos: activosPermitidos,
@@ -100,7 +101,7 @@ export default function GruposPage() {
           .filter((tipo) => fechasActivacion[tipo])
           .map((tipo) => ({
             tipo_activo: tipo,
-            fecha_activacion: new Date(fechasActivacion[tipo]).toISOString(),
+            fecha_activacion: inicioDeDiaISO(fechasActivacion[tipo]),
           })),
       });
       setNombre("");

@@ -1,4 +1,5 @@
 from collections import defaultdict
+from datetime import datetime, timezone
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -20,8 +21,22 @@ from schemas.ranking import RankingEntry
 router = APIRouter(prefix="/grupos", tags=["grupos"])
 
 
+def _aware(dt: datetime) -> datetime:
+    """Normaliza a UTC un datetime que pudo llegar sin timezone."""
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
+def validar_rango_fechas(fecha_inicio: datetime, fecha_fin: datetime) -> None:
+    if _aware(fecha_fin) <= _aware(fecha_inicio):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La fecha de cierre debe ser posterior a la fecha de inicio",
+        )
+
+
 @router.post("", response_model=GrupoOut, status_code=status.HTTP_201_CREATED)
 def crear_grupo(payload: GrupoCreate, db: Session = Depends(get_db), maestro: User = Depends(require_maestro)):
+    validar_rango_fechas(payload.fecha_inicio, payload.fecha_fin)
     grupo = Grupo(
         nombre=payload.nombre,
         maestro_id=maestro.id,
@@ -130,6 +145,7 @@ def actualizar_grupo(
         raise HTTPException(status_code=404, detail="Grupo no encontrado")
     for field, value in payload.model_dump(exclude_none=True).items():
         setattr(grupo, field, value)
+    validar_rango_fechas(grupo.fecha_inicio, grupo.fecha_fin)
     db.commit()
     db.refresh(grupo)
     return grupo
