@@ -1,4 +1,5 @@
 from collections import defaultdict
+from datetime import datetime, timezone
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -20,8 +21,22 @@ from schemas.ranking import RankingEntry
 router = APIRouter(prefix="/grupos", tags=["grupos"])
 
 
+def _aware(dt: datetime) -> datetime:
+    """Normaliza a UTC un datetime que pudo llegar sin timezone."""
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
+def validar_rango_fechas(fecha_inicio: datetime, fecha_fin: datetime) -> None:
+    if _aware(fecha_fin) <= _aware(fecha_inicio):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La fecha de cierre debe ser posterior a la fecha de inicio",
+        )
+
+
 @router.post("", response_model=GrupoOut, status_code=status.HTTP_201_CREATED)
 def crear_grupo(payload: GrupoCreate, db: Session = Depends(get_db), maestro: User = Depends(require_maestro)):
+    validar_rango_fechas(payload.fecha_inicio, payload.fecha_fin)
     grupo = Grupo(
         nombre=payload.nombre,
         maestro_id=maestro.id,
@@ -130,9 +145,46 @@ def actualizar_grupo(
         raise HTTPException(status_code=404, detail="Grupo no encontrado")
     for field, value in payload.model_dump(exclude_none=True).items():
         setattr(grupo, field, value)
+    validar_rango_fechas(grupo.fecha_inicio, grupo.fecha_fin)
     db.commit()
     db.refresh(grupo)
     return grupo
+
+
+@router.delete("/{grupo_id}", status_code=status.HTTP_204_NO_CONTENT)
+def eliminar_grupo(
+    grupo_id: str,
+    db: Session = Depends(get_db),
+    maestro: User = Depends(require_maestro),
+):
+    grupo = db.query(Grupo).filter(Grupo.id == grupo_id, Grupo.maestro_id == maestro.id).first()
+    if not grupo:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Grupo no encontrado")
+
+    from models.comentario import ComentarioOrden
+    from models.insignia import InsigniaAlumno
+    from models.orden import Orden
+    from models.orden_pendiente import OrdenPendiente
+    from models.reto import Reto, RetoHolding, RetoOrden, RetoParticipante
+
+    # Hijos primero, respetando las foreign keys
+    db.query(ComentarioOrden).filter(ComentarioOrden.grupo_id == grupo.id).delete(synchronize_session=False)
+
+    reto_ids = [rid for (rid,) in db.query(Reto.id).filter(Reto.grupo_id == grupo.id).all()]
+    if reto_ids:
+        db.query(RetoOrden).filter(RetoOrden.reto_id.in_(reto_ids)).delete(synchronize_session=False)
+        db.query(RetoHolding).filter(RetoHolding.reto_id.in_(reto_ids)).delete(synchronize_session=False)
+        db.query(RetoParticipante).filter(RetoParticipante.reto_id.in_(reto_ids)).delete(synchronize_session=False)
+        db.query(Reto).filter(Reto.id.in_(reto_ids)).delete(synchronize_session=False)
+
+    db.query(OrdenPendiente).filter(OrdenPendiente.grupo_id == grupo.id).delete(synchronize_session=False)
+    db.query(InsigniaAlumno).filter(InsigniaAlumno.grupo_id == grupo.id).delete(synchronize_session=False)
+    db.query(Orden).filter(Orden.grupo_id == grupo.id).delete(synchronize_session=False)
+    db.query(Holding).filter(Holding.grupo_id == grupo.id).delete(synchronize_session=False)
+    db.query(Membership).filter(Membership.grupo_id == grupo.id).delete(synchronize_session=False)
+    db.query(FaseActivo).filter(FaseActivo.grupo_id == grupo.id).delete(synchronize_session=False)
+    db.query(Grupo).filter(Grupo.id == grupo.id).delete(synchronize_session=False)
+    db.commit()
 
 
 @router.post("/{grupo_id}/memberships/{membership_id}/pausar", response_model=MembershipOut)

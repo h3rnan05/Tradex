@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import { api, ApiError } from "@/lib/api";
+import { finDeDiaISO, inicioDeDiaISO } from "@/lib/fechas";
 
 interface Grupo {
   id: string;
@@ -59,6 +60,7 @@ export default function GruposPage() {
   const [comisionPorcentaje, setComisionPorcentaje] = useState("");
   const [fechasActivacion, setFechasActivacion] = useState<Record<string, string>>({});
   const [guardando, setGuardando] = useState(false);
+  const [eliminando, setEliminando] = useState<string | null>(null);
 
   function alternarActivo(valor: string) {
     setActivosPermitidos((prev) =>
@@ -89,8 +91,8 @@ export default function GruposPage() {
     try {
       await api.post("/grupos", {
         nombre,
-        fecha_inicio: new Date(fechaInicio).toISOString(),
-        fecha_fin: new Date(fechaFin).toISOString(),
+        fecha_inicio: inicioDeDiaISO(fechaInicio),
+        fecha_fin: finDeDiaISO(fechaFin),
         capital_inicial: capitalInicial,
         max_alumnos: maxAlumnos ? Number(maxAlumnos) : null,
         activos_permitidos: activosPermitidos,
@@ -100,7 +102,7 @@ export default function GruposPage() {
           .filter((tipo) => fechasActivacion[tipo])
           .map((tipo) => ({
             tipo_activo: tipo,
-            fecha_activacion: new Date(fechasActivacion[tipo]).toISOString(),
+            fecha_activacion: inicioDeDiaISO(fechasActivacion[tipo]),
           })),
       });
       setNombre("");
@@ -118,6 +120,23 @@ export default function GruposPage() {
       setError(err instanceof ApiError ? err.message : "No se pudo crear el grupo");
     } finally {
       setGuardando(false);
+    }
+  }
+
+  async function eliminarGrupo(g: Grupo) {
+    const confirmado = window.confirm(
+      `¿Eliminar el grupo "${g.nombre}"?\n\nSe borrarán de forma permanente sus alumnos inscritos, órdenes, portafolios y retos. Esta acción no se puede deshacer.`
+    );
+    if (!confirmado) return;
+    setEliminando(g.id);
+    setError(null);
+    try {
+      await api.delete(`/grupos/${g.id}`);
+      await cargarGrupos();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "No se pudo eliminar el grupo");
+    } finally {
+      setEliminando(null);
     }
   }
 
@@ -334,12 +353,21 @@ export default function GruposPage() {
                     </div>
                   )}
 
-                  <Link
-                    href={`/maestro/grupos/${g.id}`}
-                    className="mt-auto self-start text-sm font-medium text-fg underline hover:text-fg/70"
-                  >
-                    Ver detalle →
-                  </Link>
+                  <div className="mt-auto flex items-center justify-between">
+                    <Link
+                      href={`/maestro/grupos/${g.id}`}
+                      className="text-sm font-medium text-fg underline hover:text-fg/70"
+                    >
+                      Ver detalle →
+                    </Link>
+                    <button
+                      onClick={() => eliminarGrupo(g)}
+                      disabled={eliminando === g.id}
+                      className="text-xs text-perdida/70 underline hover:text-perdida disabled:opacity-50"
+                    >
+                      {eliminando === g.id ? "Eliminando..." : "Eliminar"}
+                    </button>
+                  </div>
                 </div>
               );
             })}

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import { api, ApiError } from "@/lib/api";
+import { aFechaLocalInput, finDeDiaISO, inicioDeDiaISO } from "@/lib/fechas";
 import ComentariosMaestro from "@/components/ComentariosMaestro";
 
 interface Membership {
@@ -112,8 +113,8 @@ export default function DetalleGrupoPage() {
       const cap = Number(data.capital_inicial);
       setCfgCapital(CAPITALES.includes(cap) ? cap : 10000);
       setCfgMercados(data.activos_permitidos);
-      setCfgFechaInicio(data.fecha_inicio.slice(0, 10));
-      setCfgFechaFin(data.fecha_fin.slice(0, 10));
+      setCfgFechaInicio(aFechaLocalInput(data.fecha_inicio));
+      setCfgFechaFin(aFechaLocalInput(data.fecha_fin));
       const comVal = Number(data.comision_porcentaje).toFixed(2);
       setCfgComision(comVal === "0.00" ? "0" : comVal);
       setCfgLimiteOrden(data.limite_orden_valor ?? "");
@@ -159,8 +160,8 @@ export default function DetalleGrupoPage() {
         nombre: cfgNombre,
         capital_inicial: cfgCapital,
         activos_permitidos: cfgMercados,
-        fecha_inicio: cfgFechaInicio,
-        fecha_fin: cfgFechaFin,
+        fecha_inicio: inicioDeDiaISO(cfgFechaInicio),
+        fecha_fin: finDeDiaISO(cfgFechaFin),
         comision_porcentaje: parseFloat(cfgComision),
         limite_orden_valor: cfgLimiteOrden ? parseFloat(cfgLimiteOrden) : null,
       });

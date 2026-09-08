@@ -29,7 +29,7 @@ USER_AGENT = (
     "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 )
 
-TICKERS_DESTACADOS = ["AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "TSLA", "META", "NFLX"]
+TICKERS_DESTACADOS = ["AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "TSLA", "META", "NFLX", "PLTR"]
 
 INDICES_MERCADO = [
     {"ticker": "^GSPC", "nombre": "S&P 500"},
